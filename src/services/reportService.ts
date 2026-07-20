@@ -1,13 +1,20 @@
-import type { ServiceResponse } from '@/types/api'
+import {
+  createErrorResponse,
+  createSuccessResponse,
+  type ServiceResponse,
+} from '@/types/api'
+import { supabase } from '@/services/supabaseClient'
 
 export interface SalesReport {
   todayRevenue: number
   weeklyRevenue: number
   monthlyRevenue: number
+  totalRevenue: number
   orderCount: number
+  todayOrders: number
   averageOrderValue: number
+  totalCustomers: number
   newCustomers: number
-  repeatCustomers: number
 }
 
 export interface PopularDishReport {
@@ -23,18 +30,222 @@ export interface CategoryRevenueReport {
   revenue: number
 }
 
-export async function getSalesReport(): Promise<ServiceResponse<SalesReport>> {
-  throw new Error('Not implemented')
+export interface DashboardOverview {
+  totalOrders: number
+  todayOrders: number
+  totalRevenue: number
+  todayRevenue: number
+  totalCustomers: number
+  popularDish: PopularDishReport | null
+  recentOrderCount: number
 }
 
-export async function getPopularDishes(): Promise<
-  ServiceResponse<PopularDishReport[]>
-> {
-  throw new Error('Not implemented')
+function startOfDay(date = new Date()): string {
+  const copy = new Date(date)
+  copy.setHours(0, 0, 0, 0)
+  return copy.toISOString()
+}
+
+function daysAgo(days: number): string {
+  const date = new Date()
+  date.setDate(date.getDate() - days)
+  date.setHours(0, 0, 0, 0)
+  return date.toISOString()
+}
+
+function startOfMonth(): string {
+  const date = new Date()
+  date.setDate(1)
+  date.setHours(0, 0, 0, 0)
+  return date.toISOString()
+}
+
+function sumOrderTotals(
+  orders: { total: number | string }[] | null | undefined,
+): number {
+  return (
+    orders?.reduce((sum, order) => sum + Number(order.total), 0) ?? 0
+  )
+}
+
+async function fetchNonCancelledOrders(from?: string) {
+  let query = supabase
+    .from('orders')
+    .select('total, created_at, user_id')
+    .neq('order_status', 'cancelled')
+
+  if (from) {
+    query = query.gte('created_at', from)
+  }
+
+  return query
+}
+
+export async function getSalesReport(): Promise<ServiceResponse<SalesReport>> {
+  const todayStart = startOfDay()
+  const weekStart = daysAgo(7)
+  const monthStart = startOfMonth()
+
+  const [
+    allOrdersResult,
+    todayOrdersResult,
+    weekOrdersResult,
+    monthOrdersResult,
+    customersResult,
+    newCustomersResult,
+  ] = await Promise.all([
+    supabase.from('orders').select('total').neq('order_status', 'cancelled'),
+    fetchNonCancelledOrders(todayStart),
+    fetchNonCancelledOrders(weekStart),
+    fetchNonCancelledOrders(monthStart),
+    supabase
+      .from('profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('role', 'customer'),
+    supabase
+      .from('profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('role', 'customer')
+      .gte('created_at', monthStart),
+  ])
+
+  if (allOrdersResult.error) {
+    return createErrorResponse(
+      'Unable to load sales report.',
+      allOrdersResult.error.message,
+    )
+  }
+
+  const allOrders = allOrdersResult.data ?? []
+  const orderCount = allOrders.length
+  const totalRevenue = sumOrderTotals(allOrders)
+  const todayRevenue = sumOrderTotals(todayOrdersResult.data)
+  const weeklyRevenue = sumOrderTotals(weekOrdersResult.data)
+  const monthlyRevenue = sumOrderTotals(monthOrdersResult.data)
+
+  return createSuccessResponse({
+    todayRevenue,
+    weeklyRevenue,
+    monthlyRevenue,
+    totalRevenue,
+    orderCount,
+    todayOrders: todayOrdersResult.data?.length ?? 0,
+    averageOrderValue: orderCount > 0 ? totalRevenue / orderCount : 0,
+    totalCustomers: customersResult.count ?? 0,
+    newCustomers: newCustomersResult.count ?? 0,
+  })
+}
+
+export async function getPopularDishes(
+  limit = 5,
+): Promise<ServiceResponse<PopularDishReport[]>> {
+  const { data, error } = await supabase
+    .from('order_items')
+    .select('quantity, total, dishes(id, name)')
+
+  if (error) {
+    return createErrorResponse('Unable to load popular dishes.', error.message)
+  }
+
+  const aggregated = new Map<string, PopularDishReport>()
+
+  for (const row of data ?? []) {
+    const dish = row.dishes as unknown as { id: string; name: string } | null
+
+    if (!dish) continue
+
+    const existing = aggregated.get(dish.id)
+
+    if (existing) {
+      existing.orderCount += Number(row.quantity)
+      existing.revenue += Number(row.total)
+    } else {
+      aggregated.set(dish.id, {
+        dishId: dish.id,
+        dishName: dish.name,
+        orderCount: Number(row.quantity),
+        revenue: Number(row.total),
+      })
+    }
+  }
+
+  const results = Array.from(aggregated.values())
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, limit)
+
+  return createSuccessResponse(results)
 }
 
 export async function getCategoryRevenue(): Promise<
   ServiceResponse<CategoryRevenueReport[]>
 > {
-  throw new Error('Not implemented')
+  const { data, error } = await supabase
+    .from('order_items')
+    .select('total, dishes(category_id, categories(name))')
+
+  if (error) {
+    return createErrorResponse(
+      'Unable to load category revenue.',
+      error.message,
+    )
+  }
+
+  const aggregated = new Map<string, CategoryRevenueReport>()
+
+  for (const row of data ?? []) {
+    const dish = row.dishes as unknown as {
+      category_id: string
+      categories: { name: string } | null
+    } | null
+
+    if (!dish?.category_id) continue
+
+    const categoryName = dish.categories?.name ?? 'Unknown'
+    const existing = aggregated.get(dish.category_id)
+
+    if (existing) {
+      existing.revenue += Number(row.total)
+    } else {
+      aggregated.set(dish.category_id, {
+        categoryId: dish.category_id,
+        categoryName,
+        revenue: Number(row.total),
+      })
+    }
+  }
+
+  const results = Array.from(aggregated.values()).sort(
+    (a, b) => b.revenue - a.revenue,
+  )
+
+  return createSuccessResponse(results)
+}
+
+export async function getDashboardOverview(): Promise<
+  ServiceResponse<DashboardOverview>
+> {
+  const [salesResult, popularResult] = await Promise.all([
+    getSalesReport(),
+    getPopularDishes(1),
+  ])
+
+  if (!salesResult.success) {
+    return salesResult
+  }
+
+  if (!popularResult.success) {
+    return popularResult
+  }
+
+  const sales = salesResult.data
+
+  return createSuccessResponse({
+    totalOrders: sales.orderCount,
+    todayOrders: sales.todayOrders,
+    totalRevenue: sales.totalRevenue,
+    todayRevenue: sales.todayRevenue,
+    totalCustomers: sales.totalCustomers,
+    popularDish: popularResult.data[0] ?? null,
+    recentOrderCount: sales.todayOrders,
+  })
 }

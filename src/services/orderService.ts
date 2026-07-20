@@ -16,6 +16,27 @@ export interface CreateOrderInput {
   specialInstructions?: string
 }
 
+export interface AdminOrder extends Order {
+  customer_name: string
+  customer_email: string
+}
+
+export interface AdminOrderFilters {
+  status?: OrderStatus
+  search?: string
+  limit?: number
+}
+
+function mapAdminOrder(row: Record<string, unknown>): AdminOrder {
+  const profile = row.profiles as { full_name: string; email: string } | null
+
+  return {
+    ...mapOrder(row),
+    customer_name: profile?.full_name ?? 'Unknown',
+    customer_email: profile?.email ?? '',
+  }
+}
+
 async function requireUserId(): Promise<ServiceResponse<string>> {
   const {
     data: { user },
@@ -202,6 +223,35 @@ export async function createOrder(
   await cartService.clearCart()
 
   return createSuccessResponse(mapOrder(order))
+}
+
+export async function getAllOrders(
+  filters?: AdminOrderFilters,
+): Promise<ServiceResponse<AdminOrder[]>> {
+  let query = supabase
+    .from('orders')
+    .select('*, profiles(full_name, email)')
+    .order('created_at', { ascending: false })
+
+  if (filters?.status) {
+    query = query.eq('order_status', filters.status)
+  }
+
+  if (filters?.search?.trim()) {
+    query = query.ilike('order_number', `%${filters.search.trim()}%`)
+  }
+
+  if (filters?.limit) {
+    query = query.limit(filters.limit)
+  }
+
+  const { data, error } = await query
+
+  if (error) {
+    return createErrorResponse('Unable to load orders.', error.message)
+  }
+
+  return createSuccessResponse((data ?? []).map(mapAdminOrder))
 }
 
 export async function updateOrderStatus(
