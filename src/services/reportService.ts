@@ -12,9 +12,33 @@ export interface SalesReport {
   totalRevenue: number
   orderCount: number
   todayOrders: number
+  weeklyOrders: number
+  monthlyOrders: number
   averageOrderValue: number
   totalCustomers: number
   newCustomers: number
+}
+
+export interface PeriodSales {
+  revenue: number
+  orders: number
+}
+
+export interface DailySalesPoint {
+  date: string
+  label: string
+  revenue: number
+  orders: number
+}
+
+export interface ReportsOverview {
+  totalRevenue: number
+  totalOrders: number
+  dailySales: PeriodSales
+  weeklySales: PeriodSales
+  monthlySales: PeriodSales
+  dailyTrend: DailySalesPoint[]
+  popularDishes: PopularDishReport[]
 }
 
 export interface PopularDishReport {
@@ -130,9 +154,103 @@ export async function getSalesReport(): Promise<ServiceResponse<SalesReport>> {
     totalRevenue,
     orderCount,
     todayOrders: todayOrdersResult.data?.length ?? 0,
+    weeklyOrders: weekOrdersResult.data?.length ?? 0,
+    monthlyOrders: monthOrdersResult.data?.length ?? 0,
     averageOrderValue: orderCount > 0 ? totalRevenue / orderCount : 0,
     totalCustomers: customersResult.count ?? 0,
     newCustomers: newCustomersResult.count ?? 0,
+  })
+}
+
+export async function getDailySalesTrend(
+  days = 7,
+): Promise<ServiceResponse<DailySalesPoint[]>> {
+  const from = daysAgo(days - 1)
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select('total, created_at')
+    .neq('order_status', 'cancelled')
+    .gte('created_at', from)
+
+  if (error) {
+    return createErrorResponse(
+      'Unable to load daily sales trend.',
+      error.message,
+    )
+  }
+
+  const points: DailySalesPoint[] = []
+
+  for (let index = days - 1; index >= 0; index -= 1) {
+    const date = new Date()
+    date.setDate(date.getDate() - index)
+    date.setHours(0, 0, 0, 0)
+
+    points.push({
+      date: date.toISOString().slice(0, 10),
+      label: date.toLocaleDateString('en-IN', {
+        weekday: 'short',
+        day: 'numeric',
+      }),
+      revenue: 0,
+      orders: 0,
+    })
+  }
+
+  for (const order of data ?? []) {
+    const dateKey = new Date(order.created_at).toISOString().slice(0, 10)
+    const point = points.find((entry) => entry.date === dateKey)
+
+    if (point) {
+      point.revenue += Number(order.total)
+      point.orders += 1
+    }
+  }
+
+  return createSuccessResponse(points)
+}
+
+export async function getReportsOverview(): Promise<
+  ServiceResponse<ReportsOverview>
+> {
+  const [salesResult, trendResult, popularResult] = await Promise.all([
+    getSalesReport(),
+    getDailySalesTrend(7),
+    getPopularDishes(10),
+  ])
+
+  if (!salesResult.success) {
+    return salesResult
+  }
+
+  if (!trendResult.success) {
+    return trendResult
+  }
+
+  if (!popularResult.success) {
+    return popularResult
+  }
+
+  const sales = salesResult.data
+
+  return createSuccessResponse({
+    totalRevenue: sales.totalRevenue,
+    totalOrders: sales.orderCount,
+    dailySales: {
+      revenue: sales.todayRevenue,
+      orders: sales.todayOrders,
+    },
+    weeklySales: {
+      revenue: sales.weeklyRevenue,
+      orders: sales.weeklyOrders,
+    },
+    monthlySales: {
+      revenue: sales.monthlyRevenue,
+      orders: sales.monthlyOrders,
+    },
+    dailyTrend: trendResult.data,
+    popularDishes: popularResult.data,
   })
 }
 
