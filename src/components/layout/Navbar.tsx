@@ -8,6 +8,7 @@ import { mainNavLinks } from '@/data/navigation'
 import { Container } from '@/components/ui/Container'
 import { MobileMenu } from '@/components/layout/MobileMenu'
 import { useAuth } from '@/hooks/useAuth'
+import { useCart } from '@/hooks/useCart'
 import { cn } from '@/utils/cn'
 
 interface NavbarProps {
@@ -16,6 +17,7 @@ interface NavbarProps {
 
 export function Navbar({ transparent = false }: NavbarProps) {
   const { isAuthenticated, user, logout } = useAuth()
+  const { itemCount } = useCart()
   const navigate = useNavigate()
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileOpen, setIsMobileOpen] = useState(false)
@@ -91,14 +93,19 @@ export function Navbar({ transparent = false }: NavbarProps) {
             <Link
               to={ROUTES.CART}
               className={cn(
-                'flex h-10 w-10 items-center justify-center rounded-full transition-colors',
+                'relative flex h-10 w-10 items-center justify-center rounded-full transition-colors',
                 isSolid
                   ? 'text-text-primary hover:bg-primary/10 hover:text-primary'
                   : 'text-white hover:bg-white/10',
               )}
-              aria-label="View cart"
+              aria-label={`View cart${itemCount > 0 ? `, ${itemCount} items` : ''}`}
             >
               <ShoppingCart className="h-5 w-5" />
+              {itemCount > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-bold text-white">
+                  {itemCount > 9 ? '9+' : itemCount}
+                </span>
+              )}
             </Link>
 
             {isAuthenticated ? (

@@ -1,10 +1,12 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Clock, Flame, Star } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { SPICE_LEVEL } from '@/constants/SPICE_LEVEL'
 import { ROUTES } from '@/constants/ROUTES'
+import { useAuth } from '@/hooks/useAuth'
+import { useCart } from '@/hooks/useCart'
 import type { Dish } from '@/types/Dish'
 
 interface MenuDishCardProps {
@@ -19,8 +21,25 @@ const priceFormatter = new Intl.NumberFormat('en-IN', {
 })
 
 export function MenuDishCard({ dish, categoryName }: MenuDishCardProps) {
-  const handleAddToCart = () => {
-    toast.success(`${dish.name} added to cart`)
+  const navigate = useNavigate()
+  const { isAuthenticated } = useAuth()
+  const { addItem, isUpdating } = useCart()
+
+  const handleAddToCart = async () => {
+    if (!isAuthenticated) {
+      toast.error('Please sign in to add items to your cart')
+      navigate(ROUTES.LOGIN, { state: { from: ROUTES.MENU } })
+      return
+    }
+
+    const result = await addItem(dish.id)
+
+    if (result.success) {
+      toast.success(`${dish.name} added to cart`)
+      return
+    }
+
+    toast.error(result.message)
   }
 
   return (
@@ -97,7 +116,12 @@ export function MenuDishCard({ dish, categoryName }: MenuDishCardProps) {
         </div>
 
         <div className="mt-auto pt-4">
-          <Button type="button" fullWidth onClick={handleAddToCart}>
+          <Button
+            type="button"
+            fullWidth
+            disabled={isUpdating}
+            onClick={() => void handleAddToCart()}
+          >
             Add to Cart
           </Button>
         </div>

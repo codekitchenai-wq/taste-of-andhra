@@ -1,13 +1,15 @@
 import { RouterProvider } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from '@/contexts/AuthContext'
+import { CartProvider } from '@/contexts/CartContext'
 import { router } from '@/routes'
 
 export default function App() {
   return (
     <AuthProvider>
-      <RouterProvider router={router} />
-      <Toaster
+      <CartProvider>
+        <RouterProvider router={router} />
+        <Toaster
         position="top-right"
         toastOptions={{
           duration: 3000,
@@ -17,7 +19,8 @@ export default function App() {
             color: '#212121',
           },
         }}
-      />
+        />
+      </CartProvider>
     </AuthProvider>
   )
 }
