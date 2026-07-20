@@ -1,16 +1,30 @@
 import { Link } from 'react-router-dom'
 import type { NavLink } from '@/data/navigation'
 import { ROUTES } from '@/constants/ROUTES'
+import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/utils/cn'
 
 interface MobileMenuProps {
   isOpen: boolean
   onClose: () => void
   links: NavLink[]
+  onLogout: () => void
 }
 
-export function MobileMenu({ isOpen, onClose, links }: MobileMenuProps) {
+export function MobileMenu({
+  isOpen,
+  onClose,
+  links,
+  onLogout,
+}: MobileMenuProps) {
+  const { isAuthenticated, user } = useAuth()
+
   if (!isOpen) return null
+
+  const handleLogout = () => {
+    onClose()
+    onLogout()
+  }
 
   return (
     <div className="fixed inset-0 z-40 lg:hidden">
@@ -39,13 +53,41 @@ export function MobileMenu({ isOpen, onClose, links }: MobileMenuProps) {
             </li>
           ))}
           <li className="border-t border-black/5 pt-4">
-            <Link
-              to={ROUTES.LOGIN}
-              onClick={onClose}
-              className="block rounded-[var(--radius-button)] px-4 py-3 text-base font-medium text-primary"
-            >
-              Login / Register
-            </Link>
+            {isAuthenticated ? (
+              <>
+                <Link
+                  to={ROUTES.PROFILE}
+                  onClick={onClose}
+                  className="block rounded-[var(--radius-button)] px-4 py-3 text-base font-medium text-text-primary"
+                >
+                  Profile ({user?.full_name})
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="block w-full rounded-[var(--radius-button)] px-4 py-3 text-left text-base font-medium text-primary"
+                >
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  to={ROUTES.LOGIN}
+                  onClick={onClose}
+                  className="block rounded-[var(--radius-button)] px-4 py-3 text-base font-medium text-primary"
+                >
+                  Login
+                </Link>
+                <Link
+                  to={ROUTES.REGISTER}
+                  onClick={onClose}
+                  className="block rounded-[var(--radius-button)] px-4 py-3 text-base font-medium text-text-secondary"
+                >
+                  Register
+                </Link>
+              </>
+            )}
           </li>
         </ul>
       </nav>

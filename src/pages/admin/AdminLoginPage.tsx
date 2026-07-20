@@ -1,9 +1,26 @@
-import { Link } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
+import { AdminLoginForm } from '@/components/auth/AdminLoginForm'
+import { LoadingState } from '@/components/ui/LoadingState'
 import { APP_NAME } from '@/constants/APP'
 import { ROUTES } from '@/constants/ROUTES'
 import { Container } from '@/components/ui/Container'
+import { useAuth } from '@/hooks/useAuth'
 
 export default function AdminLoginPage() {
+  const { isAuthenticated, role, isLoading } = useAuth()
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-svh items-center justify-center bg-background">
+        <LoadingState fullPage variant="inline" />
+      </div>
+    )
+  }
+
+  if (isAuthenticated && role === 'admin') {
+    return <Navigate to={ROUTES.ADMIN.DASHBOARD} replace />
+  }
+
   return (
     <div className="flex min-h-svh flex-col bg-background">
       <Container className="flex flex-1 items-center justify-center py-12">
@@ -19,16 +36,10 @@ export default function AdminLoginPage() {
             <p className="mt-2 text-sm text-text-secondary">
               Restaurant staff sign in to manage operations.
             </p>
-            <p className="mt-6 rounded-[var(--radius-input)] border border-dashed border-gray-300 bg-background px-4 py-6 text-center text-sm text-text-secondary">
-              Admin login form will be implemented in the authentication
-              milestone.
-            </p>
+            <div className="mt-6">
+              <AdminLoginForm />
+            </div>
           </div>
-          <p className="mt-6 text-center text-sm text-text-secondary">
-            <Link to={ROUTES.HOME} className="text-primary hover:underline">
-              Back to website
-            </Link>
-          </p>
         </div>
       </Container>
     </div>

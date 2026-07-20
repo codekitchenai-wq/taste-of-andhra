@@ -1,11 +1,13 @@
-import { Link, NavLink } from 'react-router-dom'
-import { ShoppingCart, User, Menu, X } from 'lucide-react'
+import { Link, NavLink, useNavigate } from 'react-router-dom'
+import { LogOut, ShoppingCart, User, Menu, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import toast from 'react-hot-toast'
 import { APP_NAME } from '@/constants/APP'
 import { ROUTES } from '@/constants/ROUTES'
 import { mainNavLinks } from '@/data/navigation'
 import { Container } from '@/components/ui/Container'
 import { MobileMenu } from '@/components/layout/MobileMenu'
+import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/utils/cn'
 
 interface NavbarProps {
@@ -13,6 +15,8 @@ interface NavbarProps {
 }
 
 export function Navbar({ transparent = false }: NavbarProps) {
+  const { isAuthenticated, user, logout } = useAuth()
+  const navigate = useNavigate()
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileOpen, setIsMobileOpen] = useState(false)
 
@@ -23,6 +27,18 @@ export function Navbar({ transparent = false }: NavbarProps) {
   }, [])
 
   const isSolid = !transparent || isScrolled
+
+  const handleLogout = async () => {
+    const result = await logout()
+
+    if (!result.success) {
+      toast.error(result.message)
+      return
+    }
+
+    toast.success('Signed out successfully')
+    navigate(ROUTES.HOME)
+  }
 
   return (
     <>
@@ -84,18 +100,53 @@ export function Navbar({ transparent = false }: NavbarProps) {
             >
               <ShoppingCart className="h-5 w-5" />
             </Link>
-            <Link
-              to={ROUTES.LOGIN}
-              className={cn(
-                'hidden h-10 w-10 items-center justify-center rounded-full transition-colors sm:flex',
-                isSolid
-                  ? 'text-text-primary hover:bg-primary/10 hover:text-primary'
-                  : 'text-white hover:bg-white/10',
-              )}
-              aria-label="Account"
-            >
-              <User className="h-5 w-5" />
-            </Link>
+
+            {isAuthenticated ? (
+              <>
+                <Link
+                  to={ROUTES.PROFILE}
+                  className={cn(
+                    'hidden h-10 max-w-[140px] items-center gap-2 rounded-full px-3 transition-colors sm:flex',
+                    isSolid
+                      ? 'text-text-primary hover:bg-primary/10 hover:text-primary'
+                      : 'text-white hover:bg-white/10',
+                  )}
+                  aria-label="View profile"
+                >
+                  <User className="h-5 w-5 shrink-0" />
+                  <span className="truncate text-sm font-medium">
+                    {user?.full_name.split(' ')[0]}
+                  </span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className={cn(
+                    'hidden h-10 w-10 items-center justify-center rounded-full transition-colors sm:flex',
+                    isSolid
+                      ? 'text-text-primary hover:bg-primary/10 hover:text-primary'
+                      : 'text-white hover:bg-white/10',
+                  )}
+                  aria-label="Sign out"
+                >
+                  <LogOut className="h-5 w-5" />
+                </button>
+              </>
+            ) : (
+              <Link
+                to={ROUTES.LOGIN}
+                className={cn(
+                  'hidden h-10 w-10 items-center justify-center rounded-full transition-colors sm:flex',
+                  isSolid
+                    ? 'text-text-primary hover:bg-primary/10 hover:text-primary'
+                    : 'text-white hover:bg-white/10',
+                )}
+                aria-label="Sign in"
+              >
+                <User className="h-5 w-5" />
+              </Link>
+            )}
+
             <button
               type="button"
               className={cn(
@@ -122,6 +173,7 @@ export function Navbar({ transparent = false }: NavbarProps) {
         isOpen={isMobileOpen}
         onClose={() => setIsMobileOpen(false)}
         links={mainNavLinks}
+        onLogout={handleLogout}
       />
     </>
   )

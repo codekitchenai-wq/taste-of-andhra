@@ -1,10 +1,18 @@
-import { PagePlaceholder } from '@/components/common/PagePlaceholder'
+import { FeaturedCategories } from '@/components/home/FeaturedCategories'
+import { FeaturedDishes } from '@/components/home/FeaturedDishes'
+import { HeroSection } from '@/components/home/HeroSection'
+import { Testimonials } from '@/components/home/Testimonials'
+import { WhyChooseUs } from '@/components/home/WhyChooseUs'
+import { featuredDishes } from '@/data/home'
 
 export default function HomePage() {
   return (
-    <PagePlaceholder
-      title="Home"
-      description="Hero banner, featured dishes, categories, reviews, and special offers."
-    />
+    <>
+      <HeroSection />
+      <FeaturedCategories />
+      <FeaturedDishes dishes={featuredDishes} />
+      <WhyChooseUs />
+      <Testimonials />
+    </>
   )
 }

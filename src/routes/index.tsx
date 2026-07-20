@@ -6,6 +6,7 @@ import { AuthLayout } from '@/layouts/AuthLayout'
 import { AdminLayout } from '@/layouts/AdminLayout'
 import { ProtectedRoute } from '@/components/routing/ProtectedRoute'
 import { AdminRoute } from '@/components/routing/AdminRoute'
+import { GuestRoute } from '@/components/routing/GuestRoute'
 
 const HomePage = lazy(() => import('@/pages/public/HomePage'))
 const AboutPage = lazy(() => import('@/pages/public/AboutPage'))
@@ -70,10 +71,15 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    element: <AuthLayout />,
+    element: <GuestRoute />,
     children: [
-      { path: ROUTES.LOGIN, element: <LoginPage /> },
-      { path: ROUTES.REGISTER, element: <RegisterPage /> },
+      {
+        element: <AuthLayout />,
+        children: [
+          { path: ROUTES.LOGIN, element: <LoginPage /> },
+          { path: ROUTES.REGISTER, element: <RegisterPage /> },
+        ],
+      },
     ],
   },
   { path: ROUTES.ADMIN.LOGIN, element: <AdminLoginPage /> },
