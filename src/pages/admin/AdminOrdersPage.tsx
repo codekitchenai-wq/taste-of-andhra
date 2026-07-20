@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { AdminOrderDetailModal } from '@/components/admin/AdminOrderDetailModal'
 import { OrderTable } from '@/components/admin/OrderTable'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
@@ -24,6 +25,7 @@ export default function AdminOrdersPage() {
   )
   const { orders, isLoading, error, refetch } = useAdminOrders(filters)
   const [isUpdating, setIsUpdating] = useState(false)
+  const [viewingOrderId, setViewingOrderId] = useState<string | null>(null)
 
   const handleStatusChange = async (orderId: string, status: OrderStatus) => {
     setIsUpdating(true)
@@ -99,11 +101,18 @@ export default function AdminOrdersPage() {
         <OrderTable
           orders={orders}
           isUpdating={isUpdating}
+          onView={setViewingOrderId}
           onStatusChange={(orderId, status) =>
             void handleStatusChange(orderId, status)
           }
         />
       )}
+
+      <AdminOrderDetailModal
+        orderId={viewingOrderId}
+        onClose={() => setViewingOrderId(null)}
+        onStatusUpdated={() => void refetch()}
+      />
     </div>
   )
 }

@@ -4,10 +4,12 @@ import {
   type ServiceResponse,
 } from '@/types/api'
 import type { OrderStatus, PaymentMethod } from '@/types/enums'
-import type { Order, OrderWithDetails } from '@/types/Order'
+import type { Order, OrderFullDetails } from '@/types/Order'
 import * as cartService from '@/services/cartService'
 import { supabase } from '@/services/supabaseClient'
 import { generateOrderNumber, mapOrder, mapOrderItem } from '@/utils/mapOrder'
+import { mapAddress } from '@/utils/mapAddress'
+import { mapPayment } from '@/utils/mapPayment'
 import { calculateOrderTotals } from '@/utils/orderTotals'
 
 export interface CreateOrderInput {
@@ -54,6 +56,30 @@ async function requireUserId(): Promise<ServiceResponse<string>> {
   return createSuccessResponse(user.id)
 }
 
+const ORDER_DETAILS_SELECT = `
+  *,
+  order_items (
+    *,
+    dishes (*)
+  ),
+  addresses (*),
+  payments (*)
+`
+
+function buildOrderFullDetails(row: Record<string, unknown>): OrderFullDetails {
+  const order = mapOrder(row)
+  const itemRows = (row.order_items as Record<string, unknown>[] | null) ?? []
+  const addressRow = row.addresses as Record<string, unknown> | null
+  const paymentRows = row.payments as Record<string, unknown>[] | null
+
+  return {
+    ...order,
+    items: itemRows.map(mapOrderItem),
+    address: addressRow ? mapAddress(addressRow) : null,
+    payment: paymentRows?.[0] ? mapPayment(paymentRows[0]) : null,
+  }
+}
+
 export async function getCustomerOrders(): Promise<
   ServiceResponse<Order[]>
 > {
@@ -78,7 +104,7 @@ export async function getCustomerOrders(): Promise<
 
 export async function getOrderDetails(
   orderId: string,
-): Promise<ServiceResponse<OrderWithDetails>> {
+): Promise<ServiceResponse<OrderFullDetails>> {
   const userResult = await requireUserId()
 
   if (!userResult.success) {
@@ -87,15 +113,7 @@ export async function getOrderDetails(
 
   const { data, error } = await supabase
     .from('orders')
-    .select(
-      `
-      *,
-      order_items (
-        *,
-        dishes (*)
-      )
-    `,
-    )
+    .select(ORDER_DETAILS_SELECT)
     .eq('id', orderId)
     .eq('user_id', userResult.data)
     .maybeSingle()
@@ -108,14 +126,27 @@ export async function getOrderDetails(
     return createErrorResponse('Order not found.')
   }
 
-  const order = mapOrder(data)
-  const itemRows =
-    (data.order_items as Record<string, unknown>[] | null) ?? []
+  return createSuccessResponse(buildOrderFullDetails(data))
+}
 
-  return createSuccessResponse({
-    ...order,
-    items: itemRows.map(mapOrderItem),
-  })
+export async function getAdminOrderDetails(
+  orderId: string,
+): Promise<ServiceResponse<OrderFullDetails>> {
+  const { data, error } = await supabase
+    .from('orders')
+    .select(ORDER_DETAILS_SELECT)
+    .eq('id', orderId)
+    .maybeSingle()
+
+  if (error) {
+    return createErrorResponse('Unable to load order.', error.message)
+  }
+
+  if (!data) {
+    return createErrorResponse('Order not found.')
+  }
+
+  return createSuccessResponse(buildOrderFullDetails(data))
 }
 
 export async function createOrder(
@@ -275,5 +306,35 @@ export async function updateOrderStatus(
 export async function cancelOrder(
   orderId: string,
 ): Promise<ServiceResponse<Order>> {
+  const userResult = await requireUserId()
+
+  if (!userResult.success) {
+    return userResult
+  }
+
+  const { data: order, error: fetchError } = await supabase
+    .from('orders')
+    .select('order_status')
+    .eq('id', orderId)
+    .eq('user_id', userResult.data)
+    .maybeSingle()
+
+  if (fetchError) {
+    return createErrorResponse('Unable to load order.', fetchError.message)
+  }
+
+  if (!order) {
+    return createErrorResponse('Order not found.')
+  }
+
+  if (
+    order.order_status !== 'pending' &&
+    order.order_status !== 'confirmed'
+  ) {
+    return createErrorResponse(
+      'Orders can only be cancelled before preparation starts.',
+    )
+  }
+
   return updateOrderStatus(orderId, 'cancelled')
 }

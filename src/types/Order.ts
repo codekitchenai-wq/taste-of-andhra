@@ -1,5 +1,7 @@
 import type { OrderStatus, PaymentMethod, PaymentStatus } from './enums'
+import type { Address } from './Address'
 import type { Dish } from './Dish'
+import type { Payment } from './Payment'
 
 export interface Order {
   id: string
@@ -32,4 +34,9 @@ export interface OrderItem {
 
 export interface OrderWithDetails extends Order {
   items: OrderItem[]
+}
+
+export interface OrderFullDetails extends OrderWithDetails {
+  address: Address | null
+  payment: Payment | null
 }

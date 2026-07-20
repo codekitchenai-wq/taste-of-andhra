@@ -50,7 +50,17 @@ export default function OrderSuccessPage() {
         </p>
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-          <Button onClick={() => navigate(ROUTES.ORDERS)}>View My Orders</Button>
+          {state.orderId && (
+            <Button onClick={() => navigate(ROUTES.ORDER_DETAILS(state.orderId!))}>
+              View Order
+            </Button>
+          )}
+          <Button
+            variant={state.orderId ? 'secondary' : 'primary'}
+            onClick={() => navigate(ROUTES.ORDERS)}
+          >
+            View My Orders
+          </Button>
           <Link to={ROUTES.MENU}>
             <Button variant="secondary" fullWidth>
               Continue Shopping

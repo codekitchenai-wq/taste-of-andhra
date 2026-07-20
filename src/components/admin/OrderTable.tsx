@@ -1,3 +1,4 @@
+import { Eye } from 'lucide-react'
 import { ORDER_STATUS, ORDER_STATUS_LIST } from '@/constants/ORDER_STATUS'
 import type { AdminOrder } from '@/services/orderService'
 import type { OrderStatus } from '@/types/enums'
@@ -7,6 +8,7 @@ import { PAYMENT_METHOD } from '@/constants/PAYMENT_METHOD'
 interface OrderTableProps {
   orders: AdminOrder[]
   onStatusChange: (orderId: string, status: OrderStatus) => void
+  onView?: (orderId: string) => void
   isUpdating?: boolean
 }
 
@@ -24,6 +26,7 @@ const dateFormatter = new Intl.DateTimeFormat('en-IN', {
 export function OrderTable({
   orders,
   onStatusChange,
+  onView,
   isUpdating = false,
 }: OrderTableProps) {
   return (
@@ -42,7 +45,7 @@ export function OrderTable({
             <th className="px-4 py-3 font-semibold text-text-primary">Status</th>
             <th className="px-4 py-3 font-semibold text-text-primary">Date</th>
             <th className="px-4 py-3 font-semibold text-text-primary">
-              Update
+              Actions
             </th>
           </tr>
         </thead>
@@ -76,21 +79,33 @@ export function OrderTable({
                 {dateFormatter.format(new Date(order.created_at))}
               </td>
               <td className="px-4 py-4">
-                <select
-                  value={order.order_status}
-                  disabled={isUpdating}
-                  onChange={(event) =>
-                    onStatusChange(order.id, event.target.value as OrderStatus)
-                  }
-                  className="h-10 rounded-[var(--radius-input)] border border-gray-300 bg-surface px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
-                  aria-label={`Update status for ${order.order_number}`}
-                >
-                  {ORDER_STATUS_LIST.map((status) => (
-                    <option key={status} value={status}>
-                      {ORDER_STATUS[status]}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex items-center gap-2">
+                  {onView && (
+                    <button
+                      type="button"
+                      onClick={() => onView(order.id)}
+                      className="flex h-9 w-9 items-center justify-center rounded-full text-text-secondary transition-colors hover:bg-primary/10 hover:text-primary"
+                      aria-label={`View ${order.order_number}`}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+                  )}
+                  <select
+                    value={order.order_status}
+                    disabled={isUpdating}
+                    onChange={(event) =>
+                      onStatusChange(order.id, event.target.value as OrderStatus)
+                    }
+                    className="h-10 rounded-[var(--radius-input)] border border-gray-300 bg-surface px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                    aria-label={`Update status for ${order.order_number}`}
+                  >
+                    {ORDER_STATUS_LIST.map((status) => (
+                      <option key={status} value={status}>
+                        {ORDER_STATUS[status]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </td>
             </tr>
           ))}

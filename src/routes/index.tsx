@@ -21,6 +21,7 @@ const ProfilePage = lazy(() => import('@/pages/customer/ProfilePage'))
 const MyOrdersPage = lazy(() => import('@/pages/customer/MyOrdersPage'))
 const CartPage = lazy(() => import('@/pages/customer/CartPage'))
 const CheckoutPage = lazy(() => import('@/pages/customer/CheckoutPage'))
+const OrderDetailsPage = lazy(() => import('@/pages/customer/OrderDetailsPage'))
 const OrderSuccessPage = lazy(() => import('@/pages/customer/OrderSuccessPage'))
 const SavedAddressesPage = lazy(
   () => import('@/pages/customer/SavedAddressesPage'),
@@ -63,6 +64,7 @@ export const router = createBrowserRouter([
         children: [
           { path: ROUTES.PROFILE, element: <ProfilePage /> },
           { path: ROUTES.ORDERS, element: <MyOrdersPage /> },
+          { path: `${ROUTES.ORDERS}/:orderId`, element: <OrderDetailsPage /> },
           { path: ROUTES.CHECKOUT, element: <CheckoutPage /> },
           { path: ROUTES.ORDER_SUCCESS, element: <OrderSuccessPage /> },
           { path: ROUTES.ADDRESSES, element: <SavedAddressesPage /> },
