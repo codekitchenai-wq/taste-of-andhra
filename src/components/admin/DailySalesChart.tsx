@@ -1,14 +1,9 @@
 import type { DailySalesPoint } from '@/services/reportService'
+import { formatPrice } from '@/utils/format'
 
 interface DailySalesChartProps {
   data: DailySalesPoint[]
 }
-
-const priceFormatter = new Intl.NumberFormat('en-IN', {
-  style: 'currency',
-  currency: 'INR',
-  maximumFractionDigits: 0,
-})
 
 export function DailySalesChart({ data }: DailySalesChartProps) {
   const maxRevenue = Math.max(...data.map((point) => point.revenue), 1)
@@ -35,7 +30,7 @@ export function DailySalesChart({ data }: DailySalesChartProps) {
                 <div
                   className="w-full max-w-10 rounded-t-[var(--radius-input)] bg-primary/80 transition-all"
                   style={{ height: `${height}%` }}
-                  title={`${point.label}: ${priceFormatter.format(point.revenue)}`}
+                  title={`${point.label}: ${formatPrice(point.revenue)}`}
                 />
               </div>
               <div>
@@ -68,7 +63,7 @@ export function DailySalesChart({ data }: DailySalesChartProps) {
                 </td>
                 <td className="px-4 py-3 text-text-secondary">{point.orders}</td>
                 <td className="px-4 py-3 font-medium text-text-primary">
-                  {priceFormatter.format(point.revenue)}
+                  {formatPrice(point.revenue)}
                 </td>
               </tr>
             ))}

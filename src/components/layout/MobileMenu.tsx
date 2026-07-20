@@ -1,7 +1,9 @@
+import { useRef } from 'react'
 import { Link } from 'react-router-dom'
 import type { NavLink } from '@/data/navigation'
 import { ROUTES } from '@/constants/ROUTES'
 import { useAuth } from '@/hooks/useAuth'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { cn } from '@/utils/cn'
 
 interface MobileMenuProps {
@@ -18,6 +20,9 @@ export function MobileMenu({
   onLogout,
 }: MobileMenuProps) {
   const { isAuthenticated, user } = useAuth()
+  const navRef = useRef<HTMLElement>(null)
+
+  useFocusTrap(navRef, isOpen)
 
   if (!isOpen) return null
 
@@ -35,6 +40,7 @@ export function MobileMenu({
         onClick={onClose}
       />
       <nav
+        ref={navRef}
         className="absolute right-0 top-[72px] h-[calc(100vh-72px)] w-full max-w-sm bg-surface p-6 shadow-xl"
         aria-label="Mobile navigation"
       >

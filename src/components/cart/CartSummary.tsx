@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { ROUTES } from '@/constants/ROUTES'
+import { formatPrice } from '@/utils/format'
 
 interface CartSummaryProps {
   subtotal: number
@@ -9,12 +10,6 @@ interface CartSummaryProps {
   isUpdating: boolean
   onClearCart: () => void
 }
-
-const priceFormatter = new Intl.NumberFormat('en-IN', {
-  style: 'currency',
-  currency: 'INR',
-  maximumFractionDigits: 0,
-})
 
 export function CartSummary({
   subtotal,
@@ -29,11 +24,11 @@ export function CartSummary({
       <dl className="space-y-3 text-sm">
         <div className="flex items-center justify-between text-text-secondary">
           <dt>Items ({itemCount})</dt>
-          <dd>{priceFormatter.format(subtotal)}</dd>
+          <dd>{formatPrice(subtotal)}</dd>
         </div>
         <div className="flex items-center justify-between border-t border-black/5 pt-3 text-base font-semibold text-text-primary">
           <dt>Subtotal</dt>
-          <dd className="text-primary">{priceFormatter.format(subtotal)}</dd>
+          <dd className="text-primary">{formatPrice(subtotal)}</dd>
         </div>
       </dl>
 

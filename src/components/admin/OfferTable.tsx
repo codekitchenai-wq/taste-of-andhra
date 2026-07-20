@@ -1,16 +1,13 @@
 import { Pencil, Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import type { Offer } from '@/types/Offer'
+import { formatDate } from '@/utils/format'
 
 interface OfferTableProps {
   offers: Offer[]
   onEdit: (offer: Offer) => void
   onDelete: (offer: Offer) => void
 }
-
-const dateFormatter = new Intl.DateTimeFormat('en-IN', {
-  dateStyle: 'medium',
-})
 
 export function OfferTable({ offers, onEdit, onDelete }: OfferTableProps) {
   return (
@@ -49,8 +46,8 @@ export function OfferTable({ offers, onEdit, onDelete }: OfferTableProps) {
                 {offer.coupon_code ?? '—'}
               </td>
               <td className="px-4 py-4 text-text-secondary">
-                {dateFormatter.format(new Date(offer.start_date))} –{' '}
-                {dateFormatter.format(new Date(offer.end_date))}
+                {formatDate(offer.start_date)} –{' '}
+                {formatDate(offer.end_date)}
               </td>
               <td className="px-4 py-4">
                 <Badge variant={offer.is_active ? 'veg' : 'unavailable'}>

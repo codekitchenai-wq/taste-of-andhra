@@ -1,18 +1,14 @@
 import { Pencil, Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import type { DishWithCategory } from '@/utils/mapDish'
+import { LazyImage } from '@/components/ui/LazyImage'
+import { formatPrice } from '@/utils/format'
 
 interface DishTableProps {
   dishes: DishWithCategory[]
   onEdit: (dish: DishWithCategory) => void
   onDelete: (dish: DishWithCategory) => void
 }
-
-const priceFormatter = new Intl.NumberFormat('en-IN', {
-  style: 'currency',
-  currency: 'INR',
-  maximumFractionDigits: 0,
-})
 
 export function DishTable({ dishes, onEdit, onDelete }: DishTableProps) {
   return (
@@ -46,7 +42,7 @@ export function DishTable({ dishes, onEdit, onDelete }: DishTableProps) {
               <td className="px-4 py-4">
                 <div className="flex items-center gap-3">
                   {dish.image_url ? (
-                    <img
+                    <LazyImage
                       src={dish.image_url}
                       alt={dish.name}
                       className="h-10 w-10 rounded-[var(--radius-input)] object-cover"
@@ -70,7 +66,7 @@ export function DishTable({ dishes, onEdit, onDelete }: DishTableProps) {
                 {dish.category_name}
               </td>
               <td className="px-4 py-4 font-medium text-text-primary">
-                {priceFormatter.format(dish.price)}
+                {formatPrice(dish.price)}
               </td>
               <td className="px-4 py-4">
                 <Badge variant={dish.is_veg ? 'veg' : 'nonVeg'}>

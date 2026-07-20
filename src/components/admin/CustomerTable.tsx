@@ -1,13 +1,10 @@
 import type { Profile } from '@/types/Profile'
 import { Badge } from '@/components/ui/Badge'
+import { formatDate } from '@/utils/format'
 
 interface CustomerTableProps {
   customers: Profile[]
 }
-
-const dateFormatter = new Intl.DateTimeFormat('en-IN', {
-  dateStyle: 'medium',
-})
 
 export function CustomerTable({ customers }: CustomerTableProps) {
   return (
@@ -48,7 +45,7 @@ export function CustomerTable({ customers }: CustomerTableProps) {
                 </Badge>
               </td>
               <td className="px-4 py-4 text-text-secondary">
-                {dateFormatter.format(new Date(customer.created_at))}
+                {formatDate(customer.created_at)}
               </td>
             </tr>
           ))}

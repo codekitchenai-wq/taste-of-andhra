@@ -17,16 +17,11 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { LoadingState } from '@/components/ui/LoadingState'
 import { ROUTES } from '@/constants/ROUTES'
+import { formatPrice } from '@/utils/format'
 import { useAdminDashboard } from '@/hooks/useAdminDashboard'
 import { useAdminOrders } from '@/hooks/useAdminOrders'
 import * as orderService from '@/services/orderService'
 import type { OrderStatus } from '@/types/enums'
-
-const priceFormatter = new Intl.NumberFormat('en-IN', {
-  style: 'currency',
-  currency: 'INR',
-  maximumFractionDigits: 0,
-})
 
 export default function AdminDashboardPage() {
   const { overview, isLoading, error, refetch } = useAdminDashboard()
@@ -80,7 +75,7 @@ export default function AdminDashboardPage() {
             />
             <StatCard
               label="Total Revenue"
-              value={priceFormatter.format(overview.totalRevenue)}
+              value={formatPrice(overview.totalRevenue)}
               icon={IndianRupee}
             />
             <StatCard

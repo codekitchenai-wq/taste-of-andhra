@@ -2,18 +2,13 @@ import { Card } from '@/components/ui/Card'
 import { FREE_DELIVERY_THRESHOLD } from '@/constants/ORDER'
 import type { CartItem } from '@/types/Cart'
 import type { OrderTotals } from '@/utils/orderTotals'
+import { formatPrice } from '@/utils/format'
 
 interface CheckoutOrderSummaryProps {
   items: CartItem[]
   totals: OrderTotals
   itemCount: number
 }
-
-const priceFormatter = new Intl.NumberFormat('en-IN', {
-  style: 'currency',
-  currency: 'INR',
-  maximumFractionDigits: 0,
-})
 
 export function CheckoutOrderSummary({
   items,
@@ -38,11 +33,11 @@ export function CheckoutOrderSummary({
               <div className="min-w-0">
                 <p className="font-medium text-text-primary">{dish.name}</p>
                 <p className="text-text-secondary">
-                  {item.quantity} × {priceFormatter.format(dish.price)}
+                  {item.quantity} × {formatPrice(dish.price)}
                 </p>
               </div>
               <span className="shrink-0 font-medium text-text-primary">
-                {priceFormatter.format(dish.price * item.quantity)}
+                {formatPrice(dish.price * item.quantity)}
               </span>
             </li>
           )
@@ -52,29 +47,29 @@ export function CheckoutOrderSummary({
       <dl className="space-y-2 border-t border-black/5 pt-4 text-sm">
         <div className="flex items-center justify-between text-text-secondary">
           <dt>Items ({itemCount})</dt>
-          <dd>{priceFormatter.format(totals.subtotal)}</dd>
+          <dd>{formatPrice(totals.subtotal)}</dd>
         </div>
         <div className="flex items-center justify-between text-text-secondary">
           <dt>Tax (5%)</dt>
-          <dd>{priceFormatter.format(totals.tax)}</dd>
+          <dd>{formatPrice(totals.tax)}</dd>
         </div>
         <div className="flex items-center justify-between text-text-secondary">
           <dt>Delivery</dt>
           <dd>
             {totals.deliveryCharge === 0
               ? 'Free'
-              : priceFormatter.format(totals.deliveryCharge)}
+              : formatPrice(totals.deliveryCharge)}
           </dd>
         </div>
         {totals.subtotal < FREE_DELIVERY_THRESHOLD && (
           <p className="text-xs text-text-secondary">
             Free delivery on orders above{' '}
-            {priceFormatter.format(FREE_DELIVERY_THRESHOLD)}
+            {formatPrice(FREE_DELIVERY_THRESHOLD)}
           </p>
         )}
         <div className="flex items-center justify-between border-t border-black/5 pt-3 text-base font-semibold text-text-primary">
           <dt>Total</dt>
-          <dd className="text-primary">{priceFormatter.format(totals.total)}</dd>
+          <dd className="text-primary">{formatPrice(totals.total)}</dd>
         </div>
       </dl>
     </Card>

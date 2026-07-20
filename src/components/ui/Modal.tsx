@@ -1,5 +1,6 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { X } from 'lucide-react'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { cn } from '@/utils/cn'
 
 interface ModalProps {
@@ -17,6 +18,10 @@ export function Modal({
   children,
   className,
 }: ModalProps) {
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  useFocusTrap(panelRef, isOpen)
+
   useEffect(() => {
     if (!isOpen) return
 
@@ -49,6 +54,7 @@ export function Modal({
         onClick={onClose}
       />
       <div
+        ref={panelRef}
         className={cn(
           'relative z-10 w-full max-w-lg rounded-[var(--radius-card)] bg-surface p-6 shadow-lg',
           className,
@@ -61,12 +67,12 @@ export function Modal({
             </h2>
           )}
           <button
-              type="button"
-              onClick={onClose}
-              className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-text-secondary transition-colors hover:bg-black/5 hover:text-text-primary"
-              aria-label="Close"
-            >
-              <X className="h-5 w-5" />
+            type="button"
+            onClick={onClose}
+            className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-text-secondary transition-colors hover:bg-black/5 hover:text-text-primary"
+            aria-label="Close"
+          >
+            <X className="h-5 w-5" />
           </button>
         </div>
         {children}

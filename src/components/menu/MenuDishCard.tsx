@@ -8,17 +8,13 @@ import { ROUTES } from '@/constants/ROUTES'
 import { useAuth } from '@/hooks/useAuth'
 import { useCart } from '@/hooks/useCart'
 import type { Dish } from '@/types/Dish'
+import { LazyImage } from '@/components/ui/LazyImage'
+import { formatPrice } from '@/utils/format'
 
 interface MenuDishCardProps {
   dish: Dish
   categoryName?: string
 }
-
-const priceFormatter = new Intl.NumberFormat('en-IN', {
-  style: 'currency',
-  currency: 'INR',
-  maximumFractionDigits: 0,
-})
 
 export function MenuDishCard({ dish, categoryName }: MenuDishCardProps) {
   const navigate = useNavigate()
@@ -47,11 +43,10 @@ export function MenuDishCard({ dish, categoryName }: MenuDishCardProps) {
       <Link to={ROUTES.DISH_DETAILS(dish.slug)} className="block">
         <div className="relative aspect-[4/3] overflow-hidden bg-background">
           {dish.image_url ? (
-            <img
+            <LazyImage
               src={dish.image_url}
               alt={dish.name}
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-              loading="lazy"
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-primary/10 text-4xl font-bold text-primary">
@@ -81,7 +76,7 @@ export function MenuDishCard({ dish, categoryName }: MenuDishCardProps) {
             </h3>
           </Link>
           <span className="shrink-0 font-semibold text-primary">
-            {priceFormatter.format(dish.price)}
+            {formatPrice(dish.price)}
           </span>
         </div>
 

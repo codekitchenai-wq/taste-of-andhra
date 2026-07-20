@@ -1,15 +1,10 @@
 import { IndianRupee } from 'lucide-react'
+import { formatPrice } from '@/utils/format'
 
 interface RevenueHeroCardProps {
   totalRevenue: number
   totalOrders: number
 }
-
-const priceFormatter = new Intl.NumberFormat('en-IN', {
-  style: 'currency',
-  currency: 'INR',
-  maximumFractionDigits: 0,
-})
 
 export function RevenueHeroCard({
   totalRevenue,
@@ -21,7 +16,7 @@ export function RevenueHeroCard({
         <div>
           <p className="text-sm font-medium text-white/80">Total Revenue</p>
           <p className="mt-2 text-3xl font-bold md:text-4xl">
-            {priceFormatter.format(totalRevenue)}
+            {formatPrice(totalRevenue)}
           </p>
           <p className="mt-2 text-sm text-white/80">
             From {totalOrders} completed {totalOrders === 1 ? 'order' : 'orders'}

@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react'
 import type { PeriodSales } from '@/services/reportService'
 import { cn } from '@/utils/cn'
+import { formatPrice } from '@/utils/format'
 
 interface SalesPeriodCardProps {
   title: string
@@ -8,12 +9,6 @@ interface SalesPeriodCardProps {
   icon: LucideIcon
   className?: string
 }
-
-const priceFormatter = new Intl.NumberFormat('en-IN', {
-  style: 'currency',
-  currency: 'INR',
-  maximumFractionDigits: 0,
-})
 
 export function SalesPeriodCard({
   title,
@@ -32,7 +27,7 @@ export function SalesPeriodCard({
         <div>
           <h3 className="text-sm font-medium text-text-secondary">{title}</h3>
           <p className="mt-2 text-2xl font-bold text-text-primary">
-            {priceFormatter.format(period.revenue)}
+            {formatPrice(period.revenue)}
           </p>
           <p className="mt-1 text-sm text-text-secondary">
             {period.orders} {period.orders === 1 ? 'order' : 'orders'}

@@ -1,19 +1,32 @@
-import { Bell, Search, User } from 'lucide-react'
+import { Bell, Menu, Search, User } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { ROUTES } from '@/constants/ROUTES'
 import { Container } from '@/components/ui/Container'
 
 interface AdminTopBarProps {
   title: string
+  onMenuToggle?: () => void
 }
 
-export function AdminTopBar({ title }: AdminTopBarProps) {
+export function AdminTopBar({ title, onMenuToggle }: AdminTopBarProps) {
   return (
     <header className="sticky top-0 z-30 h-[72px] border-b border-black/5 bg-surface/95 backdrop-blur-md">
       <Container className="flex h-full items-center justify-between gap-4">
-        <h1 className="font-heading text-xl font-semibold md:text-2xl">
-          {title}
-        </h1>
+        <div className="flex min-w-0 items-center gap-3">
+          {onMenuToggle && (
+            <button
+              type="button"
+              onClick={onMenuToggle}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-text-secondary transition-colors hover:bg-primary/10 hover:text-primary lg:hidden"
+              aria-label="Open navigation menu"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+          )}
+          <h1 className="truncate font-heading text-xl font-semibold md:text-2xl">
+            {title}
+          </h1>
+        </div>
         <div className="flex items-center gap-2 md:gap-3">
           <div className="relative hidden md:block">
             <Search

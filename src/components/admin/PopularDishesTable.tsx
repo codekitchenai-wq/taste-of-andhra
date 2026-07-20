@@ -1,14 +1,9 @@
 import type { PopularDishReport } from '@/services/reportService'
+import { formatPrice } from '@/utils/format'
 
 interface PopularDishesTableProps {
   dishes: PopularDishReport[]
 }
-
-const priceFormatter = new Intl.NumberFormat('en-IN', {
-  style: 'currency',
-  currency: 'INR',
-  maximumFractionDigits: 0,
-})
 
 export function PopularDishesTable({ dishes }: PopularDishesTableProps) {
   return (
@@ -56,7 +51,7 @@ export function PopularDishesTable({ dishes }: PopularDishesTableProps) {
                   {dish.orderCount}
                 </td>
                 <td className="px-4 py-4 font-medium text-primary md:px-6">
-                  {priceFormatter.format(dish.revenue)}
+                  {formatPrice(dish.revenue)}
                 </td>
               </tr>
             ))

@@ -3,6 +3,8 @@ import { Minus, Plus, Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { ROUTES } from '@/constants/ROUTES'
 import type { CartItem } from '@/types/Cart'
+import { LazyImage } from '@/components/ui/LazyImage'
+import { formatPrice } from '@/utils/format'
 
 interface CartItemRowProps {
   item: CartItem
@@ -10,12 +12,6 @@ interface CartItemRowProps {
   onUpdateQuantity: (cartItemId: string, quantity: number) => void
   onRemove: (cartItemId: string) => void
 }
-
-const priceFormatter = new Intl.NumberFormat('en-IN', {
-  style: 'currency',
-  currency: 'INR',
-  maximumFractionDigits: 0,
-})
 
 export function CartItemRow({
   item,
@@ -36,7 +32,7 @@ export function CartItemRow({
         className="shrink-0 overflow-hidden rounded-[var(--radius-input)]"
       >
         {dish.image_url ? (
-          <img
+          <LazyImage
             src={dish.image_url}
             alt={dish.name}
             className="h-20 w-20 object-cover sm:h-24 sm:w-24"
@@ -61,10 +57,10 @@ export function CartItemRow({
             </Badge>
           </div>
           <p className="mt-1 text-sm text-text-secondary">
-            {priceFormatter.format(dish.price)} each
+            {formatPrice(dish.price)} each
           </p>
           <p className="mt-2 font-semibold text-primary sm:hidden">
-            {priceFormatter.format(lineTotal)}
+            {formatPrice(lineTotal)}
           </p>
         </div>
 
@@ -94,7 +90,7 @@ export function CartItemRow({
           </div>
 
           <p className="hidden min-w-[80px] text-right font-semibold text-primary sm:block">
-            {priceFormatter.format(lineTotal)}
+            {formatPrice(lineTotal)}
           </p>
 
           <button

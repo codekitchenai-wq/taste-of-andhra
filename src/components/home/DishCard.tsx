@@ -1,29 +1,27 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Clock, Star } from 'lucide-react'
-import toast from 'react-hot-toast'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { LazyImage } from '@/components/ui/LazyImage'
 import type { HomeDish } from '@/data/home'
 import { ROUTES } from '@/constants/ROUTES'
+import { formatPrice } from '@/utils/format'
 
 interface DishCardProps {
   dish: HomeDish
 }
 
 export function DishCard({ dish }: DishCardProps) {
-  const handleAddToCart = () => {
-    toast.success(`${dish.name} added to cart`)
-  }
+  const navigate = useNavigate()
 
   return (
     <article className="group overflow-hidden rounded-[var(--radius-card)] bg-surface shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
       <Link to={ROUTES.DISH_DETAILS(dish.slug)} className="block">
         <div className="relative aspect-[4/3] overflow-hidden">
-          <img
+          <LazyImage
             src={dish.imageUrl}
             alt={dish.name}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-            loading="lazy"
           />
           <div className="absolute left-3 top-3">
             <Badge variant={dish.isVeg ? 'veg' : 'nonVeg'}>
@@ -41,7 +39,7 @@ export function DishCard({ dish }: DishCardProps) {
             </h3>
           </Link>
           <span className="shrink-0 font-semibold text-primary">
-            ₹{dish.price}
+            {formatPrice(dish.price)}
           </span>
         </div>
 
@@ -63,8 +61,13 @@ export function DishCard({ dish }: DishCardProps) {
           </span>
         </div>
 
-        <Button type="button" fullWidth className="mt-4" onClick={handleAddToCart}>
-          Add to Cart
+        <Button
+          type="button"
+          fullWidth
+          className="mt-4"
+          onClick={() => navigate(ROUTES.MENU)}
+        >
+          View on Menu
         </Button>
       </div>
     </article>

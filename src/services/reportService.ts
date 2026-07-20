@@ -64,6 +64,13 @@ export interface DashboardOverview {
   recentOrderCount: number
 }
 
+interface OrderRow {
+  total: number | string
+  created_at: string
+}
+
+const DEFAULT_REPORT_DAYS = 90
+
 function startOfDay(date = new Date()): string {
   const copy = new Date(date)
   copy.setHours(0, 0, 0, 0)
@@ -84,44 +91,105 @@ function startOfMonth(): string {
   return date.toISOString()
 }
 
-function sumOrderTotals(
-  orders: { total: number | string }[] | null | undefined,
-): number {
-  return (
-    orders?.reduce((sum, order) => sum + Number(order.total), 0) ?? 0
-  )
+function sumOrderTotals(orders: OrderRow[]): number {
+  return orders.reduce((sum, order) => sum + Number(order.total), 0)
 }
 
-async function fetchNonCancelledOrders(from?: string) {
-  let query = supabase
-    .from('orders')
-    .select('total, created_at, user_id')
-    .neq('order_status', 'cancelled')
+function aggregateSalesMetrics(orders: OrderRow[]) {
+  const todayStart = new Date(startOfDay()).getTime()
+  const weekStart = new Date(daysAgo(7)).getTime()
+  const monthStart = new Date(startOfMonth()).getTime()
 
-  if (from) {
-    query = query.gte('created_at', from)
+  let todayRevenue = 0
+  let weeklyRevenue = 0
+  let monthlyRevenue = 0
+  let todayOrders = 0
+  let weeklyOrders = 0
+  let monthlyOrders = 0
+
+  for (const order of orders) {
+    const total = Number(order.total)
+    const createdAt = new Date(order.created_at).getTime()
+
+    if (createdAt >= todayStart) {
+      todayRevenue += total
+      todayOrders += 1
+    }
+
+    if (createdAt >= weekStart) {
+      weeklyRevenue += total
+      weeklyOrders += 1
+    }
+
+    if (createdAt >= monthStart) {
+      monthlyRevenue += total
+      monthlyOrders += 1
+    }
   }
 
-  return query
+  const orderCount = orders.length
+  const totalRevenue = sumOrderTotals(orders)
+
+  return {
+    todayRevenue,
+    weeklyRevenue,
+    monthlyRevenue,
+    totalRevenue,
+    orderCount,
+    todayOrders,
+    weeklyOrders,
+    monthlyOrders,
+    averageOrderValue: orderCount > 0 ? totalRevenue / orderCount : 0,
+  }
 }
 
-export async function getSalesReport(): Promise<ServiceResponse<SalesReport>> {
-  const todayStart = startOfDay()
-  const weekStart = daysAgo(7)
-  const monthStart = startOfMonth()
+function buildDailyTrend(orders: OrderRow[], days = 7): DailySalesPoint[] {
+  const points: DailySalesPoint[] = []
 
-  const [
-    allOrdersResult,
-    todayOrdersResult,
-    weekOrdersResult,
-    monthOrdersResult,
-    customersResult,
-    newCustomersResult,
-  ] = await Promise.all([
-    supabase.from('orders').select('total').neq('order_status', 'cancelled'),
-    fetchNonCancelledOrders(todayStart),
-    fetchNonCancelledOrders(weekStart),
-    fetchNonCancelledOrders(monthStart),
+  for (let index = days - 1; index >= 0; index -= 1) {
+    const date = new Date()
+    date.setDate(date.getDate() - index)
+    date.setHours(0, 0, 0, 0)
+
+    points.push({
+      date: date.toISOString().slice(0, 10),
+      label: date.toLocaleDateString('en-IN', {
+        weekday: 'short',
+        day: 'numeric',
+      }),
+      revenue: 0,
+      orders: 0,
+    })
+  }
+
+  for (const order of orders) {
+    const dateKey = new Date(order.created_at).toISOString().slice(0, 10)
+    const point = points.find((entry) => entry.date === dateKey)
+
+    if (point) {
+      point.revenue += Number(order.total)
+      point.orders += 1
+    }
+  }
+
+  return points
+}
+
+async function fetchNonCancelledOrders(): Promise<ServiceResponse<OrderRow[]>> {
+  const { data, error } = await supabase
+    .from('orders')
+    .select('total, created_at')
+    .neq('order_status', 'cancelled')
+
+  if (error) {
+    return createErrorResponse('Unable to load orders.', error.message)
+  }
+
+  return createSuccessResponse(data ?? [])
+}
+
+async function fetchCustomerCounts(monthStart: string) {
+  const [customersResult, newCustomersResult] = await Promise.all([
     supabase
       .from('profiles')
       .select('*', { count: 'exact', head: true })
@@ -133,32 +201,36 @@ export async function getSalesReport(): Promise<ServiceResponse<SalesReport>> {
       .gte('created_at', monthStart),
   ])
 
-  if (allOrdersResult.error) {
+  return {
+    totalCustomers: customersResult.count ?? 0,
+    newCustomers: newCustomersResult.count ?? 0,
+    error: customersResult.error ?? newCustomersResult.error,
+  }
+}
+
+export async function getSalesReport(): Promise<ServiceResponse<SalesReport>> {
+  const monthStart = startOfMonth()
+
+  const [ordersResult, customerCounts] = await Promise.all([
+    fetchNonCancelledOrders(),
+    fetchCustomerCounts(monthStart),
+  ])
+
+  if (!ordersResult.success) {
+    return ordersResult
+  }
+
+  if (customerCounts.error) {
     return createErrorResponse(
       'Unable to load sales report.',
-      allOrdersResult.error.message,
+      customerCounts.error.message,
     )
   }
 
-  const allOrders = allOrdersResult.data ?? []
-  const orderCount = allOrders.length
-  const totalRevenue = sumOrderTotals(allOrders)
-  const todayRevenue = sumOrderTotals(todayOrdersResult.data)
-  const weeklyRevenue = sumOrderTotals(weekOrdersResult.data)
-  const monthlyRevenue = sumOrderTotals(monthOrdersResult.data)
-
   return createSuccessResponse({
-    todayRevenue,
-    weeklyRevenue,
-    monthlyRevenue,
-    totalRevenue,
-    orderCount,
-    todayOrders: todayOrdersResult.data?.length ?? 0,
-    weeklyOrders: weekOrdersResult.data?.length ?? 0,
-    monthlyOrders: monthOrdersResult.data?.length ?? 0,
-    averageOrderValue: orderCount > 0 ? totalRevenue / orderCount : 0,
-    totalCustomers: customersResult.count ?? 0,
-    newCustomers: newCustomersResult.count ?? 0,
+    ...aggregateSalesMetrics(ordersResult.data),
+    totalCustomers: customerCounts.totalCustomers,
+    newCustomers: customerCounts.newCustomers,
   })
 }
 
@@ -180,59 +252,40 @@ export async function getDailySalesTrend(
     )
   }
 
-  const points: DailySalesPoint[] = []
-
-  for (let index = days - 1; index >= 0; index -= 1) {
-    const date = new Date()
-    date.setDate(date.getDate() - index)
-    date.setHours(0, 0, 0, 0)
-
-    points.push({
-      date: date.toISOString().slice(0, 10),
-      label: date.toLocaleDateString('en-IN', {
-        weekday: 'short',
-        day: 'numeric',
-      }),
-      revenue: 0,
-      orders: 0,
-    })
-  }
-
-  for (const order of data ?? []) {
-    const dateKey = new Date(order.created_at).toISOString().slice(0, 10)
-    const point = points.find((entry) => entry.date === dateKey)
-
-    if (point) {
-      point.revenue += Number(order.total)
-      point.orders += 1
-    }
-  }
-
-  return createSuccessResponse(points)
+  return createSuccessResponse(buildDailyTrend(data ?? [], days))
 }
 
 export async function getReportsOverview(): Promise<
   ServiceResponse<ReportsOverview>
 > {
-  const [salesResult, trendResult, popularResult] = await Promise.all([
-    getSalesReport(),
-    getDailySalesTrend(7),
-    getPopularDishes(10),
+  const monthStart = startOfMonth()
+
+  const [ordersResult, customerCounts, popularResult] = await Promise.all([
+    fetchNonCancelledOrders(),
+    fetchCustomerCounts(monthStart),
+    getPopularDishes(10, DEFAULT_REPORT_DAYS),
   ])
 
-  if (!salesResult.success) {
-    return salesResult
+  if (!ordersResult.success) {
+    return ordersResult
   }
 
-  if (!trendResult.success) {
-    return trendResult
+  if (customerCounts.error) {
+    return createErrorResponse(
+      'Unable to load reports overview.',
+      customerCounts.error.message,
+    )
   }
 
   if (!popularResult.success) {
     return popularResult
   }
 
-  const sales = salesResult.data
+  const sales = aggregateSalesMetrics(ordersResult.data)
+  const weekStart = daysAgo(6)
+  const recentOrders = ordersResult.data.filter(
+    (order) => order.created_at >= weekStart,
+  )
 
   return createSuccessResponse({
     totalRevenue: sales.totalRevenue,
@@ -249,17 +302,22 @@ export async function getReportsOverview(): Promise<
       revenue: sales.monthlyRevenue,
       orders: sales.monthlyOrders,
     },
-    dailyTrend: trendResult.data,
+    dailyTrend: buildDailyTrend(recentOrders, 7),
     popularDishes: popularResult.data,
   })
 }
 
 export async function getPopularDishes(
   limit = 5,
+  daysBack = DEFAULT_REPORT_DAYS,
 ): Promise<ServiceResponse<PopularDishReport[]>> {
+  const from = daysAgo(daysBack)
+
   const { data, error } = await supabase
     .from('order_items')
-    .select('quantity, total, dishes(id, name)')
+    .select('quantity, total, dishes(id, name), orders!inner(created_at, order_status)')
+    .gte('orders.created_at', from)
+    .neq('orders.order_status', 'cancelled')
 
   if (error) {
     return createErrorResponse('Unable to load popular dishes.', error.message)
@@ -294,12 +352,18 @@ export async function getPopularDishes(
   return createSuccessResponse(results)
 }
 
-export async function getCategoryRevenue(): Promise<
-  ServiceResponse<CategoryRevenueReport[]>
-> {
+export async function getCategoryRevenue(
+  daysBack = DEFAULT_REPORT_DAYS,
+): Promise<ServiceResponse<CategoryRevenueReport[]>> {
+  const from = daysAgo(daysBack)
+
   const { data, error } = await supabase
     .from('order_items')
-    .select('total, dishes(category_id, categories(name))')
+    .select(
+      'total, dishes(category_id, categories(name)), orders!inner(created_at, order_status)',
+    )
+    .gte('orders.created_at', from)
+    .neq('orders.order_status', 'cancelled')
 
   if (error) {
     return createErrorResponse(

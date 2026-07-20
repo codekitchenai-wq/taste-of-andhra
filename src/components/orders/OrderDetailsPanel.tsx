@@ -2,21 +2,11 @@ import type { OrderFullDetails } from '@/types/Order'
 import { PAYMENT_METHOD } from '@/constants/PAYMENT_METHOD'
 import { PAYMENT_STATUS } from '@/constants/PAYMENT_STATUS'
 import { formatAddressLine } from '@/utils/mapAddress'
+import { formatPrice, formatDateTimeFull } from '@/utils/format'
 
 interface OrderDetailsPanelProps {
   order: OrderFullDetails
 }
-
-const priceFormatter = new Intl.NumberFormat('en-IN', {
-  style: 'currency',
-  currency: 'INR',
-  maximumFractionDigits: 0,
-})
-
-const dateFormatter = new Intl.DateTimeFormat('en-IN', {
-  dateStyle: 'full',
-  timeStyle: 'short',
-})
 
 export function OrderDetailsPanel({ order }: OrderDetailsPanelProps) {
   return (
@@ -34,11 +24,11 @@ export function OrderDetailsPanel({ order }: OrderDetailsPanelProps) {
                   {item.dish?.name ?? 'Dish'}
                 </p>
                 <p className="text-sm text-text-secondary">
-                  {item.quantity} × {priceFormatter.format(item.price)}
+                  {item.quantity} × {formatPrice(item.price)}
                 </p>
               </div>
               <span className="font-medium text-text-primary">
-                {priceFormatter.format(item.total)}
+                {formatPrice(item.total)}
               </span>
             </li>
           ))}
@@ -81,7 +71,7 @@ export function OrderDetailsPanel({ order }: OrderDetailsPanelProps) {
             <div className="flex justify-between gap-4">
               <dt className="text-text-secondary">Amount</dt>
               <dd className="text-text-primary">
-                {priceFormatter.format(order.payment.amount)}
+                {formatPrice(order.payment.amount)}
               </dd>
             </div>
           )}
@@ -93,35 +83,35 @@ export function OrderDetailsPanel({ order }: OrderDetailsPanelProps) {
         <dl className="mt-3 space-y-2 text-sm">
           <div className="flex justify-between gap-4 text-text-secondary">
             <dt>Subtotal</dt>
-            <dd>{priceFormatter.format(order.subtotal)}</dd>
+            <dd>{formatPrice(order.subtotal)}</dd>
           </div>
           <div className="flex justify-between gap-4 text-text-secondary">
             <dt>Tax</dt>
-            <dd>{priceFormatter.format(order.tax)}</dd>
+            <dd>{formatPrice(order.tax)}</dd>
           </div>
           <div className="flex justify-between gap-4 text-text-secondary">
             <dt>Delivery</dt>
             <dd>
               {order.delivery_charge === 0
                 ? 'Free'
-                : priceFormatter.format(order.delivery_charge)}
+                : formatPrice(order.delivery_charge)}
             </dd>
           </div>
           {order.discount > 0 && (
             <div className="flex justify-between gap-4 text-text-secondary">
               <dt>Discount</dt>
-              <dd>-{priceFormatter.format(order.discount)}</dd>
+              <dd>-{formatPrice(order.discount)}</dd>
             </div>
           )}
           <div className="flex justify-between gap-4 border-t border-black/5 pt-3 text-base font-semibold text-text-primary">
             <dt>Total</dt>
             <dd className="text-primary">
-              {priceFormatter.format(order.total)}
+              {formatPrice(order.total)}
             </dd>
           </div>
         </dl>
         <p className="mt-4 text-xs text-text-secondary">
-          Placed on {dateFormatter.format(new Date(order.created_at))}
+          Placed on {formatDateTimeFull(new Date(order.created_at))}
         </p>
         {order.special_instructions && (
           <p className="mt-3 rounded-[var(--radius-input)] bg-background p-3 text-sm text-text-secondary">

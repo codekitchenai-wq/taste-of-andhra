@@ -4,17 +4,19 @@ import { cn } from '@/utils/cn'
 interface LoadingStateProps {
   fullPage?: boolean
   variant?: 'grid' | 'inline'
+  className?: string
 }
 
 export function LoadingState({
   fullPage = false,
   variant = 'grid',
+  className,
 }: LoadingStateProps) {
   return (
     <div
       role="status"
       aria-label="Loading content"
-      className={cn(fullPage && 'min-h-[50vh] py-12')}
+      className={cn(fullPage && 'min-h-[50vh] py-12', className)}
     >
       {variant === 'grid' ? (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

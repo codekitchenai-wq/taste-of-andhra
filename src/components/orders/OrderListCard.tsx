@@ -3,22 +3,12 @@ import { ChevronRight } from 'lucide-react'
 import { OrderStatusBadge } from '@/components/admin/OrderStatusBadge'
 import { ROUTES } from '@/constants/ROUTES'
 import type { Order } from '@/types/Order'
+import { formatPrice, formatDateTime } from '@/utils/format'
 
 interface OrderListCardProps {
   order: Order
   itemCount?: number
 }
-
-const priceFormatter = new Intl.NumberFormat('en-IN', {
-  style: 'currency',
-  currency: 'INR',
-  maximumFractionDigits: 0,
-})
-
-const dateFormatter = new Intl.DateTimeFormat('en-IN', {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-})
 
 export function OrderListCard({ order, itemCount }: OrderListCardProps) {
   return (
@@ -32,7 +22,7 @@ export function OrderListCard({ order, itemCount }: OrderListCardProps) {
             {order.order_number}
           </p>
           <p className="mt-1 text-sm text-text-secondary">
-            {dateFormatter.format(new Date(order.created_at))}
+            {formatDateTime(order.created_at)}
           </p>
           {itemCount !== undefined && (
             <p className="mt-1 text-sm text-text-secondary">
@@ -44,7 +34,7 @@ export function OrderListCard({ order, itemCount }: OrderListCardProps) {
         <div className="flex shrink-0 flex-col items-end gap-2">
           <OrderStatusBadge status={order.order_status} />
           <p className="font-semibold text-primary">
-            {priceFormatter.format(order.total)}
+            {formatPrice(order.total)}
           </p>
           <ChevronRight
             className="h-5 w-5 text-text-secondary transition-colors group-hover:text-primary"

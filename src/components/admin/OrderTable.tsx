@@ -4,6 +4,7 @@ import type { AdminOrder } from '@/services/orderService'
 import type { OrderStatus } from '@/types/enums'
 import { OrderStatusBadge } from '@/components/admin/OrderStatusBadge'
 import { PAYMENT_METHOD } from '@/constants/PAYMENT_METHOD'
+import { formatPrice, formatDateTime } from '@/utils/format'
 
 interface OrderTableProps {
   orders: AdminOrder[]
@@ -11,17 +12,6 @@ interface OrderTableProps {
   onView?: (orderId: string) => void
   isUpdating?: boolean
 }
-
-const priceFormatter = new Intl.NumberFormat('en-IN', {
-  style: 'currency',
-  currency: 'INR',
-  maximumFractionDigits: 0,
-})
-
-const dateFormatter = new Intl.DateTimeFormat('en-IN', {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-})
 
 export function OrderTable({
   orders,
@@ -67,7 +57,7 @@ export function OrderTable({
                 </p>
               </td>
               <td className="px-4 py-4 font-medium text-text-primary">
-                {priceFormatter.format(order.total)}
+                {formatPrice(order.total)}
               </td>
               <td className="px-4 py-4 text-text-secondary">
                 {PAYMENT_METHOD[order.payment_method]}
@@ -76,7 +66,7 @@ export function OrderTable({
                 <OrderStatusBadge status={order.order_status} />
               </td>
               <td className="px-4 py-4 text-text-secondary">
-                {dateFormatter.format(new Date(order.created_at))}
+                {formatDateTime(new Date(order.created_at))}
               </td>
               <td className="px-4 py-4">
                 <div className="flex items-center gap-2">

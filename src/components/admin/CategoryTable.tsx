@@ -1,6 +1,7 @@
 import { Pencil, Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import type { Category } from '@/types/Category'
+import { LazyImage } from '@/components/ui/LazyImage'
 
 interface CategoryTableProps {
   categories: Category[]
@@ -34,7 +35,7 @@ export function CategoryTable({
               <td className="px-4 py-4">
                 <div className="flex items-center gap-3">
                   {category.image_url ? (
-                    <img
+                    <LazyImage
                       src={category.image_url}
                       alt={category.name}
                       className="h-10 w-10 rounded-[var(--radius-input)] object-cover"

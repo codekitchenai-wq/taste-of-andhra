@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
 import { Container } from '@/components/ui/Container'
+import { LazyImage } from '@/components/ui/LazyImage'
 import { SectionHeader } from '@/components/home/SectionHeader'
 import { featuredCategories } from '@/data/home'
 import { ROUTES } from '@/constants/ROUTES'
@@ -22,11 +23,10 @@ export function FeaturedCategories() {
               className="group overflow-hidden rounded-[var(--radius-card)] bg-surface shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
             >
               <div className="aspect-[4/3] overflow-hidden">
-                <img
+                <LazyImage
                   src={category.imageUrl}
                   alt={category.name}
                   className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  loading="lazy"
                 />
               </div>
               <div className="p-4">
