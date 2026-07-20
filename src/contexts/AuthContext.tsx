@@ -8,7 +8,7 @@ import {
 } from 'react'
 import * as authService from '@/services/authService'
 import type { LoginInput, RegisterInput } from '@/services/authService'
-import { supabase } from '@/services/supabaseClient'
+import { isSupabaseConfigured, supabase } from '@/services/supabaseClient'
 import type { ServiceResponse } from '@/types/api'
 import type { Profile } from '@/types/Profile'
 import type { UserRole } from '@/types/enums'
@@ -48,11 +48,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     let mounted = true
 
+    if (!isSupabaseConfigured) {
+      setUser(null)
+      setIsLoading(false)
+      return
+    }
+
     const initialize = async () => {
       await loadUser()
     }
 
-    initialize()
+    void initialize()
 
     const {
       data: { subscription },

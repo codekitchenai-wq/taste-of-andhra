@@ -10,4 +10,27 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    outDir: 'dist',
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('@supabase/supabase-js')) {
+              return 'supabase'
+            }
+
+            if (
+              id.includes('react-dom') ||
+              id.includes('react-router-dom') ||
+              id.includes('/react/')
+            ) {
+              return 'react'
+            }
+          }
+        },
+      },
+    },
+  },
 })
