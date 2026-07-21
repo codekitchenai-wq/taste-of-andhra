@@ -5,6 +5,7 @@ export const ROUTES = {
   DISH_DETAILS: (slug: string) => `/menu/${slug}`,
   GALLERY: '/gallery',
   CONTACT: '/contact',
+  PARTY_ORDER: '/party-order',
   LOGIN: '/login',
   REGISTER: '/register',
   PROFILE: '/profile',
@@ -24,6 +25,7 @@ export const ROUTES = {
     DELIVERY: '/admin/delivery',
     OFFERS: '/admin/offers',
     REPORTS: '/admin/reports',
+    PARTY_INQUIRIES: '/admin/party-inquiries',
     SETTINGS: '/admin/settings',
   },
 } as const

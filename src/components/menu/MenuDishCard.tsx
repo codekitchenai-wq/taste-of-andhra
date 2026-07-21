@@ -42,17 +42,11 @@ export function MenuDishCard({ dish, categoryName }: MenuDishCardProps) {
     <article className="group flex h-full flex-col overflow-hidden rounded-[var(--radius-card)] bg-surface shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
       <Link to={ROUTES.DISH_DETAILS(dish.slug)} className="block">
         <div className="relative aspect-[4/3] overflow-hidden bg-background">
-          {dish.image_url ? (
-            <LazyImage
-              src={dish.image_url}
-              alt={dish.name}
-              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-primary/10 text-4xl font-bold text-primary">
-              {dish.name.charAt(0)}
-            </div>
-          )}
+          <LazyImage
+            src={dish.image_url ?? undefined}
+            alt={dish.name}
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
           <div className="absolute left-3 top-3 flex flex-wrap gap-2">
             <Badge variant={dish.is_veg ? 'veg' : 'nonVeg'}>
               {dish.is_veg ? 'Veg' : 'Non-Veg'}

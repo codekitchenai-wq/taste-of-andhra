@@ -14,6 +14,7 @@ const MenuPage = lazy(() => import('@/pages/public/MenuPage'))
 const DishDetailsPage = lazy(() => import('@/pages/public/DishDetailsPage'))
 const GalleryPage = lazy(() => import('@/pages/public/GalleryPage'))
 const ContactPage = lazy(() => import('@/pages/public/ContactPage'))
+const PartyOrderPage = lazy(() => import('@/pages/public/PartyOrderPage'))
 
 const LoginPage = lazy(() => import('@/pages/customer/LoginPage'))
 const RegisterPage = lazy(() => import('@/pages/customer/RegisterPage'))
@@ -47,6 +48,9 @@ const AdminReportsPage = lazy(() => import('@/pages/admin/AdminReportsPage'))
 const AdminSettingsPage = lazy(
   () => import('@/pages/admin/AdminSettingsPage'),
 )
+const AdminPartyInquiriesPage = lazy(
+  () => import('@/pages/admin/AdminPartyInquiriesPage'),
+)
 
 export const router = createBrowserRouter([
   {
@@ -58,6 +62,7 @@ export const router = createBrowserRouter([
       { path: `${ROUTES.MENU}/:slug`, element: <DishDetailsPage /> },
       { path: ROUTES.GALLERY, element: <GalleryPage /> },
       { path: ROUTES.CONTACT, element: <ContactPage /> },
+      { path: ROUTES.PARTY_ORDER, element: <PartyOrderPage /> },
       { path: ROUTES.CART, element: <CartPage /> },
       {
         element: <ProtectedRoute />,
@@ -104,6 +109,10 @@ export const router = createBrowserRouter([
           },
           { path: ROUTES.ADMIN.DELIVERY, element: <AdminDeliveryPage /> },
           { path: ROUTES.ADMIN.OFFERS, element: <AdminOffersPage /> },
+          {
+            path: ROUTES.ADMIN.PARTY_INQUIRIES,
+            element: <AdminPartyInquiriesPage />,
+          },
           { path: ROUTES.ADMIN.REPORTS, element: <AdminReportsPage /> },
           { path: ROUTES.ADMIN.SETTINGS, element: <AdminSettingsPage /> },
         ],

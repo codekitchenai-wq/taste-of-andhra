@@ -67,6 +67,12 @@ export function CheckoutOrderSummary({
             {formatPrice(FREE_DELIVERY_THRESHOLD)}
           </p>
         )}
+        {totals.discount > 0 && (
+          <div className="flex items-center justify-between text-success">
+            <dt>Discount</dt>
+            <dd>-{formatPrice(totals.discount)}</dd>
+          </div>
+        )}
         <div className="flex items-center justify-between border-t border-black/5 pt-3 text-base font-semibold text-text-primary">
           <dt>Total</dt>
           <dd className="text-primary">{formatPrice(totals.total)}</dd>

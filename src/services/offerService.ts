@@ -157,6 +157,54 @@ export async function updateOffer(
   return createSuccessResponse(mapOffer(data))
 }
 
+export interface CouponValidation {
+  offer: Offer
+  discountAmount: number
+}
+
+export async function validateCoupon(
+  couponCode: string,
+  subtotal: number,
+): Promise<ServiceResponse<CouponValidation>> {
+  const code = couponCode.trim()
+
+  if (!code) {
+    return createErrorResponse('Enter a coupon code.')
+  }
+
+  const today = new Date().toISOString().slice(0, 10)
+
+  const { data, error } = await supabase
+    .from('offers')
+    .select('*')
+    .eq('is_active', true)
+    .ilike('coupon_code', code)
+    .lte('start_date', today)
+    .gte('end_date', today)
+    .maybeSingle()
+
+  if (error) {
+    return createErrorResponse('Unable to validate coupon.', error.message)
+  }
+
+  if (!data) {
+    return createErrorResponse('Invalid or expired coupon code.')
+  }
+
+  const offer = mapOffer(data)
+
+  if (subtotal < offer.minimum_order) {
+    return createErrorResponse(
+      `Minimum order of ₹${offer.minimum_order} required for this coupon.`,
+    )
+  }
+
+  const discountAmount =
+    Math.round(subtotal * (offer.discount_percentage / 100) * 100) / 100
+
+  return createSuccessResponse({ offer, discountAmount })
+}
+
 export async function deleteOffer(id: string): Promise<ServiceResponse<null>> {
   const { error } = await supabase
     .from('offers')

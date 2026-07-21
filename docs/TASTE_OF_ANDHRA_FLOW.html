@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Taste of Andhra — System Flow Overview</title>
+    <style>
+      :root {
+        --primary: #c62828;
+        --primary-light: #ffebee;
+        --accent: #f9a825;
+        --text: #1a1a1a;
+        --muted: #555;
+        --border: #ddd;
+        --surface: #fafafa;
+        --success: #2e7d32;
+        --admin: #1565c0;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+        color: var(--text);
+        line-height: 1.55;
+        margin: 0;
+        padding: 0;
+        background: #fff;
+        font-size: 11pt;
+      }
+
+      .page {
+        max-width: 780px;
+        margin: 0 auto;
+        padding: 28px 32px 40px;
+        page-break-after: always;
+      }
+
+      .page:last-child {
+        page-break-after: auto;
+      }
+
+      header.doc-header {
+        border-bottom: 3px solid var(--primary);
+        padding-bottom: 16px;
+        margin-bottom: 28px;
+      }
+
+      header.doc-header h1 {
+        margin: 0 0 6px;
+        font-size: 24pt;
+        color: var(--primary);
+        font-weight: 700;
+      }
+
+      header.doc-header p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 10.5pt;
+      }
+
+      h2 {
+        font-size: 14pt;
+        color: var(--primary);
+        margin: 0 0 14px;
+        border-left: 4px solid var(--accent);
+        padding-left: 10px;
+      }
+
+      h3 {
+        font-size: 11pt;
+        margin: 18px 0 8px;
+        color: var(--text);
+      }
+
+      p,
+      li {
+        color: var(--muted);
+        margin: 0 0 8px;
+      }
+
+      ul {
+        margin: 0 0 12px;
+        padding-left: 20px;
+      }
+
+      .meta {
+        display: flex;
+        gap: 24px;
+        flex-wrap: wrap;
+        font-size: 9.5pt;
+        color: var(--muted);
+        margin-top: 10px;
+      }
+
+      /* Flow diagram styles */
+      .flow {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+        margin: 16px 0 24px;
+        padding: 16px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+      }
+
+      .flow-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        width: 100%;
+      }
+
+      .box {
+        border: 2px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 14px;
+        text-align: center;
+        min-width: 110px;
+        max-width: 160px;
+        background: #fff;
+        font-size: 9.5pt;
+        font-weight: 600;
+        line-height: 1.3;
+      }
+
+      .box small {
+        display: block;
+        font-weight: 400;
+        color: var(--muted);
+        font-size: 8pt;
+        margin-top: 4px;
+      }
+
+      .box.customer {
+        border-color: var(--primary);
+        background: var(--primary-light);
+      }
+
+      .box.admin {
+        border-color: var(--admin);
+        background: #e3f2fd;
+      }
+
+      .box.backend {
+        border-color: #6a1b9a;
+        background: #f3e5f5;
+      }
+
+      .box.external {
+        border-color: #ef6c00;
+        background: #fff3e0;
+      }
+
+      .arrow-down {
+        width: 0;
+        height: 0;
+        border-left: 8px solid transparent;
+        border-right: 8px solid transparent;
+        border-top: 12px solid #999;
+        margin: 4px 0;
+      }
+
+      .arrow-right {
+        color: #999;
+        font-size: 18pt;
+        line-height: 1;
+        padding: 0 2px;
+      }
+
+      .branch-label {
+        font-size: 8.5pt;
+        color: var(--muted);
+        font-style: italic;
+        margin: 2px 0 6px;
+      }
+
+      .details {
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 16px 18px;
+        margin-top: 8px;
+      }
+
+      .details-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px 20px;
+      }
+
+      .detail-item strong {
+        display: block;
+        color: var(--text);
+        font-size: 10pt;
+        margin-bottom: 2px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 9.5pt;
+        margin: 10px 0;
+      }
+
+      th,
+      td {
+        border: 1px solid var(--border);
+        padding: 8px 10px;
+        text-align: left;
+      }
+
+      th {
+        background: var(--surface);
+        color: var(--text);
+        font-weight: 600;
+      }
+
+      .tag {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 8pt;
+        font-weight: 600;
+        margin-right: 4px;
+      }
+
+      .tag.done {
+        background: #e8f5e9;
+        color: var(--success);
+      }
+
+      .tag.future {
+        background: #fff8e1;
+        color: #f57f17;
+      }
+
+      footer {
+        margin-top: 24px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+        font-size: 8.5pt;
+        color: #888;
+        text-align: center;
+      }
+
+      @media print {
+        .page {
+          page-break-after: always;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- PAGE 1: System Overview -->
+    <section class="page">
+      <header class="doc-header">
+        <h1>Taste of Andhra</h1>
+        <p>High-Level System Flow &amp; Feature Overview</p>
+        <div class="meta">
+          <span><strong>Version:</strong> 1.0</span>
+          <span><strong>Date:</strong> July 2026</span>
+          <span><strong>Stack:</strong> React + Supabase + Vercel</span>
+        </div>
+      </header>
+
+      <h2>1. System Architecture Overview</h2>
+
+      <div class="flow">
+        <div class="flow-row">
+          <div class="box customer">Customer Browser<small>React SPA (Vite)</small></div>
+          <span class="arrow-right">→</span>
+          <div class="box backend">Service Layer<small>auth, cart, orders…</small></div>
+          <span class="arrow-right">→</span>
+          <div class="box backend">Supabase<small>Auth · DB · Storage</small></div>
+        </div>
+        <div class="arrow-down"></div>
+        <div class="flow-row">
+          <div class="box admin">Admin Browser<small>/admin dashboard</small></div>
+          <span class="arrow-right">→</span>
+          <div class="box backend">Same Service Layer</div>
+          <span class="arrow-right">→</span>
+          <div class="box external">Razorpay<small>optional online pay</small></div>
+        </div>
+      </div>
+
+      <div class="details">
+        <h3>Architecture details</h3>
+        <div class="details-grid">
+          <div class="detail-item">
+            <strong>Frontend</strong>
+            React 19, TypeScript, Vite, Tailwind CSS v4, React Router. Single-page app deployed on Vercel.
+          </div>
+          <div class="detail-item">
+            <strong>Backend</strong>
+            Supabase PostgreSQL with Row Level Security. No custom Express server — all data access goes through typed service functions in <code>src/services/</code>.
+          </div>
+          <div class="detail-item">
+            <strong>Authentication</strong>
+            Customers: mobile + SMS OTP. Admins: email + password. Roles stored in <code>profiles</code> table (<code>customer</code>, <code>admin</code>, <code>delivery</code>).
+          </div>
+          <div class="detail-item">
+            <strong>Storage</strong>
+            Dish and category images uploaded to Supabase Storage bucket <code>restaurant-images</code>. Static marketing images served from <code>/public/images</code>.
+          </div>
+        </div>
+      </div>
+
+      <h2>2. User Roles</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Role</th>
+            <th>Access</th>
+            <th>Auth method</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Guest</td>
+            <td>Home, menu, about, gallery, contact, party enquiry</td>
+            <td>None</td>
+          </tr>
+          <tr>
+            <td>Customer</td>
+            <td>Cart, checkout, orders, addresses, profile, reviews</td>
+            <td>Mobile OTP</td>
+          </tr>
+          <tr>
+            <td>Admin</td>
+            <td>Full dashboard — menu, orders, customers, delivery, reports</td>
+            <td>Email + password</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- PAGE 2: Customer Order Flow -->
+    <section class="page">
+      <h2>3. Customer Ordering Flow</h2>
+
+      <div class="flow">
+        <div class="flow-row">
+          <div class="box customer">Browse Menu<small>/menu</small></div>
+          <span class="arrow-right">→</span>
+          <div class="box customer">Dish Details<small>/menu/:slug</small></div>
+          <span class="arrow-right">→</span>
+          <div class="box customer">Add to Cart<small>login required</small></div>
+        </div>
+        <div class="arrow-down"></div>
+        <div class="flow-row">
+          <div class="box customer">Cart<small>/cart</small></div>
+          <span class="arrow-right">→</span>
+          <div class="box customer">Checkout<small>/checkout</small></div>
+          <span class="arrow-right">→</span>
+          <div class="box customer">Place Order</div>
+        </div>
+        <div class="arrow-down"></div>
+        <div class="branch-label">Payment method</div>
+        <div class="flow-row">
+          <div class="box customer">Cash on Delivery<small>order confirmed</small></div>
+          <span style="margin: 0 12px; color: #999">OR</span>
+          <div class="box external">Pay Online<small>Razorpay / demo</small></div>
+        </div>
+        <div class="arrow-down"></div>
+        <div class="flow-row">
+          <div class="box customer">Order Success<small>/order-success</small></div>
+          <span class="arrow-right">→</span>
+          <div class="box customer">Track Order<small>/orders/:id</small></div>
+        </div>
+      </div>
+
+      <div class="details">
+        <h3>Checkout details</h3>
+        <ul>
+          <li><strong>Address:</strong> Select saved address or add new one at checkout.</li>
+          <li><strong>Coupon:</strong> Apply active offer code — discount validated against minimum order value.</li>
+          <li><strong>Pricing:</strong> Subtotal + 5% tax + delivery (₹49, free above ₹399) − discount = total.</li>
+          <li><strong>COD:</strong> Order created with <code>payment_status: pending</code>, cart cleared on success.</li>
+          <li><strong>Online:</strong> Order created first, then Razorpay modal (or demo auto-pay if no API key). Cart kept until payment succeeds.</li>
+          <li><strong>Cancel:</strong> Customer can cancel while status is <code>pending</code> or <code>confirmed</code>.</li>
+        </ul>
+
+        <h3>Order status lifecycle</h3>
+        <p>
+          <code>pending</code> → <code>confirmed</code> → <code>preparing</code> → <code>ready</code> →
+          <code>out_for_delivery</code> → <code>delivered</code> &nbsp;|&nbsp; <code>cancelled</code>
+        </p>
+        <p>Status stepper shown on order details page. Admin updates status from Orders or Delivery pages.</p>
+      </div>
+    </section>
+
+    <!-- PAGE 3: Auth Flow -->
+    <section class="page">
+      <h2>4. Customer Authentication (Mobile OTP)</h2>
+
+      <div class="flow">
+        <div class="flow-row">
+          <div class="box customer">Register / Login<small>/register or /login</small></div>
+        </div>
+        <div class="arrow-down"></div>
+        <div class="flow-row">
+          <div class="box customer">Enter mobile (+ name if new)<small>10-digit Indian number</small></div>
+        </div>
+        <div class="arrow-down"></div>
+        <div class="flow-row">
+          <div class="box external">Send OTP<small>Supabase + SMS provider</small></div>
+        </div>
+        <div class="arrow-down"></div>
+        <div class="flow-row">
+          <div class="box customer">Enter 6-digit OTP<small>verify within timeout</small></div>
+        </div>
+        <div class="arrow-down"></div>
+        <div class="flow-row">
+          <div class="box backend">Profile created<small>DB trigger on auth.users</small></div>
+          <span class="arrow-right">→</span>
+          <div class="box customer">Session active<small>JWT in browser</small></div>
+        </div>
+      </div>
+
+      <div class="details">
+        <h3>Auth details</h3>
+        <ul>
+          <li>Phone numbers stored as E.164 format (<code>+91XXXXXXXXXX</code>) in Supabase Auth.</li>
+          <li>Registration collects full name + phone; login uses phone only.</li>
+          <li>On first verify, <code>handle_new_user</code> trigger inserts row into <code>profiles</code>.</li>
+          <li>Deactivated accounts (<code>is_active = false</code>) are signed out automatically.</li>
+          <li>Cart, addresses, and orders are tied to authenticated user via RLS policies.</li>
+        </ul>
+
+        <h3>Admin authentication (separate flow)</h3>
+        <div class="flow" style="margin-top: 12px">
+          <div class="flow-row">
+            <div class="box admin">/admin/login</div>
+            <span class="arrow-right">→</span>
+            <div class="box admin">Email + Password</div>
+            <span class="arrow-right">→</span>
+            <div class="box admin">Role check = admin</div>
+            <span class="arrow-right">→</span>
+            <div class="box admin">Admin Dashboard</div>
+          </div>
+        </div>
+        <p>Admin users are created in Supabase Dashboard, then promoted via SQL: <code>UPDATE profiles SET role = 'admin'</code>.</p>
+      </div>
+
+      <h2>5. Party Order Enquiry Flow</h2>
+      <div class="flow">
+        <div class="flow-row">
+          <div class="box customer">Party Order Form<small>/party-order</small></div>
+          <span class="arrow-right">→</span>
+          <div class="box backend">party_inquiries table</div>
+          <span class="arrow-right">→</span>
+          <div class="box admin">Admin reviews<small>/admin/party-inquiries</small></div>
+        </div>
+      </div>
+      <div class="details">
+        <p>Public form (no login required). Captures guest count, meal preference, event date, venue address, and notes. Admin updates inquiry status: <code>new</code> → <code>contacted</code> → <code>quoted</code> → <code>closed</code>.</p>
+      </div>
+    </section>
+
+    <!-- PAGE 4: Admin Flow -->
+    <section class="page">
+      <h2>6. Admin Dashboard Flow</h2>
+
+      <div class="flow">
+        <div class="flow-row">
+          <div class="box admin">Dashboard<small>stats &amp; recent orders</small></div>
+        </div>
+        <div class="arrow-down"></div>
+        <div class="flow-row">
+          <div class="box admin">Categories</div>
+          <div class="box admin">Dishes</div>
+          <div class="box admin">Orders</div>
+          <div class="box admin">Customers</div>
+        </div>
+        <div class="arrow-down"></div>
+        <div class="flow-row">
+          <div class="box admin">Delivery</div>
+          <div class="box admin">Offers</div>
+          <div class="box admin">Party Inquiries</div>
+          <div class="box admin">Reports</div>
+        </div>
+      </div>
+
+      <div class="details">
+        <h3>Admin module details</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Module</th>
+              <th>Route</th>
+              <th>Capabilities</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Categories</td>
+              <td>/admin/categories</td>
+              <td>CRUD, image upload, display order, active/inactive</td>
+            </tr>
+            <tr>
+              <td>Dishes</td>
+              <td>/admin/dishes</td>
+              <td>CRUD, pricing, spice level, veg/non-veg, featured, images</td>
+            </tr>
+            <tr>
+              <td>Orders</td>
+              <td>/admin/orders</td>
+              <td>Search, filter by status, view details, update status</td>
+            </tr>
+            <tr>
+              <td>Customers</td>
+              <td>/admin/customers</td>
+              <td>Search, view profiles, activate/deactivate accounts</td>
+            </tr>
+            <tr>
+              <td>Delivery</td>
+              <td>/admin/delivery</td>
+              <td>Assign partner to order, track delivery status</td>
+            </tr>
+            <tr>
+              <td>Offers</td>
+              <td>/admin/offers</td>
+              <td>Create coupons with % discount, date range, min order</td>
+            </tr>
+            <tr>
+              <td>Party Inquiries</td>
+              <td>/admin/party-inquiries</td>
+              <td>View and update enquiry status</td>
+            </tr>
+            <tr>
+              <td>Reports</td>
+              <td>/admin/reports</td>
+              <td>Daily/weekly/monthly sales, revenue, popular dishes</td>
+            </tr>
+            <tr>
+              <td>Settings</td>
+              <td>/admin/settings</td>
+              <td>Restaurant info, pricing rules, integration status</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>7. Delivery Assignment Flow</h2>
+      <div class="flow">
+        <div class="flow-row">
+          <div class="box admin">Order ready<small>confirmed / preparing / ready</small></div>
+          <span class="arrow-right">→</span>
+          <div class="box admin">Assign partner<small>name + phone</small></div>
+          <span class="arrow-right">→</span>
+          <div class="box backend">delivery record</div>
+          <span class="arrow-right">→</span>
+          <div class="box customer">out_for_delivery → delivered</div>
+        </div>
+      </div>
+      <div class="details">
+        <p>Creates a row in <code>delivery</code> table and sets order status to <code>out_for_delivery</code>. Admin can mark delivery as <code>delivered</code>, which syncs order status.</p>
+      </div>
+    </section>
+
+    <!-- PAGE 5: Data & Future -->
+    <section class="page">
+      <h2>8. Data Model (Core Tables)</h2>
+
+      <div class="flow">
+        <div class="flow-row">
+          <div class="box backend">profiles</div>
+          <div class="box backend">categories</div>
+          <div class="box backend">dishes</div>
+        </div>
+        <div class="arrow-down"></div>
+        <div class="flow-row">
+          <div class="box backend">cart → cart_items</div>
+          <div class="box backend">addresses</div>
+          <div class="box backend">orders → order_items</div>
+        </div>
+        <div class="arrow-down"></div>
+        <div class="flow-row">
+          <div class="box backend">payments</div>
+          <div class="box backend">offers</div>
+          <div class="box backend">reviews</div>
+          <div class="box backend">delivery</div>
+          <div class="box backend">party_inquiries</div>
+        </div>
+      </div>
+
+      <div class="details">
+        <h3>Service layer (API)</h3>
+        <p>All Supabase calls are encapsulated in services — UI components never query the database directly.</p>
+        <p>
+          <code>authService</code> · <code>categoryService</code> · <code>dishService</code> ·
+          <code>cartService</code> · <code>orderService</code> · <code>paymentService</code> ·
+          <code>addressService</code> · <code>offerService</code> · <code>reviewService</code> ·
+          <code>deliveryService</code> · <code>partyInquiryService</code> · <code>reportService</code>
+        </p>
+      </div>
+
+      <h2>9. Feature Status Summary</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Area</th>
+            <th>Status</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Public website &amp; menu</td>
+            <td><span class="tag done">Built</span></td>
+            <td>Home, menu, dish details, gallery, about, contact</td>
+          </tr>
+          <tr>
+            <td>Mobile OTP auth</td>
+            <td><span class="tag done">Built</span></td>
+            <td>Requires Supabase phone provider setup</td>
+          </tr>
+          <tr>
+            <td>Cart &amp; checkout</td>
+            <td><span class="tag done">Built</span></td>
+            <td>COD + Razorpay (demo without key), coupons</td>
+          </tr>
+          <tr>
+            <td>Order tracking</td>
+            <td><span class="tag done">Built</span></td>
+            <td>Status-based stepper (not live GPS)</td>
+          </tr>
+          <tr>
+            <td>Admin dashboard</td>
+            <td><span class="tag done">Built</span></td>
+            <td>Full CRUD for menu, orders, customers, reports</td>
+          </tr>
+          <tr>
+            <td>Dish reviews</td>
+            <td><span class="tag done">Built</span></td>
+            <td>Customers rate dishes on detail page</td>
+          </tr>
+          <tr>
+            <td>Live GPS tracking</td>
+            <td><span class="tag future">Future</span></td>
+            <td>Planned enhancement</td>
+          </tr>
+          <tr>
+            <td>Email / SMS notifications</td>
+            <td><span class="tag future">Future</span></td>
+            <td>Order confirmations, status updates</td>
+          </tr>
+          <tr>
+            <td>Loyalty, GST invoice, kitchen dashboard</td>
+            <td><span class="tag future">Future</span></td>
+            <td>See PROJECT_REQUIREMENTS.md §26</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>10. Deployment Flow</h2>
+      <div class="flow">
+        <div class="flow-row">
+          <div class="box customer">Git push</div>
+          <span class="arrow-right">→</span>
+          <div class="box external">Vercel build<small>npm run build</small></div>
+          <span class="arrow-right">→</span>
+          <div class="box external">Static SPA<small>dist/</small></div>
+          <span class="arrow-right">→</span>
+          <div class="box backend">Supabase API<small>env vars at build</small></div>
+        </div>
+      </div>
+      <div class="details">
+        <ul>
+          <li>Environment variables: <code>VITE_SUPABASE_URL</code>, <code>VITE_SUPABASE_ANON_KEY</code>, optional <code>VITE_RAZORPAY_KEY_ID</code>.</li>
+          <li>Database migrations run manually in Supabase SQL Editor (see <code>supabase/migrations/</code>).</li>
+          <li>SPA routing handled via <code>vercel.json</code> rewrite to <code>index.html</code>.</li>
+        </ul>
+      </div>
+
+      <footer>
+        Taste of Andhra — System Flow Document · Generated for project stakeholders · Confidential
+      </footer>
+    </section>
+  </body>
+</html>

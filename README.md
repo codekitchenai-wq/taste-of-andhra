@@ -36,6 +36,7 @@ cp .env.example .env.local
 | --- | --- |
 | `VITE_SUPABASE_URL` | Supabase project URL (Dashboard → Project Settings → API) |
 | `VITE_SUPABASE_ANON_KEY` | Supabase anonymous/public key |
+| `VITE_RAZORPAY_KEY_ID` | Optional — Razorpay key for live online payments (demo mode without it) |
 
 > Only variables prefixed with `VITE_` are included in the client bundle. Never commit real credentials — `.env.local` is gitignored.
 
@@ -50,21 +51,37 @@ Run the SQL migrations in order from `supabase/migrations/` using the Supabase S
 5. `20250720180004_enable_rls_policies.sql`
 6. `20250720180005_create_profile_trigger.sql`
 7. `20250720180006_storage_bucket.sql`
+8. `20250721140000_party_inquiries.sql`
+9. `20250721160000_phone_auth_profile_trigger.sql`
 
-This creates tables, RLS policies, a profile trigger, and the `restaurant-images` storage bucket.
+This creates tables, RLS policies, a profile trigger, the `restaurant-images` storage bucket, party inquiry support, and phone OTP profile handling.
 
-### 4. Create an admin user
+Optional: run `supabase/seed_menu.sql` to load sample categories and dishes with local images.
 
-1. Register a customer account through the app (`/register`).
-2. In the Supabase SQL Editor, promote the user to admin:
+### 4. Enable phone OTP auth (customers)
+
+Customer sign-up and login use **mobile number + SMS OTP** (not email/password).
+
+1. In Supabase Dashboard → **Authentication** → **Providers** → **Phone**, enable phone sign-in.
+2. Configure an SMS provider (Twilio, MessageBird, Vonage, etc.) with your credentials.
+3. For local testing, Supabase supports [test phone numbers and OTPs](https://supabase.com/docs/guides/auth/phone-login) in development.
+
+Indian numbers are sent as `+91` followed by the 10-digit mobile entered in the app.
+
+### 5. Create an admin user
+
+Admins still sign in with **email + password** at `/admin/login`.
+
+1. In Supabase Dashboard → **Authentication** → **Users** → **Add user**, create a user with email and password.
+2. In the SQL Editor, promote that user to admin:
 
 ```sql
 UPDATE public.profiles
 SET role = 'admin'
-WHERE email = 'your-email@example.com';
+WHERE email = 'admin@example.com';
 ```
 
-### 5. Start the dev server
+### 6. Start the dev server
 
 ```bash
 npm run dev
@@ -140,8 +157,13 @@ vercel --prod
 
 After deploying, update Supabase **Authentication → URL Configuration**:
 
-- **Site URL:** `https://your-app.vercel.app`
-- **Redirect URLs:** add `https://your-app.vercel.app/**` and your preview URLs (e.g. `https://*.vercel.app/**`)
+- **Site URL:** `https://your-app.vercel.app` (or `http://localhost:5173` while testing locally)
+- **Redirect URLs** (add all that you use):
+  - `http://localhost:5173/**`
+  - `https://your-app.vercel.app/**`
+  - `https://*.vercel.app/**` (preview deployments)
+
+Email confirmation links use these settings. If Site URL is left as the default `http://localhost:3000`, verify links will break.
 
 ## Project structure
 
@@ -157,17 +179,63 @@ src/
 ├── services/     # Supabase API layer
 ├── types/        # TypeScript types
 └── utils/        # Shared helpers
+docs/
+└── TASTE_OF_ANDHRA_FLOW.pdf   # High-level system flow diagram (see also .html)
 supabase/
 └── migrations/   # Database schema and policies
 ```
 
+### System flow documentation
+
+A high-level flow diagram with detailed explanations is available in:
+
+- **PDF:** [`docs/TASTE_OF_ANDHRA_FLOW.pdf`](docs/TASTE_OF_ANDHRA_FLOW.pdf)
+- **HTML source:** [`docs/TASTE_OF_ANDHRA_FLOW.html`](docs/TASTE_OF_ANDHRA_FLOW.html)
+
+Regenerate the PDF after editing the HTML:
+
+```bash
+npm run docs:pdf
+```
+
+### Testing
+
+**Manual QA:** See [`docs/TEST_CASES.md`](docs/TEST_CASES.md) for full test cases (auth, checkout, admin, security).
+
+**Excel test workbook (for testers):** [`docs/TASTE_OF_ANDHRA_TEST_CASES.xlsx`](docs/TASTE_OF_ANDHRA_TEST_CASES.xlsx) — includes result columns and a defect log. Regenerate:
+
+```bash
+npm run docs:test-excel
+```
+
+**Automated unit tests** (order totals, phone utils, validation):
+
+```bash
+npm test
+```
+
 ## Features
 
-- Public menu with search and category filters
-- Customer auth, cart, checkout (COD), and order tracking
-- Admin dashboard: categories, dishes, orders, customers, offers, reports
-- Image uploads to Supabase Storage
-- Responsive layout with mobile navigation
+### Customer
+- Public menu with search, category/diet/spice filters, and dish detail pages
+- Customer auth via mobile OTP (SMS)
+- Coupon codes at checkout
+- Saved addresses, order history, order tracking, and cancellation
+- Dish reviews and ratings
+- Profile management (name, phone)
+- Party order enquiry form
+- About, Gallery, and Contact pages
+
+### Admin
+- Dashboard with stats, recent orders, and quick links
+- Categories and dishes CRUD with image uploads
+- Orders management with status updates
+- Customer search with activate/deactivate
+- Delivery partner assignment and tracking
+- Offers and coupon management
+- Party inquiry management
+- Sales reports and analytics
+- Settings (restaurant info, pricing rules, integration status)
 
 ## Troubleshooting
 

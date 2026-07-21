@@ -9,9 +9,15 @@ import { supabase } from '@/services/supabaseClient'
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
 
-export async function uploadDishImage(
+/**
+ * Admin uploads go to Supabase Storage under the same folder layout as
+ * public/images (dishes/ and categories/). A static Vite/Vercel host cannot
+ * write into /public at runtime, so cloud storage is required for uploads.
+ */
+async function uploadImage(
   file: File,
-  dishId: string,
+  folder: 'dishes' | 'categories',
+  entityId: string,
 ): Promise<ServiceResponse<string>> {
   if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
     return createErrorResponse('Only JPEG, PNG, and WebP images are allowed.')
@@ -22,7 +28,7 @@ export async function uploadDishImage(
   }
 
   const extension = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
-  const path = `dishes/${dishId}/${Date.now()}.${extension}`
+  const path = `${folder}/${entityId}/${Date.now()}.${extension}`
 
   const { error } = await supabase.storage
     .from(STORAGE_BUCKET)
@@ -38,4 +44,18 @@ export async function uploadDishImage(
   const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path)
 
   return createSuccessResponse(data.publicUrl)
+}
+
+export async function uploadDishImage(
+  file: File,
+  dishId: string,
+): Promise<ServiceResponse<string>> {
+  return uploadImage(file, 'dishes', dishId)
+}
+
+export async function uploadCategoryImage(
+  file: File,
+  categoryId: string,
+): Promise<ServiceResponse<string>> {
+  return uploadImage(file, 'categories', categoryId)
 }

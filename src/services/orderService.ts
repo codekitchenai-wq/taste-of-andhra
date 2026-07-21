@@ -10,12 +10,14 @@ import { supabase } from '@/services/supabaseClient'
 import { generateOrderNumber, mapOrder, mapOrderItem } from '@/utils/mapOrder'
 import { mapAddress } from '@/utils/mapAddress'
 import { mapPayment } from '@/utils/mapPayment'
+import * as offerService from '@/services/offerService'
 import { calculateOrderTotals } from '@/utils/orderTotals'
 
 export interface CreateOrderInput {
   addressId: string
   paymentMethod: PaymentMethod
   specialInstructions?: string
+  couponCode?: string
 }
 
 export interface AdminOrder extends Order {
@@ -152,8 +154,8 @@ export async function getAdminOrderDetails(
 export async function createOrder(
   input: CreateOrderInput,
 ): Promise<ServiceResponse<Order>> {
-  if (input.paymentMethod !== 'cod') {
-    return createErrorResponse('Only Cash on Delivery is available right now.')
+  if (input.paymentMethod !== 'cod' && input.paymentMethod !== 'razorpay') {
+    return createErrorResponse('Unsupported payment method.')
   }
 
   const userResult = await requireUserId()
@@ -198,7 +200,22 @@ export async function createOrder(
     return createErrorResponse('Please select a valid delivery address.')
   }
 
-  const totals = calculateOrderTotals(cart.subtotal)
+  let discount = 0
+
+  if (input.couponCode?.trim()) {
+    const couponResult = await offerService.validateCoupon(
+      input.couponCode,
+      cart.subtotal,
+    )
+
+    if (!couponResult.success) {
+      return createErrorResponse(couponResult.message, couponResult.error)
+    }
+
+    discount = couponResult.data.discountAmount
+  }
+
+  const totals = calculateOrderTotals(cart.subtotal, discount)
   const orderNumber = generateOrderNumber()
 
   const { data: order, error: orderError } = await supabase
@@ -242,7 +259,7 @@ export async function createOrder(
 
   const { error: paymentError } = await supabase.from('payments').insert({
     order_id: order.id,
-    payment_gateway: 'cod',
+    payment_gateway: input.paymentMethod === 'razorpay' ? 'razorpay' : 'cod',
     amount: totals.total,
     status: 'pending',
   })
@@ -250,8 +267,6 @@ export async function createOrder(
   if (paymentError) {
     return createErrorResponse('Unable to create payment record.', paymentError.message)
   }
-
-  await cartService.clearCart()
 
   return createSuccessResponse(mapOrder(order))
 }

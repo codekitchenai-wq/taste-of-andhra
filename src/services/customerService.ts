@@ -99,3 +99,25 @@ export async function getCustomerCount(): Promise<ServiceResponse<number>> {
 
   return createSuccessResponse(count ?? 0)
 }
+
+export async function setCustomerActive(
+  customerId: string,
+  isActive: boolean,
+): Promise<ServiceResponse<Profile>> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ is_active: isActive })
+    .eq('id', customerId)
+    .eq('role', 'customer')
+    .select()
+    .single()
+
+  if (error) {
+    return createErrorResponse(
+      'Unable to update customer status.',
+      error.message,
+    )
+  }
+
+  return createSuccessResponse(mapProfile(data))
+}

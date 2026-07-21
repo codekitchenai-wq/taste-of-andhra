@@ -91,7 +91,24 @@ export function Footer() {
             <ul className="mt-4 space-y-3 text-sm text-text-secondary">
               <li className="flex items-start gap-2">
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-secondary" />
-                <span>{CONTACT.address}</span>
+                <div>
+                  <a
+                    href={CONTACT.mapsDirectionsUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="hover:text-primary"
+                  >
+                    {CONTACT.address}
+                  </a>
+                  <a
+                    href={CONTACT.mapsDirectionsUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-1 block text-xs font-medium text-primary hover:text-primary-dark"
+                  >
+                    Get directions
+                  </a>
+                </div>
               </li>
               <li className="flex items-center gap-2">
                 <Phone className="h-4 w-4 shrink-0 text-secondary" />

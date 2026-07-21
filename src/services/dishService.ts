@@ -5,7 +5,7 @@ import {
 } from '@/types/api'
 import type { Dish } from '@/types/Dish'
 import type { SpiceLevel } from '@/types/enums'
-import { supabase } from '@/services/supabaseClient'
+import { isSupabaseConfigured, supabase } from '@/services/supabaseClient'
 import { uploadDishImage } from '@/services/storageService'
 import { mapDish, mapDishWithCategory } from '@/utils/mapDish'
 import type { DishWithCategory } from '@/utils/mapDish'
@@ -67,6 +67,12 @@ async function resolveImageUrl(
 export async function getDishes(
   filters?: DishFilters,
 ): Promise<ServiceResponse<Dish[]>> {
+  if (!isSupabaseConfigured) {
+    return createErrorResponse(
+      'Supabase is not configured. Add your real Project URL and anon key to .env.local, then restart the dev server.',
+    )
+  }
+
   let query = supabase
     .from('dishes')
     .select('*')
@@ -103,7 +109,13 @@ export async function getDishes(
   const { data, error } = await query
 
   if (error) {
-    return createErrorResponse('Unable to load dishes.', error.message)
+    const message =
+      error.code === 'PGRST205' ||
+      error.message.toLowerCase().includes('could not find the table')
+        ? 'Database tables are missing. Run the SQL migrations in Supabase → SQL Editor (see supabase/setup_all.sql), then try again.'
+        : 'Unable to load dishes.'
+
+    return createErrorResponse(message, error.message)
   }
 
   return createSuccessResponse((data ?? []).map(mapDish))

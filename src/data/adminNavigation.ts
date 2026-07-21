@@ -8,6 +8,7 @@ import {
   Tag,
   BarChart3,
   Settings,
+  PartyPopper,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { ROUTES } from '@/constants/ROUTES'
@@ -26,6 +27,7 @@ export const adminNavItems: AdminNavItem[] = [
   { label: 'Customers', to: ROUTES.ADMIN.CUSTOMERS, icon: Users },
   { label: 'Delivery', to: ROUTES.ADMIN.DELIVERY, icon: Truck },
   { label: 'Offers', to: ROUTES.ADMIN.OFFERS, icon: Tag },
+  { label: 'Party Inquiries', to: ROUTES.ADMIN.PARTY_INQUIRIES, icon: PartyPopper },
   { label: 'Reports', to: ROUTES.ADMIN.REPORTS, icon: BarChart3 },
   { label: 'Settings', to: ROUTES.ADMIN.SETTINGS, icon: Settings },
 ]

@@ -10,7 +10,11 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview --host"
+    "preview": "vite preview --host",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "docs:pdf": "node scripts/generate-flow-pdf.mjs",
+    "docs:test-excel": "node scripts/generate-test-excel.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.7",
@@ -31,6 +35,8 @@
     "@vitejs/plugin-react": "^6.0.3",
     "oxlint": "^1.71.0",
     "typescript": "~6.0.2",
-    "vite": "^8.1.1"
+    "vite": "^8.1.1",
+    "vitest": "^3.2.4",
+    "exceljs": "^4.4.0"
   }
 }

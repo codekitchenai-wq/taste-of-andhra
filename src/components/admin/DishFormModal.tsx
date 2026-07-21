@@ -268,7 +268,8 @@ export function DishFormModal({
                 className="block w-full text-sm text-text-secondary file:mr-4 file:rounded-[var(--radius-input)] file:border-0 file:bg-primary/10 file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary hover:file:bg-primary/20"
               />
               <p className="mt-1 text-xs text-text-secondary">
-                JPEG, PNG, or WebP. Max 5 MB.
+                Uploads go to Supabase Storage under dishes/. JPEG, PNG, or WebP.
+                Max 5 MB.
               </p>
             </div>
           </div>

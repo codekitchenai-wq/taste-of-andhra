@@ -42,6 +42,7 @@ function validateAddressInput(input: CreateAddressInput): string | null {
   if (!input.fullName.trim()) return 'Full name is required.'
   if (!isValidPhone(input.phone)) return 'Enter a valid 10-digit phone number.'
   if (!input.addressLine1.trim()) return 'Address line is required.'
+  if (!input.landmark?.trim()) return 'Nearest landmark is required.'
   if (!input.city.trim()) return 'City is required.'
   if (!input.state.trim()) return 'State is required.'
   if (!/^\d{6}$/.test(input.pincode.trim())) {
@@ -171,7 +172,11 @@ export async function updateAddress(
   }
 
   if (input.landmark !== undefined) {
-    updates.landmark = input.landmark.trim() || null
+    if (!input.landmark.trim()) {
+      return createErrorResponse('Nearest landmark is required.')
+    }
+
+    updates.landmark = input.landmark.trim()
   }
 
   if (input.city !== undefined) {

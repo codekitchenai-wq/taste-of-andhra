@@ -5,7 +5,7 @@ export function mapProfile(row: Record<string, unknown>): Profile {
   return {
     id: row.id as string,
     full_name: row.full_name as string,
-    email: row.email as string,
+    email: (row.email as string | null) ?? null,
     phone: (row.phone as string | null) ?? null,
     role: row.role as UserRole,
     avatar_url: (row.avatar_url as string | null) ?? null,

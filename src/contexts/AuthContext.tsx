@@ -7,7 +7,12 @@ import {
   type ReactNode,
 } from 'react'
 import * as authService from '@/services/authService'
-import type { LoginInput, RegisterInput } from '@/services/authService'
+import type {
+  LoginInput,
+  SendOtpInput,
+  UpdateProfileInput,
+  VerifyOtpInput,
+} from '@/services/authService'
 import { isSupabaseConfigured, supabase } from '@/services/supabaseClient'
 import type { ServiceResponse } from '@/types/api'
 import type { Profile } from '@/types/Profile'
@@ -18,9 +23,13 @@ export interface AuthContextValue {
   isLoading: boolean
   isAuthenticated: boolean
   role: UserRole | null
+  /** Admin email/password login */
   login: (input: LoginInput) => Promise<ServiceResponse<Profile>>
-  register: (input: RegisterInput) => Promise<ServiceResponse<Profile>>
+  sendOtp: (input: SendOtpInput) => Promise<ServiceResponse<null>>
+  verifyOtp: (input: VerifyOtpInput) => Promise<ServiceResponse<Profile>>
   logout: () => Promise<ServiceResponse<null>>
+  updateProfile: (input: UpdateProfileInput) => Promise<ServiceResponse<Profile>>
+  refreshUser: () => Promise<void>
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)
@@ -85,14 +94,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return result
   }, [])
 
-  const register = useCallback(async (input: RegisterInput) => {
-    const result = await authService.registerCustomer(input)
+  const sendOtp = useCallback(async (input: SendOtpInput) => {
+    return authService.sendPhoneOtp(input)
+  }, [])
 
-    if (result.success && result.data.id) {
-      const sessionResult = await authService.getCurrentUser()
-      if (sessionResult.success && sessionResult.data) {
-        setUser(sessionResult.data)
-      }
+  const verifyOtp = useCallback(async (input: VerifyOtpInput) => {
+    const result = await authService.verifyPhoneOtp(input)
+
+    if (result.success) {
+      setUser(result.data)
     }
 
     return result
@@ -108,6 +118,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return result
   }, [])
 
+  const updateProfile = useCallback(async (input: UpdateProfileInput) => {
+    const result = await authService.updateProfile(input)
+
+    if (result.success) {
+      setUser(result.data)
+    }
+
+    return result
+  }, [])
+
+  const refreshUser = useCallback(async () => {
+    await loadUser()
+  }, [loadUser])
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -115,10 +139,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
       isAuthenticated: Boolean(user),
       role: user?.role ?? null,
       login,
-      register,
+      sendOtp,
+      verifyOtp,
       logout,
+      updateProfile,
+      refreshUser,
     }),
-    [user, isLoading, login, register, logout],
+    [
+      user,
+      isLoading,
+      login,
+      sendOtp,
+      verifyOtp,
+      logout,
+      updateProfile,
+      refreshUser,
+    ],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

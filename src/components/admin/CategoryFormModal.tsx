@@ -1,4 +1,5 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { ImagePlus, X } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/Button'
@@ -12,7 +13,6 @@ import type { Category } from '@/types/Category'
 interface CategoryFormValues {
   name: string
   description: string
-  imageUrl: string
   displayOrder: number
   isActive: boolean
 }
@@ -31,6 +31,10 @@ export function CategoryFormModal({
   onSuccess,
 }: CategoryFormModalProps) {
   const isEditing = Boolean(category)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [imageRemoved, setImageRemoved] = useState(false)
 
   const {
     register,
@@ -41,7 +45,6 @@ export function CategoryFormModal({
     defaultValues: {
       name: '',
       description: '',
-      imageUrl: '',
       displayOrder: 0,
       isActive: true,
     },
@@ -50,22 +53,50 @@ export function CategoryFormModal({
   useEffect(() => {
     if (!isOpen) return
 
+    setImageFile(null)
+    setImagePreview(category?.image_url ?? null)
+    setImageRemoved(false)
+
     reset({
       name: category?.name ?? '',
       description: category?.description ?? '',
-      imageUrl: category?.image_url ?? '',
       displayOrder: category?.display_order ?? 0,
       isActive: category?.is_active ?? true,
     })
   }, [isOpen, category, reset])
 
+  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+
+    if (!file) return
+
+    setImageFile(file)
+    setImagePreview(URL.createObjectURL(file))
+    setImageRemoved(false)
+  }
+
+  const clearImage = () => {
+    setImageFile(null)
+    setImagePreview(null)
+    setImageRemoved(true)
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
   const onSubmit = async (values: CategoryFormValues) => {
     const payload: CategoryFormInput = {
       name: values.name,
       description: values.description,
-      imageUrl: values.imageUrl,
       displayOrder: Number(values.displayOrder),
       isActive: values.isActive,
+      ...(imageFile || imageRemoved
+        ? {
+            imageFile,
+            imageUrl: imageRemoved ? '' : undefined,
+          }
+        : {}),
     }
 
     const result = isEditing
@@ -99,13 +130,48 @@ export function CategoryFormModal({
           error={errors.description?.message}
           {...register('description')}
         />
-        <Input
-          label="Image URL"
-          type="url"
-          placeholder="https://example.com/image.jpg"
-          error={errors.imageUrl?.message}
-          {...register('imageUrl')}
-        />
+
+        <div>
+          <p className="mb-2 text-sm font-medium text-text-primary">Image</p>
+          {imagePreview ? (
+            <div className="relative mb-3 overflow-hidden rounded-[var(--radius-input)]">
+              <img
+                src={imagePreview}
+                alt="Category preview"
+                className="h-40 w-full object-cover"
+              />
+              <button
+                type="button"
+                onClick={clearImage}
+                className="absolute right-2 top-2 rounded-full bg-black/60 p-1.5 text-white"
+                aria-label="Remove image"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="mb-3 flex h-40 w-full flex-col items-center justify-center gap-2 rounded-[var(--radius-input)] border border-dashed border-gray-300 text-text-secondary hover:border-primary hover:text-primary"
+            >
+              <ImagePlus className="h-8 w-8" />
+              <span className="text-sm">Upload category image</span>
+            </button>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={handleImageChange}
+          />
+          <p className="text-xs text-text-secondary">
+            Uploads go to Supabase Storage under categories/ (same layout as
+            public/images). JPEG, PNG, or WebP, max 5 MB.
+          </p>
+        </div>
+
         <Input
           label="Display Order"
           type="number"

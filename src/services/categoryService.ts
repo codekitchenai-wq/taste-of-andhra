@@ -7,11 +7,13 @@ import type { Category } from '@/types/Category'
 import { supabase } from '@/services/supabaseClient'
 import { mapCategory } from '@/utils/mapCategory'
 import { generateSlug } from '@/utils/slug'
+import { uploadCategoryImage } from '@/services/storageService'
 
 export interface CategoryFormInput {
   name: string
   description?: string
   imageUrl?: string
+  imageFile?: File | null
   displayOrder?: number
   isActive?: boolean
 }
@@ -58,6 +60,26 @@ export async function getAllCategories(): Promise<ServiceResponse<Category[]>> {
   return createSuccessResponse((data ?? []).map(mapCategory))
 }
 
+export async function getCategoryById(
+  id: string,
+): Promise<ServiceResponse<Category>> {
+  const { data, error } = await supabase
+    .from('categories')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (error) {
+    return createErrorResponse('Unable to load category.', error.message)
+  }
+
+  if (!data) {
+    return createErrorResponse('Category not found.')
+  }
+
+  return createSuccessResponse(mapCategory(data))
+}
+
 export async function createCategory(
   input: CategoryFormInput,
 ): Promise<ServiceResponse<Category>> {
@@ -87,6 +109,30 @@ export async function createCategory(
     )
   }
 
+  if (input.imageFile) {
+    const uploadResult = await uploadCategoryImage(input.imageFile, data.id)
+
+    if (!uploadResult.success) {
+      return uploadResult
+    }
+
+    const { data: updated, error: updateError } = await supabase
+      .from('categories')
+      .update({ image_url: uploadResult.data })
+      .eq('id', data.id)
+      .select()
+      .single()
+
+    if (updateError) {
+      return createErrorResponse(
+        'Category created but image upload failed to save.',
+        updateError.message,
+      )
+    }
+
+    return createSuccessResponse(mapCategory(updated))
+  }
+
   return createSuccessResponse(mapCategory(data))
 }
 
@@ -111,7 +157,15 @@ export async function updateCategory(
     updates.description = input.description.trim() || null
   }
 
-  if (input.imageUrl !== undefined) {
+  if (input.imageFile) {
+    const uploadResult = await uploadCategoryImage(input.imageFile, id)
+
+    if (!uploadResult.success) {
+      return uploadResult
+    }
+
+    updates.image_url = uploadResult.data
+  } else if (input.imageUrl !== undefined) {
     updates.image_url = input.imageUrl.trim() || null
   }
 

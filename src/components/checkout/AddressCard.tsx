@@ -44,7 +44,14 @@ export function AddressCard({ address, selected, onSelect }: AddressCardProps) {
           <p className="mt-2 text-sm text-text-secondary">
             {formatAddressLine(address)}
           </p>
-          <p className="mt-1 text-sm text-text-secondary">{address.phone}</p>
+          {address.landmark && (
+            <p className="mt-1 text-sm text-text-secondary">
+              Near: {address.landmark}
+            </p>
+          )}
+          <p className="mt-1 text-sm text-text-secondary">
+            Pincode {address.pincode} · {address.phone}
+          </p>
         </div>
 
         <MapPin

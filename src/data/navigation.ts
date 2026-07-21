@@ -10,6 +10,7 @@ export const mainNavLinks: NavLink[] = [
   { label: 'Menu', to: ROUTES.MENU },
   { label: 'About', to: ROUTES.ABOUT },
   { label: 'Gallery', to: ROUTES.GALLERY },
+  { label: 'Party Orders', to: ROUTES.PARTY_ORDER },
   { label: 'Contact', to: ROUTES.CONTACT },
 ]
 
@@ -18,6 +19,7 @@ export const footerQuickLinks: NavLink[] = [
   { label: 'Menu', to: ROUTES.MENU },
   { label: 'About Us', to: ROUTES.ABOUT },
   { label: 'Gallery', to: ROUTES.GALLERY },
+  { label: 'Party Orders', to: ROUTES.PARTY_ORDER },
   { label: 'Contact', to: ROUTES.CONTACT },
 ]
 

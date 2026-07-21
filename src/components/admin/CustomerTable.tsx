@@ -1,15 +1,22 @@
 import type { Profile } from '@/types/Profile'
 import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
 import { formatDate } from '@/utils/format'
 
 interface CustomerTableProps {
   customers: Profile[]
+  onToggleActive: (customerId: string, isActive: boolean) => void
+  isUpdating?: boolean
 }
 
-export function CustomerTable({ customers }: CustomerTableProps) {
+export function CustomerTable({
+  customers,
+  onToggleActive,
+  isUpdating = false,
+}: CustomerTableProps) {
   return (
     <div className="overflow-x-auto rounded-[var(--radius-card)] bg-surface shadow-md">
-      <table className="w-full min-w-[800px] text-left text-sm">
+      <table className="w-full min-w-[900px] text-left text-sm">
         <thead className="border-b border-black/5 bg-background/60">
           <tr>
             <th className="px-4 py-3 font-semibold text-text-primary">Name</th>
@@ -17,6 +24,7 @@ export function CustomerTable({ customers }: CustomerTableProps) {
             <th className="px-4 py-3 font-semibold text-text-primary">Phone</th>
             <th className="px-4 py-3 font-semibold text-text-primary">Status</th>
             <th className="px-4 py-3 font-semibold text-text-primary">Joined</th>
+            <th className="px-4 py-3 font-semibold text-text-primary">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -35,7 +43,9 @@ export function CustomerTable({ customers }: CustomerTableProps) {
                   </span>
                 </div>
               </td>
-              <td className="px-4 py-4 text-text-secondary">{customer.email}</td>
+              <td className="px-4 py-4 text-text-secondary">
+                {customer.email ?? '—'}
+              </td>
               <td className="px-4 py-4 text-text-secondary">
                 {customer.phone ?? '—'}
               </td>
@@ -46,6 +56,19 @@ export function CustomerTable({ customers }: CustomerTableProps) {
               </td>
               <td className="px-4 py-4 text-text-secondary">
                 {formatDate(customer.created_at)}
+              </td>
+              <td className="px-4 py-4">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={customer.is_active ? 'secondary' : 'primary'}
+                  disabled={isUpdating}
+                  onClick={() =>
+                    onToggleActive(customer.id, !customer.is_active)
+                  }
+                >
+                  {customer.is_active ? 'Deactivate' : 'Activate'}
+                </Button>
               </td>
             </tr>
           ))}
