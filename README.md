@@ -53,35 +53,43 @@ Run the SQL migrations in order from `supabase/migrations/` using the Supabase S
 7. `20250720180006_storage_bucket.sql`
 8. `20250721140000_party_inquiries.sql`
 9. `20250721160000_phone_auth_profile_trigger.sql`
+10. `20250721200000_future_features.sql`
+11. `20250721210000_google_oauth_profile_trigger.sql`
 
-This creates tables, RLS policies, a profile trigger, the `restaurant-images` storage bucket, party inquiry support, and phone OTP profile handling.
+This creates tables, RLS policies, a profile trigger, the `restaurant-images` storage bucket, party inquiry support, and future features (branches, favorites, loyalty, notifications, GST invoices, QR tables, delivery GPS).
 
 Optional: run `supabase/seed_menu.sql` to load sample categories and dishes with local images.
 
-### 4. Enable phone OTP auth (customers)
+### 4. Email / password auth (testing)
 
-Customer sign-up and login use **mobile number + SMS OTP** (not email/password).
+All personas (customer, admin, delivery) sign in with **email + password**. OTP is disabled for easier QA.
 
-1. In Supabase Dashboard → **Authentication** → **Providers** → **Phone**, enable phone sign-in.
-2. Configure an SMS provider (Twilio, MessageBird, Vonage, etc.) with your credentials.
-3. For local testing, Supabase supports [test phone numbers and OTPs](https://supabase.com/docs/guides/auth/phone-login) in development.
+1. In Supabase Dashboard → **Authentication** → **Providers** → **Email**, enable Email.
+2. Turn **off** “Confirm email” so new accounts can sign in immediately during testing.
+3. Seed one demo user per persona (password `123456` for all):
 
-Indian numbers are sent as `+91` followed by the 10-digit mobile entered in the app.
-
-### 5. Create an admin user
-
-Admins still sign in with **email + password** at `/admin/login`.
-
-1. In Supabase Dashboard → **Authentication** → **Users** → **Add user**, create a user with email and password.
-2. In the SQL Editor, promote that user to admin:
-
-```sql
-UPDATE public.profiles
-SET role = 'admin'
-WHERE email = 'admin@example.com';
+```bash
+npm run seed:demo-users
 ```
 
-### 6. Start the dev server
+| Persona | Email | Password | Login URL |
+| --- | --- | --- | --- |
+| Customer | `customer@tasteofandhra.test` | `123456` | `/login` |
+| Admin | `admin@tasteofandhra.test` | `123456` | `/admin/login` |
+| Delivery | `delivery@tasteofandhra.test` | `123456` | `/delivery/login` |
+
+Credentials are also shown under each login form. Use **Create one** on any login screen to register an additional user for that persona.
+
+Customers can also **Continue with Google** on `/login` and `/register`.
+
+#### Enable Google sign-in (customers)
+
+1. Create OAuth credentials in [Google Cloud Console](https://console.cloud.google.com/apis/credentials) (OAuth client type: Web).
+2. Add authorized redirect URI: `https://<your-project-ref>.supabase.co/auth/v1/callback`
+3. In Supabase → **Authentication** → **Providers** → **Google**, enable Google and paste Client ID + Client Secret.
+4. Under **Authentication** → **URL Configuration**, add your app URLs to **Redirect URLs** (e.g. `http://localhost:5173/login` and your production `/login`).
+
+### 5. Start the dev server
 
 ```bash
 npm run dev
@@ -97,6 +105,7 @@ Open [http://localhost:5173](http://localhost:5173).
 | `npm run build` | Type-check and create a production build in `dist/` |
 | `npm run preview` | Serve the production build locally |
 | `npm run lint` | Run Oxlint |
+| `npm run seed:demo-users` | Create demo customer / admin / delivery accounts |
 
 ## Production build
 
@@ -218,7 +227,8 @@ npm test
 
 ### Customer
 - Public menu with search, category/diet/spice filters, and dish detail pages
-- Customer auth via mobile OTP (SMS)
+- Email/password auth for customer, admin, and delivery (demo accounts for testing)
+- Google sign-in for customers
 - Coupon codes at checkout
 - Saved addresses, order history, order tracking, and cancellation
 - Dish reviews and ratings

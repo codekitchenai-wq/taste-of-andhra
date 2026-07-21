@@ -10,5 +10,5 @@ export function isValidPhone(phone: string): boolean {
 }
 
 export function isValidPassword(password: string): boolean {
-  return password.length >= 8
+  return password.length >= 6
 }

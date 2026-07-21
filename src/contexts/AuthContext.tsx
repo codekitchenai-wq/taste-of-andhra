@@ -9,9 +9,8 @@ import {
 import * as authService from '@/services/authService'
 import type {
   LoginInput,
-  SendOtpInput,
+  RegisterInput,
   UpdateProfileInput,
-  VerifyOtpInput,
 } from '@/services/authService'
 import { isSupabaseConfigured, supabase } from '@/services/supabaseClient'
 import type { ServiceResponse } from '@/types/api'
@@ -23,10 +22,9 @@ export interface AuthContextValue {
   isLoading: boolean
   isAuthenticated: boolean
   role: UserRole | null
-  /** Admin email/password login */
   login: (input: LoginInput) => Promise<ServiceResponse<Profile>>
-  sendOtp: (input: SendOtpInput) => Promise<ServiceResponse<null>>
-  verifyOtp: (input: VerifyOtpInput) => Promise<ServiceResponse<Profile>>
+  register: (input: RegisterInput) => Promise<ServiceResponse<Profile>>
+  loginWithGoogle: (redirectPath?: string) => Promise<ServiceResponse<null>>
   logout: () => Promise<ServiceResponse<null>>
   updateProfile: (input: UpdateProfileInput) => Promise<ServiceResponse<Profile>>
   refreshUser: () => Promise<void>
@@ -94,18 +92,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return result
   }, [])
 
-  const sendOtp = useCallback(async (input: SendOtpInput) => {
-    return authService.sendPhoneOtp(input)
-  }, [])
-
-  const verifyOtp = useCallback(async (input: VerifyOtpInput) => {
-    const result = await authService.verifyPhoneOtp(input)
+  const register = useCallback(async (input: RegisterInput) => {
+    const result = await authService.register(input)
 
     if (result.success) {
       setUser(result.data)
     }
 
     return result
+  }, [])
+
+  const loginWithGoogle = useCallback(async (redirectPath?: string) => {
+    return authService.loginWithGoogle(redirectPath)
   }, [])
 
   const logout = useCallback(async () => {
@@ -139,8 +137,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       isAuthenticated: Boolean(user),
       role: user?.role ?? null,
       login,
-      sendOtp,
-      verifyOtp,
+      register,
+      loginWithGoogle,
       logout,
       updateProfile,
       refreshUser,
@@ -149,8 +147,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       user,
       isLoading,
       login,
-      sendOtp,
-      verifyOtp,
+      register,
+      loginWithGoogle,
       logout,
       updateProfile,
       refreshUser,

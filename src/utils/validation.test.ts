@@ -27,8 +27,8 @@ describe('isValidPhone', () => {
 })
 
 describe('isValidPassword', () => {
-  it('requires at least 8 characters', () => {
-    expect(isValidPassword('12345678')).toBe(true)
-    expect(isValidPassword('1234567')).toBe(false)
+  it('requires at least 6 characters', () => {
+    expect(isValidPassword('123456')).toBe(true)
+    expect(isValidPassword('12345')).toBe(false)
   })
 })

@@ -34,7 +34,8 @@ export default function AdminLoginPage() {
           <div className="rounded-[var(--radius-card)] bg-surface p-6 shadow-md md:p-8">
             <h2 className="text-xl font-semibold">Admin Login</h2>
             <p className="mt-2 text-sm text-text-secondary">
-              Restaurant staff sign in to manage operations.
+              Restaurant staff sign in with email and password, or create a new
+              admin account for testing.
             </p>
             <div className="mt-6">
               <AdminLoginForm />

@@ -5,7 +5,8 @@ export default function LoginPage() {
     <div>
       <h2 className="text-xl font-semibold">Login</h2>
       <p className="mt-2 text-sm text-text-secondary">
-        Sign in with your mobile number using a one-time password (OTP).
+        Sign in with Google, or use your email and password. Create a new
+        customer account if you need one.
       </p>
       <div className="mt-6">
         <LoginForm />

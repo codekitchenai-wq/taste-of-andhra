@@ -4,30 +4,25 @@ import {
   type ServiceResponse,
 } from '@/types/api'
 import type { Profile } from '@/types/Profile'
-import { OTP_LENGTH } from '@/constants/AUTH'
+import type { UserRole } from '@/types/enums'
+import { AUTH_REDIRECT_STORAGE_KEY, MIN_PASSWORD_LENGTH } from '@/constants/AUTH'
+import { ROUTES } from '@/constants/ROUTES'
 import { supabase } from '@/services/supabaseClient'
 import { mapProfile } from '@/utils/mapProfile'
-import {
-  normalizeIndianPhone,
-  toE164IndianPhone,
-} from '@/utils/phone'
+import { normalizeIndianPhone } from '@/utils/phone'
 import { isValidEmail, isValidPassword, isValidPhone } from '@/utils/validation'
 
-/** Admin email/password login only */
 export interface LoginInput {
   email: string
   password: string
 }
 
-export interface SendOtpInput {
-  phone: string
-  fullName?: string
-}
-
-export interface VerifyOtpInput {
-  phone: string
-  otp: string
-  fullName?: string
+export interface RegisterInput {
+  email: string
+  password: string
+  fullName: string
+  role: UserRole
+  phone?: string
 }
 
 function mapAuthError(message: string): string {
@@ -37,22 +32,8 @@ function mapAuthError(message: string): string {
     return 'Invalid email or password.'
   }
 
-  if (
-    normalized.includes('token has expired') ||
-    normalized.includes('otp expired')
-  ) {
-    return 'OTP has expired. Please request a new one.'
-  }
-
-  if (
-    normalized.includes('invalid otp') ||
-    normalized.includes('invalid token')
-  ) {
-    return 'Invalid OTP. Please check and try again.'
-  }
-
   if (normalized.includes('user already registered')) {
-    return 'This phone number is already registered.'
+    return 'This email is already registered. Sign in instead.'
   }
 
   if (normalized.includes('duplicate key') && normalized.includes('phone')) {
@@ -63,12 +44,23 @@ function mapAuthError(message: string): string {
     return 'This email is already registered.'
   }
 
-  if (normalized.includes('sms send failed') || normalized.includes('phone provider')) {
-    return 'Unable to send OTP. Check Supabase phone auth settings.'
+  if (normalized.includes('password should be at least')) {
+    return `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`
   }
 
-  if (normalized.includes('signups not allowed for otp')) {
-    return 'New registrations are disabled. Contact support.'
+  if (normalized.includes('email not confirmed')) {
+    return 'Email not confirmed. Disable email confirmation in Supabase Auth settings for testing.'
+  }
+
+  if (normalized.includes('signup is disabled')) {
+    return 'Sign-ups are disabled in Supabase Auth settings.'
+  }
+
+  if (
+    normalized.includes('provider is not enabled') ||
+    normalized.includes('unsupported provider')
+  ) {
+    return 'Google sign-in is not enabled. Enable the Google provider in Supabase Auth settings.'
   }
 
   return message
@@ -102,122 +94,7 @@ async function fetchProfile(userId: string): Promise<ServiceResponse<Profile>> {
   return createSuccessResponse(profile)
 }
 
-async function ensureProfileDetails(
-  userId: string,
-  input: { fullName?: string; phone: string },
-): Promise<ServiceResponse<Profile>> {
-  const normalizedPhone = normalizeIndianPhone(input.phone)
-
-  if (!normalizedPhone) {
-    return createErrorResponse('Invalid phone number.')
-  }
-
-  const updates: Record<string, string> = {
-    phone: normalizedPhone,
-  }
-
-  if (input.fullName?.trim()) {
-    updates.full_name = input.fullName.trim()
-  }
-
-  const { error } = await supabase
-    .from('profiles')
-    .update(updates)
-    .eq('id', userId)
-
-  if (error) {
-    return createErrorResponse(
-      'Signed in, but unable to save profile details.',
-      error.message,
-    )
-  }
-
-  return fetchProfile(userId)
-}
-
-export async function sendPhoneOtp(
-  input: SendOtpInput,
-): Promise<ServiceResponse<null>> {
-  const normalizedPhone = normalizeIndianPhone(input.phone)
-
-  if (!normalizedPhone) {
-    return createErrorResponse('Phone number must be exactly 10 digits.')
-  }
-
-  const fullName = input.fullName?.trim()
-
-  if (fullName !== undefined && fullName.length < 2) {
-    return createErrorResponse('Full name must be at least 2 characters.')
-  }
-
-  let e164Phone: string
-
-  try {
-    e164Phone = toE164IndianPhone(normalizedPhone)
-  } catch {
-    return createErrorResponse('Invalid phone number.')
-  }
-
-  const { error } = await supabase.auth.signInWithOtp({
-    phone: e164Phone,
-    options: {
-      data: {
-        full_name: fullName,
-        phone: normalizedPhone,
-      },
-    },
-  })
-
-  if (error) {
-    return createErrorResponse(mapAuthError(error.message), error.message)
-  }
-
-  return createSuccessResponse(null)
-}
-
-export async function verifyPhoneOtp(
-  input: VerifyOtpInput,
-): Promise<ServiceResponse<Profile>> {
-  const normalizedPhone = normalizeIndianPhone(input.phone)
-  const otp = input.otp.trim()
-
-  if (!normalizedPhone) {
-    return createErrorResponse('Phone number must be exactly 10 digits.')
-  }
-
-  if (!/^\d+$/.test(otp) || otp.length !== OTP_LENGTH) {
-    return createErrorResponse(`Enter the ${OTP_LENGTH}-digit OTP.`)
-  }
-
-  let e164Phone: string
-
-  try {
-    e164Phone = toE164IndianPhone(normalizedPhone)
-  } catch {
-    return createErrorResponse('Invalid phone number.')
-  }
-
-  const { data, error } = await supabase.auth.verifyOtp({
-    phone: e164Phone,
-    token: otp,
-    type: 'sms',
-  })
-
-  if (error) {
-    return createErrorResponse(mapAuthError(error.message), error.message)
-  }
-
-  if (!data.user) {
-    return createErrorResponse('Verification failed. Please try again.')
-  }
-
-  return ensureProfileDetails(data.user.id, {
-    fullName: input.fullName,
-    phone: normalizedPhone,
-  })
-}
-
-/** Email/password login — used for admin accounts */
+/** Email/password login for all personas. */
 export async function login(
   input: LoginInput,
 ): Promise<ServiceResponse<Profile>> {
@@ -245,6 +122,105 @@ export async function login(
   }
 
   return fetchProfile(data.user.id)
+}
+
+/** Create a new email/password account for any persona (testing). */
+export async function register(
+  input: RegisterInput,
+): Promise<ServiceResponse<Profile>> {
+  const email = input.email.trim().toLowerCase()
+  const fullName = input.fullName.trim()
+  const password = input.password
+
+  if (!isValidEmail(email)) {
+    return createErrorResponse('Please enter a valid email address.')
+  }
+
+  if (fullName.length < 2) {
+    return createErrorResponse('Full name must be at least 2 characters.')
+  }
+
+  if (!isValidPassword(password)) {
+    return createErrorResponse(
+      `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`,
+    )
+  }
+
+  let phone: string | undefined
+
+  if (input.phone?.trim()) {
+    const normalizedPhone = normalizeIndianPhone(input.phone)
+
+    if (!normalizedPhone || !isValidPhone(normalizedPhone)) {
+      return createErrorResponse('Phone number must be exactly 10 digits.')
+    }
+
+    phone = normalizedPhone
+  }
+
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        full_name: fullName,
+        role: input.role,
+        phone,
+      },
+    },
+  })
+
+  if (error) {
+    return createErrorResponse(mapAuthError(error.message), error.message)
+  }
+
+  if (!data.user) {
+    return createErrorResponse('Registration failed. Please try again.')
+  }
+
+  if (!data.session) {
+    return createErrorResponse(
+      'Account created, but email confirmation is required. Disable "Confirm email" under Supabase Auth → Providers → Email for testing, then sign in.',
+    )
+  }
+
+  return fetchProfile(data.user.id)
+}
+
+/**
+ * Start Google OAuth for customers. Redirects the browser to Google;
+ * on return, Supabase restores the session and GuestRoute finishes navigation.
+ */
+export async function loginWithGoogle(
+  redirectPath: string = ROUTES.HOME,
+): Promise<ServiceResponse<null>> {
+  try {
+    sessionStorage.setItem(AUTH_REDIRECT_STORAGE_KEY, redirectPath)
+  } catch {
+    // Private browsing may block sessionStorage; fall back to home.
+  }
+
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: `${window.location.origin}${ROUTES.LOGIN}`,
+      queryParams: {
+        access_type: 'offline',
+        prompt: 'select_account',
+      },
+    },
+  })
+
+  if (error) {
+    try {
+      sessionStorage.removeItem(AUTH_REDIRECT_STORAGE_KEY)
+    } catch {
+      // ignore
+    }
+    return createErrorResponse(mapAuthError(error.message), error.message)
+  }
+
+  return createSuccessResponse(null)
 }
 
 export async function logout(): Promise<ServiceResponse<null>> {
@@ -328,7 +304,9 @@ export async function updatePassword(
   newPassword: string,
 ): Promise<ServiceResponse<null>> {
   if (!isValidPassword(newPassword)) {
-    return createErrorResponse('Password must be at least 8 characters.')
+    return createErrorResponse(
+      `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`,
+    )
   }
 
   const { error } = await supabase.auth.updateUser({

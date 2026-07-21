@@ -1,5 +1,12 @@
-import { PhoneOtpForm } from '@/components/auth/PhoneOtpForm'
+import { EmailAuthForm } from '@/components/auth/EmailAuthForm'
 
 export function LoginForm() {
-  return <PhoneOtpForm mode="login" />
+  return (
+    <EmailAuthForm
+      role="customer"
+      initialMode="login"
+      allowModeToggle
+      submitLabel={{ login: 'Sign In', register: 'Create Account' }}
+    />
+  )
 }
