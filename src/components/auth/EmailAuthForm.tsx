@@ -35,7 +35,7 @@ interface EmailAuthFormProps {
   footer?: ReactNode
 }
 
-const DEFAULT_SUBMIT: EmailAuthFormProps['submitLabel'] = {
+const DEFAULT_SUBMIT = {
   login: 'Sign In',
   register: 'Create Account',
 }
@@ -52,6 +52,7 @@ export function EmailAuthForm({
   const navigate = useNavigate()
   const location = useLocation()
   const [mode, setMode] = useState<AuthMode>(initialMode)
+  const labels = submitLabel ?? DEFAULT_SUBMIT
 
   const resolvedRedirect =
     redirectTo ??
@@ -216,8 +217,8 @@ export function EmailAuthForm({
               ? 'Signing in...'
               : 'Creating account...'
             : mode === 'login'
-              ? submitLabel.login
-              : submitLabel.register}
+              ? labels.login
+              : labels.register}
         </Button>
 
         {allowModeToggle ? (
