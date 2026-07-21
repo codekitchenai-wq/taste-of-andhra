@@ -4,7 +4,7 @@ export const APP_DESCRIPTION =
   'Experience the rich flavors of Andhra Pradesh — order online for delivery or pickup.'
 
 const RESTAURANT_ADDRESS =
-  'D 304 Harsha Pride, 6 Cross Kaggadaspura, C V Rama Nagar, Bangalore, 560093'
+  'D 304 Harsha Pride, 6 Cross Kaggadaspura, CV Raman Nagar, Bangalore, 560093'
 
 export const CONTACT = {
   phone: '+91 98765 43210',
