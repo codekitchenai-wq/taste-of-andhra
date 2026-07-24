@@ -20,9 +20,18 @@ export interface CreateOrderInput {
   couponCode?: string
 }
 
+export interface AdminOrderItemSummary {
+  quantity: number
+  name: string
+}
+
 export interface AdminOrder extends Order {
   customer_name: string
   customer_email: string
+  customer_phone: string | null
+  items: AdminOrderItemSummary[]
+  delivery_partner: string | null
+  partner_phone: string | null
 }
 
 export interface AdminOrderFilters {
@@ -32,12 +41,44 @@ export interface AdminOrderFilters {
 }
 
 function mapAdminOrder(row: Record<string, unknown>): AdminOrder {
-  const profile = row.profiles as { full_name: string; email: string } | null
+  const profile = row.profiles as {
+    full_name: string
+    email: string
+    phone?: string | null
+  } | null
+
+  const itemRows =
+    (row.order_items as
+      | {
+          quantity: number
+          dishes: { name: string } | null
+        }[]
+      | null) ?? []
+
+  const deliveryRaw = row.delivery as
+    | {
+        delivery_partner: string | null
+        partner_phone: string | null
+      }
+    | {
+        delivery_partner: string | null
+        partner_phone: string | null
+      }[]
+    | null
+
+  const delivery = Array.isArray(deliveryRaw) ? deliveryRaw[0] : deliveryRaw
 
   return {
     ...mapOrder(row),
     customer_name: profile?.full_name ?? 'Unknown',
     customer_email: profile?.email ?? '',
+    customer_phone: profile?.phone ?? null,
+    items: itemRows.map((item) => ({
+      quantity: Number(item.quantity),
+      name: item.dishes?.name ?? 'Item',
+    })),
+    delivery_partner: delivery?.delivery_partner ?? null,
+    partner_phone: delivery?.partner_phone ?? null,
   }
 }
 
@@ -271,12 +312,22 @@ export async function createOrder(
   return createSuccessResponse(mapOrder(order))
 }
 
+const ADMIN_ORDERS_SELECT = `
+  *,
+  profiles(full_name, email, phone),
+  order_items(
+    quantity,
+    dishes(name)
+  ),
+  delivery(delivery_partner, partner_phone)
+`
+
 export async function getAllOrders(
   filters?: AdminOrderFilters,
 ): Promise<ServiceResponse<AdminOrder[]>> {
   let query = supabase
     .from('orders')
-    .select('*, profiles(full_name, email)')
+    .select(ADMIN_ORDERS_SELECT)
     .order('created_at', { ascending: false })
 
   if (filters?.status) {
@@ -298,6 +349,27 @@ export async function getAllOrders(
   }
 
   return createSuccessResponse((data ?? []).map(mapAdminOrder))
+}
+
+/** Subscribe to order INSERT/UPDATE for live kitchen board refreshes. */
+export function subscribeToOrders(onChange: () => void): () => void {
+  const channel = supabase
+    .channel('admin-kitchen-orders')
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'orders' },
+      () => onChange(),
+    )
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'orders' },
+      () => onChange(),
+    )
+    .subscribe()
+
+  return () => {
+    void supabase.removeChannel(channel)
+  }
 }
 
 export async function updateOrderStatus(

@@ -42,12 +42,20 @@ function mapDeliveryWithOrder(row: Record<string, unknown>): DeliveryWithOrder {
 }
 
 function mapAdminOrder(row: Record<string, unknown>): AdminOrder {
-  const profile = row.profiles as { full_name: string; email: string } | null
+  const profile = row.profiles as {
+    full_name: string
+    email: string
+    phone?: string | null
+  } | null
 
   return {
     ...mapOrder(row),
     customer_name: profile?.full_name ?? 'Unknown',
     customer_email: profile?.email ?? '',
+    customer_phone: profile?.phone ?? null,
+    items: [],
+    delivery_partner: null,
+    partner_phone: null,
   }
 }
 
