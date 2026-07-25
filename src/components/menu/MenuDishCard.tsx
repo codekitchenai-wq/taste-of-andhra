@@ -3,6 +3,7 @@ import { Clock, Flame, Star } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { FavoriteButton } from '@/components/menu/FavoriteButton'
 import { SPICE_LEVEL } from '@/constants/SPICE_LEVEL'
 import { ROUTES } from '@/constants/ROUTES'
 import { useAuth } from '@/hooks/useAuth'
@@ -53,6 +54,11 @@ export function MenuDishCard({ dish, categoryName }: MenuDishCardProps) {
             </Badge>
             {dish.is_featured && <Badge variant="featured">Featured</Badge>}
           </div>
+          <FavoriteButton
+            dishId={dish.id}
+            className="absolute right-3 top-3"
+            size="sm"
+          />
         </div>
       </Link>
 

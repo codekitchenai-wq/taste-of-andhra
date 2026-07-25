@@ -24,7 +24,7 @@ const milestones = [
     year: '2024',
     title: 'Online Ordering',
     description:
-      'Launched our digital platform so customers can browse, order, and enjoy Taste of Andhra from anywhere.',
+      'Launched our digital platform so customers can browse, order, and enjoy The Taste of Andhra from anywhere.',
   },
 ]
 

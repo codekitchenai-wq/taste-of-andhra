@@ -85,18 +85,30 @@ export async function markOrderPaid(
     )
   }
 
-  const { error: orderError } = await supabase
+  const { data: order, error: orderError } = await supabase
     .from('orders')
     .update({
       payment_status: 'paid',
       order_status: 'confirmed',
     })
     .eq('id', orderId)
+    .select('id, user_id, order_number')
+    .single()
 
   if (orderError) {
     return createErrorResponse(
       'Payment recorded but order status update failed.',
       orderError.message,
+    )
+  }
+
+  if (order) {
+    const { notifyOrderStatus } = await import('@/services/notificationService')
+    void notifyOrderStatus(
+      order.user_id as string,
+      order.id as string,
+      order.order_number as string,
+      'confirmed',
     )
   }
 
@@ -143,7 +155,7 @@ export async function processOnlinePayment(
       key,
       amount: amountPaise,
       currency: 'INR',
-      name: 'Taste of Andhra',
+      name: 'The Taste of Andhra',
       description: `Order ${input.orderNumber}`,
       order_id: undefined,
       prefill: {

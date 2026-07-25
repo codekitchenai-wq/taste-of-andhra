@@ -11,7 +11,7 @@ export const galleryImages: GalleryImage[] = [
   {
     id: 'hero',
     src: LOCAL_IMAGES.hero,
-    alt: 'Taste of Andhra restaurant hero',
+    alt: 'The Taste of Andhra restaurant hero',
     category: 'hero',
   },
   {

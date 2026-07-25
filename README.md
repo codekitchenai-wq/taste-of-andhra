@@ -1,4 +1,4 @@
-# Taste of Andhra
+# The Taste of Andhra
 
 Online restaurant platform for browsing the menu, placing orders, and managing the business through an admin dashboard. Built with React, TypeScript, Vite, Tailwind CSS, and Supabase.
 

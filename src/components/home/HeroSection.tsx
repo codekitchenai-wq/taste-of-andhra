@@ -18,7 +18,7 @@ export function HeroSection() {
       <Container as="div" className="relative z-10 py-24 md:py-32">
         <div className="max-w-2xl">
           <p className="mb-4 text-sm font-medium uppercase tracking-widest text-accent">
-            Welcome to Taste of Andhra
+            Welcome to The Taste of Andhra
           </p>
           <h1 className="font-heading text-4xl font-bold leading-tight text-white md:text-5xl lg:text-6xl">
             {heroContent.headline}
@@ -32,16 +32,24 @@ export function HeroSection() {
                 View Menu
               </Button>
             </Link>
-            <Link to={ROUTES.MENU}>
+            <Link to={ROUTES.LIGHT_MENU}>
               <Button
                 size="lg"
                 variant="secondary"
                 className="w-full border-white bg-white/10 text-white hover:bg-white/20 sm:w-auto"
               >
-                Order Now
+                Quick Order
               </Button>
             </Link>
           </div>
+          <p className="mt-4">
+            <Link
+              to={ROUTES.LIGHT_MENU}
+              className="text-sm font-medium text-white/80 underline underline-offset-4 transition-colors hover:text-white"
+            >
+              Prefer a lighter menu? Browse without photos
+            </Link>
+          </p>
         </div>
       </Container>
     </section>

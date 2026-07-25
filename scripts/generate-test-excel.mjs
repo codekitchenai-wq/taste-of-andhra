@@ -83,7 +83,7 @@ function addListValidation(sheet, cellAddress, options) {
 }
 
 const workbook = new ExcelJS.Workbook()
-workbook.creator = 'Taste of Andhra QA'
+workbook.creator = 'The Taste of Andhra QA'
 workbook.created = new Date()
 
 // ── Sheet 1: Instructions ──
@@ -93,7 +93,7 @@ const instructions = workbook.addWorksheet('Instructions', {
 
 instructions.columns = [{ width: 100 }]
 const instructionLines = [
-  'TASTE OF ANDHRA — TEST CASE WORKBOOK',
+  'THE TASTE OF ANDHRA — TEST CASE WORKBOOK',
   '',
   'HOW TO USE THIS FILE',
   '',
@@ -324,7 +324,7 @@ const summary = workbook.addWorksheet('Test Summary', {
 
 summary.columns = [{ width: 28 }, { width: 18 }, { width: 40 }]
 
-summary.addRow(['TASTE OF ANDHRA — TEST EXECUTION SUMMARY']).getCell(1).font = {
+summary.addRow(['THE TASTE OF ANDHRA — TEST EXECUTION SUMMARY']).getCell(1).font = {
   bold: true,
   size: 14,
   color: { argb: COLORS.header },
@@ -332,7 +332,7 @@ summary.addRow(['TASTE OF ANDHRA — TEST EXECUTION SUMMARY']).getCell(1).font =
 summary.addRow([])
 
 const metaRows = [
-  ['Project', 'Taste of Andhra'],
+  ['Project', 'The Taste of Andhra'],
   ['Test workbook version', '1.0'],
   ['Total test cases', testCases.length],
   ['Test cycle name', ''],

@@ -1,6 +1,6 @@
 # UI_GUIDELINES.md
 
-# Taste of Andhra - UI & Design Guidelines
+# The Taste of Andhra - UI & Design Guidelines
 
 Version: 1.0
 

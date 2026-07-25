@@ -23,6 +23,7 @@ export type KitchenPrimaryAction =
   | 'start_preparing'
   | 'mark_ready'
   | 'assign_delivery'
+  | 'mark_out_for_delivery'
   | 'mark_delivered'
 
 interface KitchenOrderCardProps {
@@ -37,6 +38,7 @@ interface KitchenOrderCardProps {
 
 function getNextAction(
   status: OrderStatus,
+  hasDeliveryPartner: boolean,
 ): { action: KitchenPrimaryAction; label: string; variant: 'primary' | 'success' } | null {
   switch (status) {
     case 'confirmed':
@@ -48,6 +50,13 @@ function getNextAction(
     case 'preparing':
       return { action: 'mark_ready', label: 'Mark Ready', variant: 'success' }
     case 'ready':
+      if (hasDeliveryPartner) {
+        return {
+          action: 'mark_out_for_delivery',
+          label: 'Out for Delivery',
+          variant: 'primary',
+        }
+      }
       return {
         action: 'assign_delivery',
         label: 'Assign Delivery',
@@ -75,7 +84,10 @@ export function KitchenOrderCard({
 }: KitchenOrderCardProps) {
   const [nowMs, setNowMs] = useState(() => Date.now())
   const isNew = order.order_status === 'pending' || accent === 'new'
-  const next = getNextAction(order.order_status)
+  const next = getNextAction(
+    order.order_status,
+    Boolean(order.delivery_partner),
+  )
 
   useEffect(() => {
     const id = window.setInterval(() => setNowMs(Date.now()), 1_000)
@@ -149,10 +161,19 @@ export function KitchenOrderCard({
             {order.customer_phone}
           </p>
         )}
-        {order.order_status === 'out_for_delivery' && order.delivery_partner && (
+        {order.delivery_partner &&
+          (order.order_status === 'confirmed' ||
+            order.order_status === 'preparing' ||
+            order.order_status === 'ready' ||
+            order.order_status === 'out_for_delivery') && (
           <p className="rounded-md bg-background px-2 py-1.5 text-xs">
-            Rider: <span className="font-medium text-text-primary">{order.delivery_partner}</span>
+            Rider:{' '}
+            <span className="font-medium text-text-primary">
+              {order.delivery_partner}
+            </span>
             {order.partner_phone ? ` · ${order.partner_phone}` : ''}
+            {order.order_status !== 'out_for_delivery' &&
+              ' · Assigned (waiting until ready)'}
           </p>
         )}
         {order.special_instructions && (

@@ -1,6 +1,6 @@
 # DATABASE_SCHEMA.md
 
-# Taste of Andhra - Database Schema
+# The Taste of Andhra - Database Schema
 
 Version: 1.0
 

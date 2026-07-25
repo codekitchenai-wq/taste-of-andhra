@@ -7,10 +7,11 @@ import { Button } from '@/components/ui/Button'
 import { Loader } from '@/components/ui/Loader'
 import { Modal } from '@/components/ui/Modal'
 import { Select } from '@/components/ui/Select'
-import { ORDER_STATUS, ORDER_STATUS_LIST } from '@/constants/ORDER_STATUS'
+import { ORDER_STATUS } from '@/constants/ORDER_STATUS'
 import * as orderService from '@/services/orderService'
 import type { OrderFullDetails } from '@/types/Order'
 import type { OrderStatus } from '@/types/enums'
+import { getAllowedNextStatuses } from '@/utils/orderStatusTransitions'
 
 interface AdminOrderDetailModalProps {
   orderId: string | null
@@ -72,10 +73,15 @@ export function AdminOrderDetailModal({
     onClose()
   }
 
-  const statusOptions = ORDER_STATUS_LIST.map((value) => ({
-    label: ORDER_STATUS[value],
-    value,
-  }))
+  const nextStatuses = order
+    ? getAllowedNextStatuses(order.order_status)
+    : []
+  const statusOptions = order
+    ? [order.order_status, ...nextStatuses].map((value) => ({
+        label: ORDER_STATUS[value],
+        value,
+      }))
+    : []
 
   return (
     <Modal
@@ -98,11 +104,11 @@ export function AdminOrderDetailModal({
               label="Update Status"
               options={statusOptions}
               value={status}
+              disabled={nextStatuses.length === 0}
               onChange={(event) =>
                 setStatus(event.target.value as OrderStatus)
               }
-            />
-          </div>
+            />          </div>
 
           <div className="grid gap-6 md:grid-cols-2">
             <section className="rounded-[var(--radius-card)] bg-background p-4">
@@ -123,7 +129,11 @@ export function AdminOrderDetailModal({
             </Button>
             <Button
               type="button"
-              disabled={isUpdating || status === order.order_status}
+              disabled={
+                isUpdating ||
+                status === order.order_status ||
+                nextStatuses.length === 0
+              }
               onClick={() => void handleUpdateStatus()}
             >
               {isUpdating ? 'Updating...' : 'Save Status'}

@@ -5,19 +5,25 @@ import {
 } from '@/types/api'
 import type { OrderStatus, PaymentMethod } from '@/types/enums'
 import type { Order, OrderFullDetails } from '@/types/Order'
+import * as branchService from '@/services/branchService'
 import * as cartService from '@/services/cartService'
+import * as loyaltyService from '@/services/loyaltyService'
+import * as notificationService from '@/services/notificationService'
 import { supabase } from '@/services/supabaseClient'
 import { generateOrderNumber, mapOrder, mapOrderItem } from '@/utils/mapOrder'
 import { mapAddress } from '@/utils/mapAddress'
 import { mapPayment } from '@/utils/mapPayment'
 import * as offerService from '@/services/offerService'
 import { calculateOrderTotals } from '@/utils/orderTotals'
+import { getOrderStatusTransitionError } from '@/utils/orderStatusTransitions'
 
 export interface CreateOrderInput {
   addressId: string
   paymentMethod: PaymentMethod
   specialInstructions?: string
   couponCode?: string
+  branchId?: string
+  loyaltyPointsToRedeem?: number
 }
 
 export interface AdminOrderItemSummary {
@@ -256,6 +262,36 @@ export async function createOrder(
     discount = couponResult.data.discountAmount
   }
 
+  let loyaltyDiscount = 0
+  let loyaltyPointsUsed = 0
+
+  if (input.loyaltyPointsToRedeem && input.loyaltyPointsToRedeem > 0) {
+    const accountResult = await loyaltyService.getOrCreateAccount(userId)
+    if (!accountResult.success) return accountResult
+
+    const maxRedeem = loyaltyService.maxRedeemableDiscount(
+      accountResult.data.points_balance,
+      Math.max(0, cart.subtotal - discount),
+    )
+
+    if (input.loyaltyPointsToRedeem > maxRedeem.points) {
+      return createErrorResponse(
+        `You can redeem up to ${maxRedeem.points} points on this order.`,
+      )
+    }
+
+    loyaltyPointsUsed = input.loyaltyPointsToRedeem
+    loyaltyDiscount = loyaltyService.pointsToRupees(loyaltyPointsUsed)
+    discount += loyaltyDiscount
+  }
+
+  let branchId = input.branchId
+  if (!branchId) {
+    const defaultBranch = await branchService.getDefaultBranch()
+    if (!defaultBranch.success) return defaultBranch
+    branchId = defaultBranch.data.id
+  }
+
   const totals = calculateOrderTotals(cart.subtotal, discount)
   const orderNumber = generateOrderNumber()
 
@@ -265,6 +301,7 @@ export async function createOrder(
       order_number: orderNumber,
       user_id: userId,
       address_id: input.addressId,
+      branch_id: branchId,
       subtotal: totals.subtotal,
       tax: totals.tax,
       delivery_charge: totals.deliveryCharge,
@@ -280,6 +317,17 @@ export async function createOrder(
 
   if (orderError) {
     return createErrorResponse('Unable to create order.', orderError.message)
+  }
+
+  if (loyaltyPointsUsed > 0) {
+    const redeemResult = await loyaltyService.redeemPoints(
+      loyaltyPointsUsed,
+      order.id as string,
+    )
+    if (!redeemResult.success) {
+      await supabase.from('orders').delete().eq('id', order.id)
+      return createErrorResponse(redeemResult.message, redeemResult.error)
+    }
   }
 
   const orderItems = cart.items.map((item) => ({
@@ -308,6 +356,13 @@ export async function createOrder(
   if (paymentError) {
     return createErrorResponse('Unable to create payment record.', paymentError.message)
   }
+
+  void notificationService.notifyOrderStatus(
+    userId,
+    order.id as string,
+    orderNumber,
+    'pending',
+  )
 
   return createSuccessResponse(mapOrder(order))
 }
@@ -376,6 +431,65 @@ export async function updateOrderStatus(
   orderId: string,
   status: OrderStatus,
 ): Promise<ServiceResponse<Order>> {
+  const { data: existing, error: fetchError } = await supabase
+    .from('orders')
+    .select('id, order_status')
+    .eq('id', orderId)
+    .maybeSingle()
+
+  if (fetchError) {
+    return createErrorResponse('Unable to load order.', fetchError.message)
+  }
+
+  if (!existing) {
+    return createErrorResponse('Order not found.')
+  }
+
+  const currentStatus = existing.order_status as OrderStatus
+  const transitionError = getOrderStatusTransitionError(currentStatus, status)
+
+  if (transitionError) {
+    return createErrorResponse(transitionError)
+  }
+
+  if (status === 'out_for_delivery') {
+    const { data: delivery, error: deliveryError } = await supabase
+      .from('delivery')
+      .select('id')
+      .eq('order_id', orderId)
+      .maybeSingle()
+
+    if (deliveryError) {
+      return createErrorResponse(
+        'Unable to verify delivery assignment.',
+        deliveryError.message,
+      )
+    }
+
+    if (!delivery) {
+      return createErrorResponse(
+        'Assign a delivery partner before marking the order out for delivery.',
+      )
+    }
+  }
+
+  if (currentStatus === status) {
+    const { data: unchanged, error: unchangedError } = await supabase
+      .from('orders')
+      .select()
+      .eq('id', orderId)
+      .single()
+
+    if (unchangedError) {
+      return createErrorResponse(
+        'Unable to load order.',
+        unchangedError.message,
+      )
+    }
+
+    return createSuccessResponse(mapOrder(unchanged))
+  }
+
   const { data, error } = await supabase
     .from('orders')
     .update({ order_status: status })
@@ -385,6 +499,32 @@ export async function updateOrderStatus(
 
   if (error) {
     return createErrorResponse('Unable to update order status.', error.message)
+  }
+
+  // Keep any existing delivery assignment in sync with kitchen/dispatch status.
+  await supabase
+    .from('delivery')
+    .update({
+      status,
+      ...(status === 'delivered'
+        ? { delivered_at: new Date().toISOString() }
+        : {}),
+    })
+    .eq('order_id', orderId)
+
+  void notificationService.notifyOrderStatus(
+    data.user_id as string,
+    data.id as string,
+    data.order_number as string,
+    status,
+  )
+
+  if (status === 'delivered') {
+    void loyaltyService.earnPointsForOrder(
+      data.user_id as string,
+      data.id as string,
+      Number(data.total),
+    )
   }
 
   return createSuccessResponse(mapOrder(data))

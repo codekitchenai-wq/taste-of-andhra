@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { Zap } from 'lucide-react'
 import { MenuDishCard } from '@/components/menu/MenuDishCard'
 import { MenuFilters } from '@/components/menu/MenuFilters'
 import { MenuSearchBar } from '@/components/menu/MenuSearchBar'
@@ -7,6 +9,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { LoadingState } from '@/components/ui/LoadingState'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { ROUTES } from '@/constants/ROUTES'
 import {
   DEFAULT_MENU_FILTERS,
   useMenuDishes,
@@ -45,6 +48,16 @@ export default function MenuPage() {
         title="Our Menu"
         description="Explore authentic Andhra dishes — filter by category, diet, spice level, and more."
       />
+
+      <div className="mb-6">
+        <Link
+          to={ROUTES.LIGHT_MENU}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary-dark"
+        >
+          <Zap className="h-4 w-4" aria-hidden="true" />
+          Prefer a lighter, text-only menu?
+        </Link>
+      </div>
 
       <div className="sticky top-[72px] z-40 -mx-4 mb-6 border-b border-black/5 bg-background/95 px-4 py-4 backdrop-blur md:static md:mx-0 md:mb-8 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
         <MenuSearchBar

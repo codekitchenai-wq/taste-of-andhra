@@ -1,6 +1,6 @@
 # API_SPECIFICATION.md
 
-# Taste of Andhra
+# The Taste of Andhra
 ## API & Service Layer Specification
 
 Version: 1.0

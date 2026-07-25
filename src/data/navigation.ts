@@ -17,6 +17,7 @@ export const mainNavLinks: NavLink[] = [
 export const footerQuickLinks: NavLink[] = [
   { label: 'Home', to: ROUTES.HOME },
   { label: 'Menu', to: ROUTES.MENU },
+  { label: 'Light Menu', to: ROUTES.LIGHT_MENU },
   { label: 'About Us', to: ROUTES.ABOUT },
   { label: 'Gallery', to: ROUTES.GALLERY },
   { label: 'Party Orders', to: ROUTES.PARTY_ORDER },
@@ -25,6 +26,8 @@ export const footerQuickLinks: NavLink[] = [
 
 export const footerCustomerLinks: NavLink[] = [
   { label: 'My Orders', to: ROUTES.ORDERS },
+  { label: 'Favorites', to: ROUTES.FAVORITES },
+  { label: 'Notifications', to: ROUTES.NOTIFICATIONS },
   { label: 'Cart', to: ROUTES.CART },
   { label: 'Saved Addresses', to: ROUTES.ADDRESSES },
   { label: 'Profile', to: ROUTES.PROFILE },

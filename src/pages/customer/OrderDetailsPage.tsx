@@ -1,6 +1,8 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
+import { FileText } from 'lucide-react'
 import { OrderStatusBadge } from '@/components/admin/OrderStatusBadge'
+import { LiveTrackingMap } from '@/components/orders/LiveTrackingMap'
 import { OrderDetailsPanel } from '@/components/orders/OrderDetailsPanel'
 import { OrderTracking } from '@/components/orders/OrderTracking'
 import { Button } from '@/components/ui/Button'
@@ -19,6 +21,11 @@ export default function OrderDetailsPage() {
 
   const canCancel =
     order && CANCELLABLE_ORDER_STATUSES.includes(order.order_status)
+
+  const showLiveTracking =
+    order &&
+    (order.order_status === 'out_for_delivery' ||
+      order.order_status === 'delivered')
 
   const handleCancel = async () => {
     if (!order) return
@@ -76,12 +83,31 @@ export default function OrderDetailsPage() {
             <div className="mt-6">
               <OrderTracking status={order.order_status} />
             </div>
+            {showLiveTracking && (
+              <div className="mt-6">
+                <h3 className="mb-3 text-sm font-semibold text-text-primary">
+                  Live Delivery Map
+                </h3>
+                <LiveTrackingMap
+                  orderId={order.id}
+                  dropoffLat={order.address?.latitude}
+                  dropoffLng={order.address?.longitude}
+                />
+              </div>
+            )}
+            <Link
+              to={ROUTES.ORDER_INVOICE(order.id)}
+              className="mt-6 flex items-center justify-center gap-2 rounded-[var(--radius-button)] border-2 border-primary bg-surface px-4 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-primary/5"
+            >
+              <FileText className="h-4 w-4" />
+              View GST Invoice
+            </Link>
             {canCancel && (
               <Button
                 type="button"
                 variant="danger"
                 fullWidth
-                className="mt-6"
+                className="mt-4"
                 onClick={() => void handleCancel()}
               >
                 Cancel Order

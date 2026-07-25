@@ -13,7 +13,7 @@ export function WhyChooseUs() {
       <Container as="div">
         <SectionHeader
           title="Why Choose Us"
-          subtitle="What makes Taste of Andhra your go-to destination for authentic food"
+          subtitle="What makes The Taste of Andhra your go-to destination for authentic food"
         />
 
         <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">

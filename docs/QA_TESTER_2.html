@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>The Taste of Andhra — Tester 2 Guide</title>
+    <style>
+      :root {
+        --primary: #c62828;
+        --primary-light: #ffebee;
+        --accent: #f9a825;
+        --text: #1a1a1a;
+        --muted: #555;
+        --border: #e5e5e5;
+        --surface: #faf7f5;
+        --customer: #2e7d32;
+        --admin: #1565c0;
+        --delivery: #6a1b9a;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+        color: var(--text);
+        line-height: 1.5;
+        margin: 0;
+        padding: 0;
+        background: #fff;
+        font-size: 10.5pt;
+      }
+
+      .page {
+        max-width: 780px;
+        margin: 0 auto;
+        padding: 24px 28px 32px;
+      }
+
+      header.doc-header {
+        border-bottom: 3px solid var(--primary);
+        padding-bottom: 14px;
+        margin-bottom: 20px;
+      }
+
+      header.doc-header .badge {
+        display: inline-block;
+        background: var(--primary);
+        color: #fff;
+        font-size: 9pt;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        padding: 4px 10px;
+        border-radius: 4px;
+        margin-bottom: 8px;
+      }
+
+      header.doc-header h1 {
+        margin: 0 0 6px;
+        font-size: 22pt;
+        color: var(--primary);
+        font-weight: 700;
+      }
+
+      header.doc-header p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 10pt;
+      }
+
+      .meta-bar {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 10px;
+        margin: 16px 0 8px;
+      }
+
+      .meta-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 12px;
+      }
+
+      .meta-card .label {
+        display: block;
+        font-size: 8pt;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted);
+        margin-bottom: 2px;
+      }
+
+      .meta-card .value {
+        font-size: 10pt;
+        font-weight: 600;
+        color: var(--text);
+        word-break: break-all;
+      }
+
+      .meta-card .value.mono {
+        font-family: Consolas, "Courier New", monospace;
+        color: var(--primary);
+      }
+
+      .note {
+        background: #fff8e1;
+        border-left: 4px solid var(--accent);
+        padding: 8px 12px;
+        margin: 12px 0 20px;
+        font-size: 9.5pt;
+        color: var(--muted);
+      }
+
+      h2 {
+        font-size: 13pt;
+        color: var(--primary);
+        margin: 22px 0 10px;
+        border-left: 4px solid var(--accent);
+        padding-left: 10px;
+        page-break-after: avoid;
+      }
+
+      h3 {
+        font-size: 11pt;
+        margin: 14px 0 6px;
+        color: var(--text);
+        page-break-after: avoid;
+      }
+
+      p,
+      li {
+        color: var(--muted);
+        margin: 0 0 6px;
+      }
+
+      ul {
+        margin: 0 0 10px;
+        padding-left: 18px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 8px 0 14px;
+        font-size: 9.5pt;
+        page-break-inside: avoid;
+      }
+
+      th,
+      td {
+        border: 1px solid var(--border);
+        padding: 7px 9px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: var(--primary-light);
+        color: var(--text);
+        font-weight: 600;
+      }
+
+      td a {
+        color: var(--admin);
+        text-decoration: none;
+        word-break: break-all;
+      }
+
+      code,
+      .mono {
+        font-family: Consolas, "Courier New", monospace;
+        font-size: 9pt;
+      }
+
+      .persona {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 14px 16px 10px;
+        margin: 12px 0 18px;
+        page-break-inside: avoid;
+        background: #fff;
+      }
+
+      .persona.customer {
+        border-top: 4px solid var(--customer);
+      }
+
+      .persona.admin {
+        border-top: 4px solid var(--admin);
+      }
+
+      .persona.delivery {
+        border-top: 4px solid var(--delivery);
+      }
+
+      .persona-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 6px;
+      }
+
+      .persona-title h2 {
+        margin: 0;
+        border: none;
+        padding: 0;
+        font-size: 13pt;
+      }
+
+      .pill {
+        font-size: 8pt;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 3px 8px;
+        border-radius: 999px;
+        color: #fff;
+      }
+
+      .pill.customer {
+        background: var(--customer);
+      }
+
+      .pill.admin {
+        background: var(--admin);
+      }
+
+      .pill.delivery {
+        background: var(--delivery);
+      }
+
+      .who {
+        font-size: 9.5pt;
+        margin-bottom: 10px !important;
+      }
+
+      .cred-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin: 8px 0 12px;
+      }
+
+      .cred {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 8px 10px;
+      }
+
+      .cred .k {
+        font-size: 7.5pt;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted);
+      }
+
+      .cred .v {
+        font-size: 9.5pt;
+        font-weight: 600;
+        color: var(--text);
+        word-break: break-all;
+      }
+
+      .cred .v.mono {
+        color: var(--primary);
+        font-family: Consolas, "Courier New", monospace;
+      }
+
+      .steps {
+        counter-reset: step;
+        list-style: none;
+        padding: 0;
+        margin: 8px 0 12px;
+      }
+
+      .steps li {
+        counter-increment: step;
+        position: relative;
+        padding: 6px 8px 6px 36px;
+        margin-bottom: 6px;
+        background: var(--surface);
+        border-radius: 6px;
+        border: 1px solid var(--border);
+      }
+
+      .steps li::before {
+        content: counter(step);
+        position: absolute;
+        left: 8px;
+        top: 6px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--primary);
+        color: #fff;
+        font-size: 9pt;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 20px;
+        text-align: center;
+      }
+
+      footer {
+        margin-top: 24px;
+        padding-top: 10px;
+        border-top: 1px solid var(--border);
+        font-size: 8.5pt;
+        color: var(--muted);
+        text-align: center;
+      }
+
+      @media print {
+        body {
+          print-color-adjust: exact;
+          -webkit-print-color-adjust: exact;
+        }
+
+        .page {
+          padding: 0;
+          max-width: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header class="doc-header">
+        <span class="badge">QA Handout</span>
+        <h1>The Taste of Andhra — Tester 2</h1>
+        <p>Credentials, persona brief, and testing scope for end-to-end QA</p>
+      </header>
+
+      <div class="meta-bar">
+        <div class="meta-card">
+          <span class="label">Site</span>
+          <span class="value"
+            ><a href="https://www.thetasteofandhra.com"
+              >www.thetasteofandhra.com</a
+            ></span
+          >
+        </div>
+        <div class="meta-card">
+          <span class="label">Shared password</span>
+          <span class="value mono">Test@123</span>
+        </div>
+        <div class="meta-card">
+          <span class="label">Your tester ID</span>
+          <span class="value">Tester 2</span>
+        </div>
+      </div>
+
+      <div class="note">
+        Use <strong>only Tester 2</strong> accounts below so you do not clash
+        with Tester 1. Each persona has a <strong>separate login URL</strong>.
+        Log out (or use a private window) when switching persona.
+      </div>
+
+      <h2>Quick start — portal links</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Portal</th>
+            <th>Login page</th>
+            <th>Landing after login</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Customer</td>
+            <td>
+              <a href="https://www.thetasteofandhra.com/login"
+                >/login</a
+              >
+            </td>
+            <td>
+              <a href="https://www.thetasteofandhra.com/">/</a>
+            </td>
+          </tr>
+          <tr>
+            <td>Admin</td>
+            <td>
+              <a href="https://www.thetasteofandhra.com/admin/login"
+                >/admin/login</a
+              >
+            </td>
+            <td>
+              <a href="https://www.thetasteofandhra.com/admin">/admin</a>
+            </td>
+          </tr>
+          <tr>
+            <td>Delivery</td>
+            <td>
+              <a href="https://www.thetasteofandhra.com/delivery/login"
+                >/delivery/login</a
+              >
+            </td>
+            <td>
+              <a href="https://www.thetasteofandhra.com/delivery"
+                >/delivery</a
+              >
+            </td>
+          </tr>
+          <tr>
+            <td>Guest (no login)</td>
+            <td>—</td>
+            <td>
+              <a href="https://www.thetasteofandhra.com/"
+                >Home / public site</a
+              >
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <section class="persona customer">
+        <div class="persona-title">
+          <span class="pill customer">Customer</span>
+          <h2>1. Customer persona</h2>
+        </div>
+        <p class="who">
+          <strong>Who you are:</strong> End customer browsing the restaurant,
+          ordering food, and tracking delivery.
+        </p>
+        <div class="cred-grid">
+          <div class="cred">
+            <div class="k">Email / User ID</div>
+            <div class="v mono">tester2.customer@thetasteofandhra.com</div>
+          </div>
+          <div class="cred">
+            <div class="k">Password</div>
+            <div class="v mono">Test@123</div>
+          </div>
+          <div class="cred">
+            <div class="k">Login</div>
+            <div class="v">
+              <a href="https://www.thetasteofandhra.com/login"
+                >thetasteofandhra.com/login</a
+              >
+            </div>
+          </div>
+          <div class="cred">
+            <div class="k">Landing</div>
+            <div class="v">
+              <a href="https://www.thetasteofandhra.com/"
+                >thetasteofandhra.com/</a
+              >
+            </div>
+          </div>
+        </div>
+        <h3>What to test</h3>
+        <ul>
+          <li>Browse home, menu, dish details, gallery, contact, party order</li>
+          <li>Search / filter dishes; cart; checkout</li>
+          <li>Add/select address; place order (COD or online demo payment)</li>
+          <li>My Orders, order details, live tracking (if delivery assigned)</li>
+          <li>Favorites, notifications, profile, addresses, invoice</li>
+          <li>Logout and protected-page redirect to login</li>
+        </ul>
+      </section>
+
+      <section class="persona admin">
+        <div class="persona-title">
+          <span class="pill admin">Admin</span>
+          <h2>2. Admin persona</h2>
+        </div>
+        <p class="who">
+          <strong>Who you are:</strong> Restaurant staff managing menu, orders,
+          branches, offers, and delivery assignment.
+        </p>
+        <div class="cred-grid">
+          <div class="cred">
+            <div class="k">Email / User ID</div>
+            <div class="v mono">tester2.admin@thetasteofandhra.com</div>
+          </div>
+          <div class="cred">
+            <div class="k">Password</div>
+            <div class="v mono">Test@123</div>
+          </div>
+          <div class="cred">
+            <div class="k">Login</div>
+            <div class="v">
+              <a href="https://www.thetasteofandhra.com/admin/login"
+                >…/admin/login</a
+              >
+            </div>
+          </div>
+          <div class="cred">
+            <div class="k">Landing</div>
+            <div class="v">
+              <a href="https://www.thetasteofandhra.com/admin">…/admin</a>
+            </div>
+          </div>
+        </div>
+
+        <h3>Key admin links</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Area</th>
+              <th>Link</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Dashboard</td>
+              <td>
+                <a href="https://www.thetasteofandhra.com/admin"
+                  >/admin</a
+                >
+              </td>
+            </tr>
+            <tr>
+              <td>Categories</td>
+              <td>
+                <a href="https://www.thetasteofandhra.com/admin/categories"
+                  >/admin/categories</a
+                >
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Dishes (add / edit menu)</strong></td>
+              <td>
+                <a href="https://www.thetasteofandhra.com/admin/dishes"
+                  >/admin/dishes</a
+                >
+              </td>
+            </tr>
+            <tr>
+              <td>Orders</td>
+              <td>
+                <a href="https://www.thetasteofandhra.com/admin/orders"
+                  >/admin/orders</a
+                >
+              </td>
+            </tr>
+            <tr>
+              <td>Customers</td>
+              <td>
+                <a href="https://www.thetasteofandhra.com/admin/customers"
+                  >/admin/customers</a
+                >
+              </td>
+            </tr>
+            <tr>
+              <td>Delivery partners</td>
+              <td>
+                <a href="https://www.thetasteofandhra.com/admin/delivery"
+                  >/admin/delivery</a
+                >
+              </td>
+            </tr>
+            <tr>
+              <td>Offers</td>
+              <td>
+                <a href="https://www.thetasteofandhra.com/admin/offers"
+                  >/admin/offers</a
+                >
+              </td>
+            </tr>
+            <tr>
+              <td>Party inquiries</td>
+              <td>
+                <a
+                  href="https://www.thetasteofandhra.com/admin/party-inquiries"
+                  >/admin/party-inquiries</a
+                >
+              </td>
+            </tr>
+            <tr>
+              <td>Branches</td>
+              <td>
+                <a href="https://www.thetasteofandhra.com/admin/branches"
+                  >/admin/branches</a
+                >
+              </td>
+            </tr>
+            <tr>
+              <td>QR tables</td>
+              <td>
+                <a href="https://www.thetasteofandhra.com/admin/qr-tables"
+                  >/admin/qr-tables</a
+                >
+              </td>
+            </tr>
+            <tr>
+              <td>Reports</td>
+              <td>
+                <a href="https://www.thetasteofandhra.com/admin/reports"
+                  >/admin/reports</a
+                >
+              </td>
+            </tr>
+            <tr>
+              <td>Settings</td>
+              <td>
+                <a href="https://www.thetasteofandhra.com/admin/settings"
+                  >/admin/settings</a
+                >
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>What to test</h3>
+        <ul>
+          <li>Dashboard metrics and charts</li>
+          <li>
+            <strong>Add or edit a dish</strong> and category; confirm on public
+            menu
+          </li>
+          <li>Move orders through statuses; assign a delivery partner</li>
+          <li>Offers, branches, QR tables, reports, party inquiries</li>
+          <li>Confirm a customer account cannot open <code>/admin</code></li>
+        </ul>
+      </section>
+
+      <section class="persona delivery">
+        <div class="persona-title">
+          <span class="pill delivery">Delivery</span>
+          <h2>3. Delivery persona</h2>
+        </div>
+        <p class="who">
+          <strong>Who you are:</strong> Delivery partner fulfilling assigned
+          orders and sharing live location.
+        </p>
+        <div class="cred-grid">
+          <div class="cred">
+            <div class="k">Email / User ID</div>
+            <div class="v mono">tester2.delivery@thetasteofandhra.com</div>
+          </div>
+          <div class="cred">
+            <div class="k">Password</div>
+            <div class="v mono">Test@123</div>
+          </div>
+          <div class="cred">
+            <div class="k">Login</div>
+            <div class="v">
+              <a href="https://www.thetasteofandhra.com/delivery/login"
+                >…/delivery/login</a
+              >
+            </div>
+          </div>
+          <div class="cred">
+            <div class="k">Landing</div>
+            <div class="v">
+              <a href="https://www.thetasteofandhra.com/delivery"
+                >…/delivery</a
+              >
+            </div>
+          </div>
+        </div>
+        <h3>What to test</h3>
+        <ul>
+          <li>
+            Assigned deliveries (Admin should assign orders to this account)
+          </li>
+          <li>Delivery detail: customer name, phone, address</li>
+          <li>Allow location / share GPS if prompted</li>
+          <li>Mark delivered; confirm customer order status updates</li>
+          <li>Confirm non-delivery users cannot open <code>/delivery</code></li>
+        </ul>
+      </section>
+
+      <h2>Suggested end-to-end flow</h2>
+      <ol class="steps">
+        <li>
+          <strong>Admin</strong> — ensure menu has dishes
+          <code>/admin/dishes</code>
+        </li>
+        <li><strong>Customer</strong> — place an order</li>
+        <li>
+          <strong>Admin</strong> — confirm order and assign
+          <strong>Tester 2 Delivery</strong>
+        </li>
+        <li><strong>Delivery</strong> — complete delivery</li>
+        <li>
+          <strong>Customer</strong> — check status, tracking, invoice /
+          notifications
+        </li>
+      </ol>
+
+      <h2>Notes</h2>
+      <ul>
+        <li>
+          Password for all Tester 2 accounts:
+          <strong class="mono">Test@123</strong>
+        </li>
+        <li>
+          Public spot-check (no login):
+          <a href="https://www.thetasteofandhra.com/menu">/menu</a> ·
+          <a href="https://www.thetasteofandhra.com/party-order"
+            >/party-order</a
+          >
+          ·
+          <a href="https://www.thetasteofandhra.com/contact">/contact</a>
+        </li>
+      </ul>
+
+      <footer>
+        The Taste of Andhra · QA Tester 2 Guide · Confidential for testing use
+      </footer>
+    </div>
+  </body>
+</html>

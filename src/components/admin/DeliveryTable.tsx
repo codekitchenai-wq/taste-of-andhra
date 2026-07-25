@@ -3,17 +3,13 @@ import type { DeliveryWithOrder } from '@/services/deliveryService'
 import type { OrderStatus } from '@/types/enums'
 import { OrderStatusBadge } from '@/components/admin/OrderStatusBadge'
 import { formatDateTime, formatPrice } from '@/utils/format'
+import { getAllowedNextStatuses } from '@/utils/orderStatusTransitions'
 
 interface DeliveryTableProps {
   deliveries: DeliveryWithOrder[]
   onStatusChange: (deliveryId: string, status: OrderStatus) => void
   isUpdating?: boolean
 }
-
-const DELIVERY_STATUSES: OrderStatus[] = [
-  'out_for_delivery',
-  'delivered',
-]
 
 export function DeliveryTable({
   deliveries,
@@ -39,63 +35,73 @@ export function DeliveryTable({
           </tr>
         </thead>
         <tbody>
-          {deliveries.map((delivery) => (
-            <tr
-              key={delivery.id}
-              className="border-b border-black/5 last:border-b-0"
-            >
-              <td className="px-4 py-4 font-medium text-text-primary">
-                {delivery.order_number}
-              </td>
-              <td className="px-4 py-4">
-                <p className="font-medium text-text-primary">
-                  {delivery.customer_name}
-                </p>
-                <p className="text-xs text-text-secondary">
-                  {delivery.customer_phone ?? '—'}
-                </p>
-              </td>
-              <td className="px-4 py-4">
-                <p className="font-medium text-text-primary">
-                  {delivery.delivery_partner ?? '—'}
-                </p>
-                <p className="text-xs text-text-secondary">
-                  {delivery.partner_phone ?? '—'}
-                </p>
-              </td>
-              <td className="px-4 py-4 font-medium text-text-primary">
-                {formatPrice(delivery.order_total)}
-              </td>
-              <td className="px-4 py-4">
-                <OrderStatusBadge status={delivery.status} />
-              </td>
-              <td className="px-4 py-4 text-text-secondary">
-                {delivery.assigned_at
-                  ? formatDateTime(new Date(delivery.assigned_at))
-                  : '—'}
-              </td>
-              <td className="px-4 py-4">
-                <select
-                  value={delivery.status}
-                  disabled={isUpdating || delivery.status === 'delivered'}
-                  onChange={(event) =>
-                    onStatusChange(
-                      delivery.id,
-                      event.target.value as OrderStatus,
-                    )
-                  }
-                  className="h-10 rounded-[var(--radius-input)] border border-gray-300 bg-surface px-3 text-sm"
-                  aria-label={`Update delivery status for ${delivery.order_number}`}
-                >
-                  {DELIVERY_STATUSES.map((status) => (
-                    <option key={status} value={status}>
-                      {ORDER_STATUS[status]}
-                    </option>
-                  ))}
-                </select>
-              </td>
-            </tr>
-          ))}
+          {deliveries.map((delivery) => {
+            const nextStatuses = getAllowedNextStatuses(delivery.status).filter(
+              (status) =>
+                status === 'out_for_delivery' || status === 'delivered',
+            )
+            const statusOptions = [delivery.status, ...nextStatuses]
+            const canUpdate =
+              nextStatuses.length > 0 && delivery.status !== 'delivered'
+
+            return (
+              <tr
+                key={delivery.id}
+                className="border-b border-black/5 last:border-b-0"
+              >
+                <td className="px-4 py-4 font-medium text-text-primary">
+                  {delivery.order_number}
+                </td>
+                <td className="px-4 py-4">
+                  <p className="font-medium text-text-primary">
+                    {delivery.customer_name}
+                  </p>
+                  <p className="text-xs text-text-secondary">
+                    {delivery.customer_phone ?? '—'}
+                  </p>
+                </td>
+                <td className="px-4 py-4">
+                  <p className="font-medium text-text-primary">
+                    {delivery.delivery_partner ?? '—'}
+                  </p>
+                  <p className="text-xs text-text-secondary">
+                    {delivery.partner_phone ?? '—'}
+                  </p>
+                </td>
+                <td className="px-4 py-4 font-medium text-text-primary">
+                  {formatPrice(delivery.order_total)}
+                </td>
+                <td className="px-4 py-4">
+                  <OrderStatusBadge status={delivery.status} />
+                </td>
+                <td className="px-4 py-4 text-text-secondary">
+                  {delivery.assigned_at
+                    ? formatDateTime(new Date(delivery.assigned_at))
+                    : '—'}
+                </td>
+                <td className="px-4 py-4">
+                  <select
+                    value={delivery.status}
+                    disabled={isUpdating || !canUpdate}
+                    onChange={(event) =>
+                      onStatusChange(
+                        delivery.id,
+                        event.target.value as OrderStatus,
+                      )
+                    }
+                    className="h-10 rounded-[var(--radius-input)] border border-gray-300 bg-surface px-3 text-sm"
+                    aria-label={`Update delivery status for ${delivery.order_number}`}
+                  >
+                    {statusOptions.map((status) => (
+                      <option key={status} value={status}>
+                        {ORDER_STATUS[status]}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>

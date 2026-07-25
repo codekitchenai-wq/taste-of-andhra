@@ -14,8 +14,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "docs:pdf": "node scripts/generate-flow-pdf.mjs",
+    "docs:walkthrough-pdf": "node scripts/generate-walkthrough-pdf.mjs",
     "docs:test-excel": "node scripts/generate-test-excel.mjs",
-    "seed:demo-users": "node scripts/seed-demo-users.mjs"
+    "seed:demo-users": "node scripts/seed-demo-users.mjs",
+    "seed:test-coupons": "node scripts/seed-test-coupons.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.7",

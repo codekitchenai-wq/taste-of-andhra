@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { DishReviews } from '@/components/dish/DishReviews'
+import { FavoriteButton } from '@/components/menu/FavoriteButton'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Container } from '@/components/ui/Container'
@@ -85,12 +86,13 @@ export default function DishDetailsPage() {
       </nav>
 
       <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
-        <div className="overflow-hidden rounded-[var(--radius-card)] bg-surface shadow-md">
+        <div className="relative overflow-hidden rounded-[var(--radius-card)] bg-surface shadow-md">
           <LazyImage
             src={dish.image_url ?? undefined}
             alt={dish.name}
             className="aspect-[4/3] w-full object-cover"
           />
+          <FavoriteButton dishId={dish.id} className="absolute right-3 top-3" />
         </div>
 
         <div className="space-y-6">

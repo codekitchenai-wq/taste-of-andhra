@@ -8,6 +8,7 @@ export interface Order {
   order_number: string
   user_id: string
   address_id: string
+  branch_id: string | null
   subtotal: number
   tax: number
   delivery_charge: number

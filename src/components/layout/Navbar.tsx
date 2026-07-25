@@ -1,5 +1,5 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom'
-import { LogOut, ShoppingCart, User, Menu, X } from 'lucide-react'
+import { Bell, Heart, LogOut, ShoppingCart, User, Menu, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { APP_NAME } from '@/constants/APP'
@@ -90,6 +90,34 @@ export function Navbar({ transparent = false }: NavbarProps) {
           </nav>
 
           <div className="flex items-center gap-2 md:gap-3">
+            {isAuthenticated && (
+              <>
+                <Link
+                  to={ROUTES.FAVORITES}
+                  className={cn(
+                    'hidden h-10 w-10 items-center justify-center rounded-full transition-colors sm:flex',
+                    isSolid
+                      ? 'text-text-primary hover:bg-primary/10 hover:text-primary'
+                      : 'text-white hover:bg-white/10',
+                  )}
+                  aria-label="Favorites"
+                >
+                  <Heart className="h-5 w-5" />
+                </Link>
+                <Link
+                  to={ROUTES.NOTIFICATIONS}
+                  className={cn(
+                    'hidden h-10 w-10 items-center justify-center rounded-full transition-colors sm:flex',
+                    isSolid
+                      ? 'text-text-primary hover:bg-primary/10 hover:text-primary'
+                      : 'text-white hover:bg-white/10',
+                  )}
+                  aria-label="Notifications"
+                >
+                  <Bell className="h-5 w-5" />
+                </Link>
+              </>
+            )}
             <Link
               to={ROUTES.CART}
               className={cn(

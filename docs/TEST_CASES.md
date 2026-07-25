@@ -1,4 +1,4 @@
-# Taste of Andhra — Test Cases
+# The Taste of Andhra — Test Cases
 
 Use this document to manually validate the application before releases. Each case has a unique ID for tracking pass/fail.
 
@@ -180,6 +180,8 @@ Use this document to manually validate the application before releases. Each cas
 
 ## 12. Admin — orders & delivery
 
+Step-by-step tester walkthrough: [QA_ORDER_STATUS_WALKTHROUGH.md](./QA_ORDER_STATUS_WALKTHROUGH.md)
+
 | ID | Priority | Test case | Steps | Expected result |
 |----|----------|-----------|-------|-----------------|
 | ADM-20 | P1 | List orders | `/admin/orders` | Orders with customer info |
@@ -258,7 +260,7 @@ Run this 15-minute checklist before every release:
 |------|----------------|
 | Test phone | Use Supabase test number from dashboard |
 | Test OTP | Fixed OTP from Supabase test config |
-| Coupon | Create offer: 10% off, code `TEST10`, min order ₹0 |
+| Coupon | Seeded codes: `TEST10`, `WELCOME15`, `SAVE20`, `FESTIVE25` (see `npm run seed:test-coupons`) |
 | Test address | Home, 123 Test St, Hyderabad, Telangana, 500001 |
 | Admin email | Created in Supabase Dashboard |
 

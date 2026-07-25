@@ -1,6 +1,6 @@
 # PROJECT_REQUIREMENTS.md
 
-# Taste of Andhra - Restaurant Ordering & Management System
+# The Taste of Andhra - Restaurant Ordering & Management System
 
 Version: 1.0
 
@@ -8,7 +8,7 @@ Version: 1.0
 
 # 1. Project Overview
 
-Taste of Andhra is a modern restaurant website and online food ordering platform.
+The Taste of Andhra is a modern restaurant website and online food ordering platform.
 
 The application should allow customers to:
 

@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-This project is **Taste of Andhra**, a production-ready restaurant ordering and management system.
+This project is **The Taste of Andhra**, a production-ready restaurant ordering and management system.
 
 Always refer to the following documents before generating code:
 

@@ -1,4 +1,4 @@
-export const APP_NAME = 'Taste of Andhra'
+export const APP_NAME = 'The Taste of Andhra'
 export const APP_TAGLINE = 'Authentic Andhra Cuisine'
 export const APP_DESCRIPTION =
   'Experience the rich flavors of Andhra Pradesh — order online for delivery or pickup.'

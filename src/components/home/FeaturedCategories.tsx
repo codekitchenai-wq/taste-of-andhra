@@ -41,13 +41,19 @@ export function FeaturedCategories() {
           ))}
         </div>
 
-        <div className="mt-8 text-center">
+        <div className="mt-8 flex flex-col items-center gap-2 text-center">
           <Link
             to={ROUTES.MENU}
             className="inline-flex items-center gap-2 text-sm font-medium text-primary transition-colors hover:text-primary-dark"
           >
             View Full Menu
             <ArrowRight className="h-4 w-4" />
+          </Link>
+          <Link
+            to={ROUTES.LIGHT_MENU}
+            className="text-xs text-text-secondary transition-colors hover:text-primary"
+          >
+            Light menu — text only, faster to order
           </Link>
         </div>
       </Container>

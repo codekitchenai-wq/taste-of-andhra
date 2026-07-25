@@ -28,6 +28,7 @@ const STATUS_BY_ACTION: Partial<Record<KitchenPrimaryAction, OrderStatus>> = {
   reject: 'cancelled',
   start_preparing: 'preparing',
   mark_ready: 'ready',
+  mark_out_for_delivery: 'out_for_delivery',
   mark_delivered: 'delivered',
 }
 

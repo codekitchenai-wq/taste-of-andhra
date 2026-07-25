@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>The Taste of Andhra — Order Status &amp; Delivery Walkthrough</title>
+    <style>
+      :root {
+        --primary: #c62828;
+        --primary-light: #ffebee;
+        --accent: #f9a825;
+        --text: #1a1a1a;
+        --muted: #555;
+        --border: #ddd;
+        --surface: #fafafa;
+        --success: #2e7d32;
+        --admin: #1565c0;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+        color: var(--text);
+        line-height: 1.55;
+        margin: 0;
+        padding: 0;
+        background: #fff;
+        font-size: 10.5pt;
+      }
+
+      .page {
+        max-width: 780px;
+        margin: 0 auto;
+        padding: 28px 32px 40px;
+      }
+
+      header.doc-header {
+        border-bottom: 3px solid var(--primary);
+        padding-bottom: 16px;
+        margin-bottom: 24px;
+      }
+
+      header.doc-header h1 {
+        margin: 0 0 6px;
+        font-size: 20pt;
+        color: var(--primary);
+        font-weight: 700;
+      }
+
+      header.doc-header p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 10pt;
+      }
+
+      .meta {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+        font-size: 9pt;
+        color: var(--muted);
+        margin-top: 10px;
+      }
+
+      h2 {
+        font-size: 13pt;
+        color: var(--primary);
+        margin: 22px 0 10px;
+        border-left: 4px solid var(--accent);
+        padding-left: 10px;
+        page-break-after: avoid;
+      }
+
+      h3 {
+        font-size: 11pt;
+        margin: 14px 0 6px;
+        color: var(--text);
+        page-break-after: avoid;
+      }
+
+      p,
+      li {
+        color: var(--muted);
+        margin: 0 0 6px;
+      }
+
+      ol,
+      ul {
+        margin: 0 0 10px;
+        padding-left: 22px;
+      }
+
+      strong {
+        color: var(--text);
+      }
+
+      a {
+        color: var(--admin);
+        text-decoration: none;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 8px 0 14px;
+        font-size: 9.5pt;
+        page-break-inside: avoid;
+      }
+
+      th,
+      td {
+        border: 1px solid var(--border);
+        padding: 7px 9px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: var(--primary-light);
+        color: var(--text);
+        font-weight: 600;
+      }
+
+      tr:nth-child(even) td {
+        background: var(--surface);
+      }
+
+      .callout {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-left: 4px solid var(--primary);
+        padding: 10px 14px;
+        margin: 10px 0 14px;
+        font-size: 10pt;
+        page-break-inside: avoid;
+      }
+
+      .checklist {
+        list-style: none;
+        padding-left: 0;
+      }
+
+      .checklist li {
+        padding-left: 1.6em;
+        position: relative;
+        margin-bottom: 5px;
+      }
+
+      .checklist li::before {
+        content: "☐";
+        position: absolute;
+        left: 0;
+        color: var(--primary);
+        font-size: 12pt;
+        line-height: 1.2;
+      }
+
+      .flow-box {
+        background: var(--primary-light);
+        border: 1px solid #ef9a9a;
+        border-radius: 6px;
+        padding: 14px 18px;
+        margin: 10px 0 16px;
+        font-family: Consolas, "Courier New", monospace;
+        font-size: 9.5pt;
+        white-space: pre-wrap;
+        color: var(--text);
+        page-break-inside: avoid;
+      }
+
+      .badge {
+        display: inline-block;
+        padding: 1px 7px;
+        border-radius: 4px;
+        font-size: 8.5pt;
+        font-weight: 600;
+        background: var(--primary-light);
+        color: var(--primary);
+      }
+
+      footer {
+        margin-top: 28px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+        font-size: 8.5pt;
+        color: var(--muted);
+      }
+
+      @media print {
+        body {
+          font-size: 10pt;
+        }
+
+        .page {
+          padding: 0;
+          max-width: none;
+        }
+
+        a {
+          color: var(--text);
+        }
+
+        h2 {
+          break-after: avoid;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header class="doc-header">
+        <h1>Order Status &amp; Delivery Walkthrough</h1>
+        <p>
+          Admin status dropdown and delivery app updates
+          (Out for Delivery → Delivered)
+        </p>
+        <div class="meta">
+          <span><strong>Site:</strong> https://www.thetasteofandhra.com</span>
+          <span><strong>Password:</strong> Test@123</span>
+          <span><strong>Doc:</strong> QA_ORDER_STATUS_WALKTHROUGH</span>
+        </div>
+      </header>
+
+      <div class="callout">
+        Use <strong>two or three browser windows</strong> (or normal +
+        private/incognito) so Customer, Admin, and Delivery stay logged in at
+        the same time. Use matching tester accounts only (Tester 1 with Tester
+        1, Tester 2 with Tester 2).
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Persona</th>
+            <th>Login</th>
+            <th>Password</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Customer</td>
+            <td><code>/login</code></td>
+            <td><code>Test@123</code></td>
+          </tr>
+          <tr>
+            <td>Admin</td>
+            <td><code>/admin/login</code></td>
+            <td><code>Test@123</code></td>
+          </tr>
+          <tr>
+            <td>Delivery</td>
+            <td><code>/delivery/login</code></td>
+            <td><code>Test@123</code></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Part A — Admin status dropdown (kitchen progress)</h2>
+
+      <h3>Goal</h3>
+      <p>
+        Move an order through
+        <strong>Pending → Confirmed → Preparing → Ready</strong> and confirm
+        the customer Order Tracking stepper updates.
+      </p>
+
+      <h3>Setup</h3>
+      <ol>
+        <li>
+          <strong>Customer</strong> — place an order (menu → cart → checkout).
+        </li>
+        <li>Note the <strong>order number</strong>.</li>
+        <li>
+          Open the order: <strong>My Orders</strong> → order →
+          <code>/orders/:orderId</code>.
+        </li>
+        <li>
+          Confirm tracking shows <strong>Pending</strong> with
+          <strong>Current status</strong>, and
+          <strong>Cancel Order</strong> is visible.
+        </li>
+      </ol>
+
+      <h3>Steps (Admin)</h3>
+      <ol>
+        <li>
+          Log in as <strong>Admin</strong> →
+          <a href="https://www.thetasteofandhra.com/admin/orders"
+            >https://www.thetasteofandhra.com/admin/orders</a
+          >
+        </li>
+        <li>Find the order (search by order number if needed).</li>
+        <li>
+          In the row <strong>status dropdown</strong>, change status one step
+          at a time:
+        </li>
+      </ol>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Change to</th>
+            <th>Toast / admin UI</th>
+            <th>Customer tracking</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Confirmed</td>
+            <td>“Order status updated”; badge = Confirmed</td>
+            <td>
+              Step 2 current; step 1 completed (checkmark); Cancel still
+              available
+            </td>
+          </tr>
+          <tr>
+            <td>Preparing</td>
+            <td>Status saved</td>
+            <td>
+              Step 3 current; <strong>Cancel Order</strong> hidden
+            </td>
+          </tr>
+          <tr>
+            <td>Ready</td>
+            <td>Status saved</td>
+            <td>Step 4 current</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>
+        You can also open the order (<strong>View</strong>) and update status
+        from the detail modal — same expected results.
+      </p>
+
+      <h3>Pass criteria</h3>
+      <ul class="checklist">
+        <li>
+          Each dropdown change shows success toast and updates the admin badge.
+        </li>
+        <li>
+          Customer stepper “Current status” moves to the matching step after
+          refresh (or reopen).
+        </li>
+        <li>
+          Completed steps show checkmarks; future steps stay grey.
+        </li>
+        <li>Cancel is only available for Pending / Confirmed.</li>
+      </ul>
+
+      <h3>Optional checks</h3>
+      <ul>
+        <li>
+          Filter admin orders by status — order appears under the new filter.
+        </li>
+        <li>
+          Set status to <strong>Cancelled</strong> from admin — customer page
+          shows cancelled state (not the 6-step tracker).
+        </li>
+      </ul>
+
+      <h2>Part B — Assign delivery → Out for Delivery</h2>
+
+      <div class="callout">
+        Orders appear under <strong>Awaiting Assignment</strong> only when
+        status is <strong>Confirmed</strong>, <strong>Preparing</strong>, or
+        <strong>Ready</strong> (not Pending, and not already assigned).
+      </div>
+
+      <h3>Steps (Admin)</h3>
+      <ol>
+        <li>
+          Ensure the test order is at least <strong>Confirmed</strong>
+          (ideally <strong>Ready</strong>) via Part A.
+        </li>
+        <li>
+          Open
+          <a href="https://www.thetasteofandhra.com/admin/delivery"
+            >https://www.thetasteofandhra.com/admin/delivery</a
+          >
+        </li>
+        <li>
+          Under <strong>Awaiting Assignment</strong>, find the order →
+          <strong>Assign</strong>.
+        </li>
+        <li>
+          In the modal, select your tester delivery partner (or enter name +
+          10-digit phone).
+        </li>
+        <li>Submit.</li>
+      </ol>
+
+      <h3>Expected</h3>
+      <ul>
+        <li>Toast: <strong>Delivery partner assigned</strong></li>
+        <li>
+          Order leaves <strong>Awaiting Assignment</strong> and appears under
+          <strong>Active Deliveries</strong>
+        </li>
+        <li>
+          Order status becomes
+          <span class="badge">Out for Delivery</span>
+        </li>
+        <li>
+          Customer tracking: step 5 (<strong>Out for Delivery</strong>) =
+          current; live tracking map section may appear
+        </li>
+        <li>
+          Delivery partner sees the order on
+          <a href="https://www.thetasteofandhra.com/delivery"
+            >https://www.thetasteofandhra.com/delivery</a
+          >
+        </li>
+      </ul>
+
+      <h3>Pass criteria</h3>
+      <ul class="checklist">
+        <li>Assignment succeeds with Tester delivery account selected.</li>
+        <li>Customer order status / stepper = Out for Delivery.</li>
+        <li>Same order is visible on Delivery dashboard.</li>
+      </ul>
+
+      <h2>Part C — Delivery app: Out for Delivery → Delivered</h2>
+
+      <h3>Steps (Delivery)</h3>
+      <ol>
+        <li>
+          Log in as <strong>Delivery</strong> →
+          <a href="https://www.thetasteofandhra.com/delivery"
+            >https://www.thetasteofandhra.com/delivery</a
+          >
+        </li>
+        <li>
+          Confirm the assigned order appears (<strong>My Deliveries</strong>).
+        </li>
+        <li>Open <strong>View Details</strong>.</li>
+        <li>Verify customer name, phone, address, and order total.</li>
+        <li>
+          Optional: click <strong>Share Live Location</strong> and allow GPS —
+          toast <strong>Sharing live location</strong>; customer live map may
+          update.
+        </li>
+        <li>
+          Click <strong>Mark Delivered</strong> (from the detail page or the
+          dashboard card).
+        </li>
+      </ol>
+
+      <h3>Expected</h3>
+      <ul>
+        <li>Toast: <strong>Order marked as delivered</strong></li>
+        <li>
+          Delivery badge / status =
+          <span class="badge">Delivered</span>;
+          <strong>Mark Delivered</strong> no longer shown
+        </li>
+        <li>
+          Customer order: step 6 (<strong>Delivered</strong>) = current; all
+          prior steps completed
+        </li>
+        <li>
+          Admin <strong>Active Deliveries</strong> reflects Delivered (or moves
+          off active list depending on UI)
+        </li>
+      </ul>
+
+      <h3>Pass criteria</h3>
+      <ul class="checklist">
+        <li>Mark Delivered updates delivery + order status together.</li>
+        <li>Customer tracking ends on Delivered.</li>
+        <li>
+          Cannot mark the same delivery delivered again (button gone).
+        </li>
+      </ul>
+
+      <h2>Suggested full path (one sitting)</h2>
+      <div class="flow-box">Customer places order (Pending)
+        ↓
+Admin dropdown: Confirmed → Preparing → Ready
+        ↓
+Admin Delivery: Assign partner  →  Out for Delivery
+        ↓
+Delivery: Mark Delivered       →  Delivered
+        ↓
+Customer: confirm stepper + invoice / notifications</div>
+
+      <h2>Common blockers</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Issue</th>
+            <th>Likely cause</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Order missing from Awaiting Assignment</td>
+            <td>
+              Still <strong>Pending</strong>, already assigned, or wrong
+              status
+            </td>
+          </tr>
+          <tr>
+            <td>Delivery dashboard empty</td>
+            <td>
+              Admin assigned a different partner / phone, or wrong tester
+              account
+            </td>
+          </tr>
+          <tr>
+            <td>Customer still shows old step</td>
+            <td>Refresh order details page</td>
+          </tr>
+          <tr>
+            <td>Location share fails</td>
+            <td>Browser denied geolocation; not a status bug</td>
+          </tr>
+          <tr>
+            <td>Cancel still visible after Preparing</td>
+            <td>Bug — report with order number and current status</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <footer>
+        The Taste of Andhra QA · See also QA_TESTER_1.md / QA_TESTER_2.md · Source:
+        docs/QA_ORDER_STATUS_WALKTHROUGH.md
+      </footer>
+    </div>
+  </body>
+</html>

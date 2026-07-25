@@ -4,17 +4,22 @@ import { ROUTES } from '@/constants/ROUTES'
 import { MainLayout } from '@/layouts/MainLayout'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import { AdminLayout } from '@/layouts/AdminLayout'
+import { DeliveryLayout } from '@/layouts/DeliveryLayout'
 import { ProtectedRoute } from '@/components/routing/ProtectedRoute'
 import { AdminRoute } from '@/components/routing/AdminRoute'
+import { DeliveryRoute } from '@/components/routing/DeliveryRoute'
 import { GuestRoute } from '@/components/routing/GuestRoute'
 
 const HomePage = lazy(() => import('@/pages/public/HomePage'))
 const AboutPage = lazy(() => import('@/pages/public/AboutPage'))
 const MenuPage = lazy(() => import('@/pages/public/MenuPage'))
+const LightMenuPage = lazy(() => import('@/pages/public/LightMenuPage'))
 const DishDetailsPage = lazy(() => import('@/pages/public/DishDetailsPage'))
 const GalleryPage = lazy(() => import('@/pages/public/GalleryPage'))
 const ContactPage = lazy(() => import('@/pages/public/ContactPage'))
 const PartyOrderPage = lazy(() => import('@/pages/public/PartyOrderPage'))
+const QrMenuPage = lazy(() => import('@/pages/public/QrMenuPage'))
+const BranchMenuPage = lazy(() => import('@/pages/public/BranchMenuPage'))
 
 const LoginPage = lazy(() => import('@/pages/customer/LoginPage'))
 const RegisterPage = lazy(() => import('@/pages/customer/RegisterPage'))
@@ -27,6 +32,11 @@ const OrderSuccessPage = lazy(() => import('@/pages/customer/OrderSuccessPage'))
 const SavedAddressesPage = lazy(
   () => import('@/pages/customer/SavedAddressesPage'),
 )
+const FavoritesPage = lazy(() => import('@/pages/customer/FavoritesPage'))
+const NotificationsPage = lazy(
+  () => import('@/pages/customer/NotificationsPage'),
+)
+const InvoicePage = lazy(() => import('@/pages/customer/InvoicePage'))
 
 const AdminLoginPage = lazy(() => import('@/pages/admin/AdminLoginPage'))
 const AdminDashboardPage = lazy(
@@ -43,6 +53,9 @@ const AdminCustomersPage = lazy(
 const AdminDeliveryPage = lazy(
   () => import('@/pages/admin/AdminDeliveryPage'),
 )
+const AdminDeliveryPartnersPage = lazy(
+  () => import('@/pages/admin/AdminDeliveryPartnersPage'),
+)
 const AdminOffersPage = lazy(() => import('@/pages/admin/AdminOffersPage'))
 const AdminReportsPage = lazy(() => import('@/pages/admin/AdminReportsPage'))
 const AdminSettingsPage = lazy(
@@ -50,6 +63,22 @@ const AdminSettingsPage = lazy(
 )
 const AdminPartyInquiriesPage = lazy(
   () => import('@/pages/admin/AdminPartyInquiriesPage'),
+)
+const AdminBranchesPage = lazy(
+  () => import('@/pages/admin/AdminBranchesPage'),
+)
+const AdminQrTablesPage = lazy(
+  () => import('@/pages/admin/AdminQrTablesPage'),
+)
+
+const DeliveryLoginPage = lazy(
+  () => import('@/pages/delivery/DeliveryLoginPage'),
+)
+const DeliveryDashboardPage = lazy(
+  () => import('@/pages/delivery/DeliveryDashboardPage'),
+)
+const DeliveryOrderPage = lazy(
+  () => import('@/pages/delivery/DeliveryOrderPage'),
 )
 
 export const router = createBrowserRouter([
@@ -59,10 +88,13 @@ export const router = createBrowserRouter([
       { index: true, element: <HomePage /> },
       { path: ROUTES.ABOUT, element: <AboutPage /> },
       { path: ROUTES.MENU, element: <MenuPage /> },
+      { path: ROUTES.LIGHT_MENU, element: <LightMenuPage /> },
       { path: `${ROUTES.MENU}/:slug`, element: <DishDetailsPage /> },
       { path: ROUTES.GALLERY, element: <GalleryPage /> },
       { path: ROUTES.CONTACT, element: <ContactPage /> },
       { path: ROUTES.PARTY_ORDER, element: <PartyOrderPage /> },
+      { path: 'qr/:tableCode', element: <QrMenuPage /> },
+      { path: 'b/:slug', element: <BranchMenuPage /> },
       { path: ROUTES.CART, element: <CartPage /> },
       {
         element: <ProtectedRoute />,
@@ -70,9 +102,15 @@ export const router = createBrowserRouter([
           { path: ROUTES.PROFILE, element: <ProfilePage /> },
           { path: ROUTES.ORDERS, element: <MyOrdersPage /> },
           { path: `${ROUTES.ORDERS}/:orderId`, element: <OrderDetailsPage /> },
+          {
+            path: `${ROUTES.ORDERS}/:orderId/invoice`,
+            element: <InvoicePage />,
+          },
           { path: ROUTES.CHECKOUT, element: <CheckoutPage /> },
           { path: ROUTES.ORDER_SUCCESS, element: <OrderSuccessPage /> },
           { path: ROUTES.ADDRESSES, element: <SavedAddressesPage /> },
+          { path: ROUTES.FAVORITES, element: <FavoritesPage /> },
+          { path: ROUTES.NOTIFICATIONS, element: <NotificationsPage /> },
         ],
       },
     ],
@@ -90,6 +128,7 @@ export const router = createBrowserRouter([
     ],
   },
   { path: ROUTES.ADMIN.LOGIN, element: <AdminLoginPage /> },
+  { path: ROUTES.DELIVERY.LOGIN, element: <DeliveryLoginPage /> },
   {
     element: <AdminRoute />,
     children: [
@@ -108,13 +147,34 @@ export const router = createBrowserRouter([
             element: <AdminCustomersPage />,
           },
           { path: ROUTES.ADMIN.DELIVERY, element: <AdminDeliveryPage /> },
+          {
+            path: ROUTES.ADMIN.DELIVERY_PARTNERS,
+            element: <AdminDeliveryPartnersPage />,
+          },
           { path: ROUTES.ADMIN.OFFERS, element: <AdminOffersPage /> },
           {
             path: ROUTES.ADMIN.PARTY_INQUIRIES,
             element: <AdminPartyInquiriesPage />,
           },
+          { path: ROUTES.ADMIN.BRANCHES, element: <AdminBranchesPage /> },
+          { path: ROUTES.ADMIN.QR_TABLES, element: <AdminQrTablesPage /> },
           { path: ROUTES.ADMIN.REPORTS, element: <AdminReportsPage /> },
           { path: ROUTES.ADMIN.SETTINGS, element: <AdminSettingsPage /> },
+        ],
+      },
+    ],
+  },
+  {
+    element: <DeliveryRoute />,
+    children: [
+      {
+        element: <DeliveryLayout />,
+        children: [
+          { path: ROUTES.DELIVERY.DASHBOARD, element: <DeliveryDashboardPage /> },
+          {
+            path: `${ROUTES.DELIVERY.DASHBOARD}/:deliveryId`,
+            element: <DeliveryOrderPage />,
+          },
         ],
       },
     ],
