@@ -53,23 +53,6 @@ async function requireUserId(): Promise<ServiceResponse<string>> {
   return createSuccessResponse(user.id)
 }
 
-async function refreshDishRating(dishId: string): Promise<void> {
-  const { data } = await supabase
-    .from('reviews')
-    .select('rating')
-    .eq('dish_id', dishId)
-
-  if (!data?.length) return
-
-  const average =
-    data.reduce((sum, row) => sum + Number(row.rating), 0) / data.length
-
-  await supabase
-    .from('dishes')
-    .update({ rating: Math.round(average * 10) / 10 })
-    .eq('id', dishId)
-}
-
 export async function getReviewsByDish(
   dishId: string,
 ): Promise<ServiceResponse<ReviewWithAuthor[]>> {
@@ -140,7 +123,6 @@ export async function submitReview(
     return createErrorResponse('Unable to submit review.', error.message)
   }
 
-  await refreshDishRating(input.dishId)
-
+  // dishes.rating is recalculated by the sync_dish_rating trigger.
   return createSuccessResponse(mapReview(data))
 }

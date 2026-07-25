@@ -2,6 +2,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { FileText } from 'lucide-react'
 import { OrderStatusBadge } from '@/components/admin/OrderStatusBadge'
+import { GoogleReviewPrompt } from '@/components/orders/GoogleReviewPrompt'
 import { LiveTrackingMap } from '@/components/orders/LiveTrackingMap'
 import { OrderDetailsPanel } from '@/components/orders/OrderDetailsPanel'
 import { OrderTracking } from '@/components/orders/OrderTracking'
@@ -93,6 +94,11 @@ export default function OrderDetailsPage() {
                   dropoffLat={order.address?.latitude}
                   dropoffLng={order.address?.longitude}
                 />
+              </div>
+            )}
+            {order.order_status === 'delivered' && (
+              <div className="mt-6">
+                <GoogleReviewPrompt />
               </div>
             )}
             <Link
