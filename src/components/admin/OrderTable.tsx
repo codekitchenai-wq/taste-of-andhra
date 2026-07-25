@@ -3,9 +3,12 @@ import { ORDER_STATUS } from '@/constants/ORDER_STATUS'
 import type { AdminOrder } from '@/services/orderService'
 import type { OrderStatus } from '@/types/enums'
 import { OrderStatusBadge } from '@/components/admin/OrderStatusBadge'
+import { OrderEtaBanner } from '@/components/orders/OrderEtaBanner'
 import { PAYMENT_METHOD } from '@/constants/PAYMENT_METHOD'
 import { formatPrice, formatDateTime } from '@/utils/format'
 import { getAllowedNextStatuses } from '@/utils/orderStatusTransitions'
+import { isOrderDelayed } from '@/utils/orderEta'
+import { cn } from '@/utils/cn'
 
 interface OrderTableProps {
   orders: AdminOrder[]
@@ -22,7 +25,7 @@ export function OrderTable({
 }: OrderTableProps) {
   return (
     <div className="overflow-x-auto rounded-[var(--radius-card)] bg-surface shadow-md">
-      <table className="w-full min-w-[960px] text-left text-sm">
+      <table className="w-full min-w-[1040px] text-left text-sm">
         <thead className="border-b border-black/5 bg-background/60">
           <tr>
             <th className="px-4 py-3 font-semibold text-text-primary">Order</th>
@@ -34,6 +37,7 @@ export function OrderTable({
               Payment
             </th>
             <th className="px-4 py-3 font-semibold text-text-primary">Status</th>
+            <th className="px-4 py-3 font-semibold text-text-primary">ETA</th>
             <th className="px-4 py-3 font-semibold text-text-primary">Date</th>
             <th className="px-4 py-3 font-semibold text-text-primary">
               Actions
@@ -44,11 +48,15 @@ export function OrderTable({
           {orders.map((order) => {
             const nextStatuses = getAllowedNextStatuses(order.order_status)
             const statusOptions = [order.order_status, ...nextStatuses]
+            const delayed = isOrderDelayed(order)
 
             return (
               <tr
                 key={order.id}
-                className="border-b border-black/5 last:border-b-0"
+                className={cn(
+                  'border-b border-black/5 last:border-b-0',
+                  delayed && 'bg-error/5',
+                )}
               >
                 <td className="px-4 py-4 font-medium text-text-primary">
                   {order.order_number}
@@ -69,6 +77,13 @@ export function OrderTable({
                 </td>
                 <td className="px-4 py-4">
                   <OrderStatusBadge status={order.order_status} />
+                </td>
+                <td className="px-4 py-4">
+                  <OrderEtaBanner
+                    estimatedDelivery={order.estimated_delivery}
+                    orderStatus={order.order_status}
+                    variant="badge"
+                  />
                 </td>
                 <td className="px-4 py-4 text-text-secondary">
                   {formatDateTime(new Date(order.created_at))}

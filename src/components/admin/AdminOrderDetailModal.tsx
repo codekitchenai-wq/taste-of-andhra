@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { OrderDetailsPanel } from '@/components/orders/OrderDetailsPanel'
+import { OrderEtaBanner } from '@/components/orders/OrderEtaBanner'
+import { OrderEtaControls } from '@/components/orders/OrderEtaControls'
 import { OrderTracking } from '@/components/orders/OrderTracking'
 import { OrderStatusBadge } from '@/components/admin/OrderStatusBadge'
 import { Button } from '@/components/ui/Button'
@@ -73,6 +75,41 @@ export function AdminOrderDetailModal({
     onClose()
   }
 
+  const handleBumpEta = async (minutes: number) => {
+    if (!order) return
+    setIsUpdating(true)
+    const result = await orderService.bumpEstimatedDelivery(order.id, minutes)
+    setIsUpdating(false)
+
+    if (!result.success) {
+      toast.error(result.message)
+      return
+    }
+
+    setOrder({ ...order, estimated_delivery: result.data.estimated_delivery })
+    toast.success(`Added ${minutes} minutes to ETA`)
+    onStatusUpdated()
+  }
+
+  const handleSetEtaMinutes = async (minutes: number) => {
+    if (!order) return
+    setIsUpdating(true)
+    const result = await orderService.setEstimatedDeliveryMinutesFromNow(
+      order.id,
+      minutes,
+    )
+    setIsUpdating(false)
+
+    if (!result.success) {
+      toast.error(result.message)
+      return
+    }
+
+    setOrder({ ...order, estimated_delivery: result.data.estimated_delivery })
+    toast.success(`ETA set to ${minutes} minutes from now`)
+    onStatusUpdated()
+  }
+
   const nextStatuses = order
     ? getAllowedNextStatuses(order.order_status)
     : []
@@ -108,7 +145,20 @@ export function AdminOrderDetailModal({
               onChange={(event) =>
                 setStatus(event.target.value as OrderStatus)
               }
-            />          </div>
+            />
+          </div>
+
+          <OrderEtaBanner
+            estimatedDelivery={order.estimated_delivery}
+            orderStatus={order.order_status}
+          />
+
+          <OrderEtaControls
+            orderStatus={order.order_status}
+            isUpdating={isUpdating}
+            onBump={(minutes) => void handleBumpEta(minutes)}
+            onSetMinutesFromNow={(minutes) => void handleSetEtaMinutes(minutes)}
+          />
 
           <div className="grid gap-6 md:grid-cols-2">
             <section className="rounded-[var(--radius-card)] bg-background p-4">

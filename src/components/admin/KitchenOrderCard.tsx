@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Eye, Phone, User } from 'lucide-react'
 import { OrderStatusBadge } from '@/components/admin/OrderStatusBadge'
+import { OrderEtaBanner } from '@/components/orders/OrderEtaBanner'
+import { OrderEtaControls } from '@/components/orders/OrderEtaControls'
 import { Button } from '@/components/ui/Button'
 import { PAYMENT_METHOD } from '@/constants/PAYMENT_METHOD'
 import type { AdminOrder } from '@/services/orderService'
 import type { OrderStatus } from '@/types/enums'
 import { cn } from '@/utils/cn'
 import { formatPrice } from '@/utils/format'
+import { isOrderDelayed, isTerminalOrderStatus } from '@/utils/orderEta'
 
 function formatElapsed(iso: string, nowMs: number): string {
   const seconds = Math.max(0, Math.floor((nowMs - new Date(iso).getTime()) / 1000))
@@ -34,6 +37,8 @@ interface KitchenOrderCardProps {
   onAccept?: (order: AdminOrder) => void
   onReject?: (order: AdminOrder) => void
   onPrimaryAction?: (order: AdminOrder, action: KitchenPrimaryAction) => void
+  onBumpEta?: (order: AdminOrder, minutes: number) => void
+  onSetEtaMinutes?: (order: AdminOrder, minutes: number) => void
 }
 
 function getNextAction(
@@ -81,13 +86,19 @@ export function KitchenOrderCard({
   onAccept,
   onReject,
   onPrimaryAction,
+  onBumpEta,
+  onSetEtaMinutes,
 }: KitchenOrderCardProps) {
   const [nowMs, setNowMs] = useState(() => Date.now())
   const isNew = order.order_status === 'pending' || accent === 'new'
+  const delayed = isOrderDelayed(order, nowMs)
   const next = getNextAction(
     order.order_status,
     Boolean(order.delivery_partner),
   )
+  const canEditEta =
+    Boolean(onBumpEta && onSetEtaMinutes) &&
+    !isTerminalOrderStatus(order.order_status)
 
   useEffect(() => {
     const id = window.setInterval(() => setNowMs(Date.now()), 1_000)
@@ -103,9 +114,11 @@ export function KitchenOrderCard({
     <article
       className={cn(
         'flex flex-col gap-3 rounded-[var(--radius-card)] border bg-surface p-4 shadow-sm',
-        isNew
-          ? 'border-[#FC8019] ring-2 ring-[#FC8019]/25'
-          : 'border-black/8',
+        delayed
+          ? 'border-error/40 ring-2 ring-error/20'
+          : isNew
+            ? 'border-[#FC8019] ring-2 ring-[#FC8019]/25'
+            : 'border-black/8',
       )}
     >
       <div className="flex items-start justify-between gap-2">
@@ -136,6 +149,24 @@ export function KitchenOrderCard({
           )}
         </div>
       </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <OrderEtaBanner
+          estimatedDelivery={order.estimated_delivery}
+          orderStatus={order.order_status}
+          variant="badge"
+        />
+      </div>
+
+      {canEditEta && (
+        <OrderEtaControls
+          orderStatus={order.order_status}
+          isUpdating={isUpdating}
+          compact
+          onBump={(minutes) => onBumpEta?.(order, minutes)}
+          onSetMinutesFromNow={(minutes) => onSetEtaMinutes?.(order, minutes)}
+        />
+      )}
 
       <p className="line-clamp-3 text-sm leading-relaxed text-text-primary">
         {itemsSummary}

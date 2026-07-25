@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
 import { OrderStatusBadge } from '@/components/admin/OrderStatusBadge'
+import { OrderEtaBanner } from '@/components/orders/OrderEtaBanner'
 import { ROUTES } from '@/constants/ROUTES'
 import type { Order } from '@/types/Order'
 import { formatPrice, formatDateTime } from '@/utils/format'
@@ -29,6 +30,13 @@ export function OrderListCard({ order, itemCount }: OrderListCardProps) {
               {itemCount} {itemCount === 1 ? 'item' : 'items'}
             </p>
           )}
+          <div className="mt-2">
+            <OrderEtaBanner
+              estimatedDelivery={order.estimated_delivery}
+              orderStatus={order.order_status}
+              variant="badge"
+            />
+          </div>
         </div>
 
         <div className="flex shrink-0 flex-col items-end gap-2">

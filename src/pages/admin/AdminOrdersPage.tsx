@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState } from 'react'
-import { LayoutGrid, List, Search, Volume2, VolumeX } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { AlertTriangle, LayoutGrid, List, Search, Volume2, VolumeX } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { AdminOrderDetailModal } from '@/components/admin/AdminOrderDetailModal'
 import { AssignDeliveryModal } from '@/components/admin/AssignDeliveryModal'
@@ -20,6 +20,7 @@ import * as orderService from '@/services/orderService'
 import type { AdminOrder } from '@/services/orderService'
 import type { OrderStatus } from '@/types/enums'
 import { cn } from '@/utils/cn'
+import { isOrderDelayed } from '@/utils/orderEta'
 
 type ViewMode = 'board' | 'list'
 
@@ -35,11 +36,18 @@ const STATUS_BY_ACTION: Partial<Record<KitchenPrimaryAction, OrderStatus>> = {
 export default function AdminOrdersPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<OrderStatus | ''>('')
+  const [delayedOnly, setDelayedOnly] = useState(false)
   const [viewMode, setViewMode] = useState<ViewMode>('board')
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null)
   const [viewingOrderId, setViewingOrderId] = useState<string | null>(null)
   const [assigningOrder, setAssigningOrder] = useState<AdminOrder | null>(null)
+  const [nowMs, setNowMs] = useState(() => Date.now())
   const newOrdersRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 15_000)
+    return () => window.clearInterval(id)
+  }, [])
 
   const filters = useMemo(
     () => ({
@@ -58,10 +66,26 @@ export default function AdminOrdersPage() {
     dismissAlert,
   } = useNewOrderAlerts(orders, !isLoading)
 
+  const delayedCount = useMemo(
+    () => orders.filter((order) => isOrderDelayed(order, nowMs)).length,
+    [orders, nowMs],
+  )
+
   const boardOrders = useMemo(() => {
-    if (!statusFilter || viewMode !== 'board') return orders
-    return orders.filter((order) => order.order_status === statusFilter)
-  }, [orders, statusFilter, viewMode])
+    let list = orders
+    if (statusFilter && viewMode === 'board') {
+      list = list.filter((order) => order.order_status === statusFilter)
+    }
+    if (delayedOnly) {
+      list = list.filter((order) => isOrderDelayed(order, nowMs))
+    }
+    return list
+  }, [orders, statusFilter, viewMode, delayedOnly, nowMs])
+
+  const listOrders = useMemo(() => {
+    if (!delayedOnly) return orders
+    return orders.filter((order) => isOrderDelayed(order, nowMs))
+  }, [orders, delayedOnly, nowMs])
 
   const handleStatusChange = async (orderId: string, status: OrderStatus) => {
     setUpdatingOrderId(orderId)
@@ -77,7 +101,6 @@ export default function AdminOrdersPage() {
 
     dismissAlert(orderId)
     if (status !== 'pending') {
-      // Keep board live; silent refetch comes from realtime/poll
       void refetch({ silent: true })
     }
 
@@ -121,6 +144,37 @@ export default function AdminOrdersPage() {
     void handleStatusChange(order.id, status)
   }
 
+  const handleBumpEta = async (order: AdminOrder, minutes: number) => {
+    setUpdatingOrderId(order.id)
+    const result = await orderService.bumpEstimatedDelivery(order.id, minutes)
+    setUpdatingOrderId(null)
+
+    if (!result.success) {
+      toast.error(result.message)
+      return
+    }
+
+    toast.success(`Added ${minutes} minutes to ETA`)
+    void refetch({ silent: true })
+  }
+
+  const handleSetEtaMinutes = async (order: AdminOrder, minutes: number) => {
+    setUpdatingOrderId(order.id)
+    const result = await orderService.setEstimatedDeliveryMinutesFromNow(
+      order.id,
+      minutes,
+    )
+    setUpdatingOrderId(null)
+
+    if (!result.success) {
+      toast.error(result.message)
+      return
+    }
+
+    toast.success(`ETA set to ${minutes} minutes from now`)
+    void refetch({ silent: true })
+  }
+
   const statusOptions = [
     { label: 'All statuses', value: '' },
     ...ORDER_STATUS_LIST.map((status) => ({
@@ -129,7 +183,7 @@ export default function AdminOrdersPage() {
     })),
   ]
 
-  const visibleOrders = viewMode === 'board' ? boardOrders : orders
+  const visibleOrders = viewMode === 'board' ? boardOrders : listOrders
   const showEmpty =
     !isLoading && !error && visibleOrders.length === 0
 
@@ -144,6 +198,17 @@ export default function AdminOrdersPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant={delayedOnly ? 'danger' : 'secondary'}
+            size="sm"
+            onClick={() => setDelayedOnly((prev) => !prev)}
+            aria-pressed={delayedOnly}
+          >
+            <AlertTriangle className="h-4 w-4" />
+            Delayed{delayedCount > 0 ? ` (${delayedCount})` : ''}
+          </Button>
+
           <Button
             type="button"
             variant="secondary"
@@ -201,6 +266,7 @@ export default function AdminOrdersPage() {
         onViewAll={() => {
           setViewMode('board')
           setStatusFilter('pending')
+          setDelayedOnly(false)
           newOrdersRef.current?.scrollIntoView({ behavior: 'smooth' })
         }}
       />
@@ -237,8 +303,12 @@ export default function AdminOrdersPage() {
 
       {showEmpty && (
         <EmptyState
-          title="No orders found"
-          description="Try adjusting your search or filters."
+          title={delayedOnly ? 'No delayed orders' : 'No orders found'}
+          description={
+            delayedOnly
+              ? 'All active orders are within their delivery window.'
+              : 'Try adjusting your search or filters.'
+          }
         />
       )}
 
@@ -251,13 +321,17 @@ export default function AdminOrdersPage() {
             onAccept={handleAccept}
             onReject={handleReject}
             onPrimaryAction={handlePrimaryAction}
+            onBumpEta={(order, minutes) => void handleBumpEta(order, minutes)}
+            onSetEtaMinutes={(order, minutes) =>
+              void handleSetEtaMinutes(order, minutes)
+            }
           />
         </div>
       )}
 
       {!isLoading && !error && visibleOrders.length > 0 && viewMode === 'list' && (
         <OrderTable
-          orders={orders}
+          orders={listOrders}
           isUpdating={Boolean(updatingOrderId)}
           onView={setViewingOrderId}
           onStatusChange={(orderId, status) =>

@@ -14,7 +14,10 @@ import { generateOrderNumber, mapOrder, mapOrderItem } from '@/utils/mapOrder'
 import { mapAddress } from '@/utils/mapAddress'
 import { mapPayment } from '@/utils/mapPayment'
 import * as offerService from '@/services/offerService'
+import * as settingsService from '@/services/settingsService'
+import { DEFAULT_ETA_MINUTES } from '@/constants/ORDER'
 import { calculateOrderTotals } from '@/utils/orderTotals'
+import { addMinutesToIso } from '@/utils/orderEta'
 import { getOrderStatusTransitionError } from '@/utils/orderStatusTransitions'
 
 export interface CreateOrderInput {
@@ -24,6 +27,78 @@ export interface CreateOrderInput {
   couponCode?: string
   branchId?: string
   loyaltyPointsToRedeem?: number
+  /** Quote shown at checkout; its stored amount is what the customer pays. */
+  deliveryQuoteId?: string | null
+}
+
+interface ResolvedDeliveryQuote {
+  amount: number | null
+  provider: string
+  quoteId: string | null
+}
+
+function isMissingColumnError(message: string): boolean {
+  const lower = message.toLowerCase()
+  return (
+    lower.includes('does not exist') &&
+    (lower.includes('delivery_provider') || lower.includes('delivery_quote_id'))
+  )
+}
+
+const SERVICE_AREA_ERROR_PREFIX = 'OUTSIDE_SERVICE_AREA:'
+
+/**
+ * The orders trigger rejects addresses outside the service area. Its message
+ * already reads like customer copy, so it is passed through rather than being
+ * replaced by a generic failure.
+ */
+function serviceAreaErrorMessage(message: string): string | null {
+  const index = message.indexOf(SERVICE_AREA_ERROR_PREFIX)
+
+  if (index === -1) return null
+
+  return (
+    message.slice(index + SERVICE_AREA_ERROR_PREFIX.length).trim() ||
+    'We do not deliver to this address yet.'
+  )
+}
+
+/**
+ * Re-reads the quote from the database rather than trusting a client-supplied
+ * price. An expired, already-used, or mismatched quote is ignored so the order
+ * falls back to the rate card instead of failing.
+ */
+async function resolveDeliveryQuote(
+  quoteId: string | null | undefined,
+  userId: string,
+  addressId: string,
+): Promise<ResolvedDeliveryQuote> {
+  const none: ResolvedDeliveryQuote = {
+    amount: null,
+    provider: 'own',
+    quoteId: null,
+  }
+
+  if (!quoteId) return none
+
+  const { data, error } = await supabase
+    .from('delivery_quotes')
+    .select('*')
+    .eq('id', quoteId)
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (error || !data) return none
+  if (data.address_id !== addressId) return none
+  if (data.consumed_by_order_id) return none
+  if (new Date(data.expires_at as string).getTime() < Date.now()) return none
+  if (!data.is_serviceable) return none
+
+  return {
+    amount: Number(data.amount),
+    provider: (data.provider as string) ?? 'own',
+    quoteId: data.id as string,
+  }
 }
 
 export interface AdminOrderItemSummary {
@@ -293,8 +368,22 @@ export async function createOrder(
     }
   }
 
-  const totals = calculateOrderTotals(cart.subtotal, discount)
+  const quote = await resolveDeliveryQuote(
+    input.deliveryQuoteId,
+    userId,
+    input.addressId,
+  )
+
+  const totals = calculateOrderTotals(
+    cart.subtotal,
+    discount,
+    quote.amount ?? undefined,
+  )
   const orderNumber = generateOrderNumber()
+
+  const etaResult = await settingsService.getDefaultEtaMinutes()
+  const etaMinutes = etaResult.success ? etaResult.data : DEFAULT_ETA_MINUTES
+  const estimatedDelivery = addMinutesToIso(new Date(), etaMinutes)
 
   const orderPayload: Record<string, unknown> = {
     order_number: orderNumber,
@@ -309,20 +398,54 @@ export async function createOrder(
     payment_status: 'pending',
     order_status: 'pending',
     special_instructions: input.specialInstructions?.trim() || null,
+    estimated_delivery: estimatedDelivery,
+    delivery_provider: quote.provider,
+    delivery_quote_id: quote.quoteId,
   }
 
   if (branchId) {
     orderPayload.branch_id = branchId
   }
 
-  const { data: order, error: orderError } = await supabase
+  let { data: order, error: orderError } = await supabase
     .from('orders')
     .insert(orderPayload)
     .select()
     .single()
 
-  if (orderError) {
-    return createErrorResponse('Unable to create order.', orderError.message)
+  // Projects that have not applied the provider migration yet still need to be
+  // able to take orders, so retry without the new columns.
+  if (orderError && isMissingColumnError(orderError.message)) {
+    delete orderPayload.delivery_provider
+    delete orderPayload.delivery_quote_id
+
+    const retry = await supabase
+      .from('orders')
+      .insert(orderPayload)
+      .select()
+      .single()
+
+    order = retry.data
+    orderError = retry.error
+  }
+
+  if (orderError || !order) {
+    const outsideArea = orderError
+      ? serviceAreaErrorMessage(orderError.message)
+      : null
+
+    return createErrorResponse(
+      outsideArea ?? 'Unable to create order.',
+      orderError?.message,
+    )
+  }
+
+  if (quote.quoteId) {
+    // Burn the quote so a stale price cannot be replayed on a second order.
+    await supabase
+      .from('delivery_quotes')
+      .update({ consumed_by_order_id: order.id })
+      .eq('id', quote.quoteId)
   }
 
   if (loyaltyPointsUsed > 0) {
@@ -439,7 +562,7 @@ export async function updateOrderStatus(
 ): Promise<ServiceResponse<Order>> {
   const { data: existing, error: fetchError } = await supabase
     .from('orders')
-    .select('id, order_status')
+    .select('id, order_status, estimated_delivery')
     .eq('id', orderId)
     .maybeSingle()
 
@@ -496,9 +619,18 @@ export async function updateOrderStatus(
     return createSuccessResponse(mapOrder(unchanged))
   }
 
+  const updates: Record<string, unknown> = { order_status: status }
+
+  // On accept, ensure an ETA exists (uses admin default if still missing).
+  if (status === 'confirmed' && !existing.estimated_delivery) {
+    const etaResult = await settingsService.getDefaultEtaMinutes()
+    const etaMinutes = etaResult.success ? etaResult.data : DEFAULT_ETA_MINUTES
+    updates.estimated_delivery = addMinutesToIso(new Date(), etaMinutes)
+  }
+
   const { data, error } = await supabase
     .from('orders')
-    .update({ order_status: status })
+    .update(updates)
     .eq('id', orderId)
     .select()
     .single()
@@ -534,6 +666,119 @@ export async function updateOrderStatus(
   }
 
   return createSuccessResponse(mapOrder(data))
+}
+
+export async function updateEstimatedDelivery(
+  orderId: string,
+  estimatedDeliveryIso: string,
+): Promise<ServiceResponse<Order>> {
+  const target = new Date(estimatedDeliveryIso)
+  if (Number.isNaN(target.getTime())) {
+    return createErrorResponse('Please provide a valid delivery time.')
+  }
+
+  const { data: existing, error: fetchError } = await supabase
+    .from('orders')
+    .select('id, order_status')
+    .eq('id', orderId)
+    .maybeSingle()
+
+  if (fetchError) {
+    return createErrorResponse('Unable to load order.', fetchError.message)
+  }
+
+  if (!existing) {
+    return createErrorResponse('Order not found.')
+  }
+
+  if (
+    existing.order_status === 'delivered' ||
+    existing.order_status === 'cancelled'
+  ) {
+    return createErrorResponse(
+      'Cannot change delivery time for a completed or cancelled order.',
+    )
+  }
+
+  const { data, error } = await supabase
+    .from('orders')
+    .update({ estimated_delivery: target.toISOString() })
+    .eq('id', orderId)
+    .select()
+    .single()
+
+  if (error) {
+    return createErrorResponse(
+      'Unable to update delivery time.',
+      error.message,
+    )
+  }
+
+  return createSuccessResponse(mapOrder(data))
+}
+
+/** Extend (or set) ETA by adding minutes from now or from the current ETA. */
+export async function bumpEstimatedDelivery(
+  orderId: string,
+  addMinutes: number,
+  options?: { fromNow?: boolean },
+): Promise<ServiceResponse<Order>> {
+  const minutes = Math.round(addMinutes)
+  if (!Number.isFinite(minutes) || minutes < 1 || minutes > 240) {
+    return createErrorResponse('Add between 1 and 240 minutes.')
+  }
+
+  const { data: existing, error: fetchError } = await supabase
+    .from('orders')
+    .select('id, order_status, estimated_delivery')
+    .eq('id', orderId)
+    .maybeSingle()
+
+  if (fetchError) {
+    return createErrorResponse('Unable to load order.', fetchError.message)
+  }
+
+  if (!existing) {
+    return createErrorResponse('Order not found.')
+  }
+
+  if (
+    existing.order_status === 'delivered' ||
+    existing.order_status === 'cancelled'
+  ) {
+    return createErrorResponse(
+      'Cannot change delivery time for a completed or cancelled order.',
+    )
+  }
+
+  const base =
+    options?.fromNow || !existing.estimated_delivery
+      ? new Date()
+      : new Date(existing.estimated_delivery as string)
+
+  const nextIso =
+    !options?.fromNow &&
+    existing.estimated_delivery &&
+    new Date(existing.estimated_delivery as string).getTime() < Date.now()
+      ? addMinutesToIso(new Date(), minutes)
+      : addMinutesToIso(base, minutes)
+
+  return updateEstimatedDelivery(orderId, nextIso)
+}
+
+/** Set ETA to exactly N minutes from now. */
+export async function setEstimatedDeliveryMinutesFromNow(
+  orderId: string,
+  minutesFromNow: number,
+): Promise<ServiceResponse<Order>> {
+  const minutes = Math.round(minutesFromNow)
+  if (!Number.isFinite(minutes) || minutes < 5 || minutes > 240) {
+    return createErrorResponse(
+      'Delivery time must be between 5 and 240 minutes from now.',
+    )
+  }
+
+  return updateEstimatedDelivery(orderId, addMinutesToIso(new Date(), minutes))
 }
 
 export async function cancelOrder(

@@ -1,5 +1,8 @@
+import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { ConfigBanner } from '@/components/ui/ConfigBanner'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
 import {
   APP_DESCRIPTION,
   APP_NAME,
@@ -8,6 +11,7 @@ import {
   OPENING_HOURS,
 } from '@/constants/APP'
 import {
+  DEFAULT_ETA_MINUTES,
   FREE_DELIVERY_THRESHOLD,
   ORDER_DELIVERY_CHARGE,
   ORDER_TAX_RATE,
@@ -15,10 +19,50 @@ import {
 import {
   isRazorpayConfigured,
 } from '@/services/paymentService'
+import * as settingsService from '@/services/settingsService'
 import { isSupabaseConfigured } from '@/services/supabaseClient'
 import { formatPrice } from '@/utils/format'
 
 export default function AdminSettingsPage() {
+  const [etaMinutes, setEtaMinutes] = useState(String(DEFAULT_ETA_MINUTES))
+  const [isLoadingEta, setIsLoadingEta] = useState(true)
+  const [isSavingEta, setIsSavingEta] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+
+    const load = async () => {
+      setIsLoadingEta(true)
+      const result = await settingsService.getDefaultEtaMinutes()
+      if (cancelled) return
+
+      if (result.success) {
+        setEtaMinutes(String(result.data))
+      }
+      setIsLoadingEta(false)
+    }
+
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const handleSaveEta = async () => {
+    const minutes = Number.parseInt(etaMinutes, 10)
+    setIsSavingEta(true)
+    const result = await settingsService.setDefaultEtaMinutes(minutes)
+    setIsSavingEta(false)
+
+    if (!result.success) {
+      toast.error(result.message)
+      return
+    }
+
+    setEtaMinutes(String(result.data))
+    toast.success(`Default delivery time set to ${result.data} minutes`)
+  }
+
   return (
     <div className="space-y-8">
       <div>
@@ -29,6 +73,35 @@ export default function AdminSettingsPage() {
       </div>
 
       {!isSupabaseConfigured && <ConfigBanner />}
+
+      <section className="rounded-[var(--radius-card)] bg-surface p-6 shadow-md">
+        <h3 className="text-lg font-semibold text-text-primary">
+          Delivery time
+        </h3>
+        <p className="mt-1 text-sm text-text-secondary">
+          Default minutes promised when a customer places an order. You can still
+          adjust each order on the kitchen board.
+        </p>
+        <div className="mt-4 flex max-w-md flex-col gap-3 sm:flex-row sm:items-end">
+          <Input
+            label="Default ETA (minutes)"
+            type="number"
+            min={5}
+            max={240}
+            value={etaMinutes}
+            disabled={isLoadingEta || isSavingEta}
+            onChange={(event) => setEtaMinutes(event.target.value)}
+          />
+          <Button
+            type="button"
+            disabled={isLoadingEta || isSavingEta}
+            onClick={() => void handleSaveEta()}
+            className="shrink-0"
+          >
+            {isSavingEta ? 'Saving…' : 'Save'}
+          </Button>
+        </div>
+      </section>
 
       <section className="rounded-[var(--radius-card)] bg-surface p-6 shadow-md">
         <h3 className="text-lg font-semibold text-text-primary">

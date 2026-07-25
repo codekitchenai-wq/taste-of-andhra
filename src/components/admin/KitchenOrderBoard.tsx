@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   KitchenOrderCard,
   type KitchenPrimaryAction,
@@ -6,6 +6,7 @@ import {
 import type { AdminOrder } from '@/services/orderService'
 import type { OrderStatus } from '@/types/enums'
 import { cn } from '@/utils/cn'
+import { isOrderDelayed } from '@/utils/orderEta'
 
 type BoardColumnId =
   | 'confirmed'
@@ -54,6 +55,8 @@ interface KitchenOrderBoardProps {
   onAccept: (order: AdminOrder) => void
   onReject: (order: AdminOrder) => void
   onPrimaryAction: (order: AdminOrder, action: KitchenPrimaryAction) => void
+  onBumpEta?: (order: AdminOrder, minutes: number) => void
+  onSetEtaMinutes?: (order: AdminOrder, minutes: number) => void
 }
 
 export function KitchenOrderBoard({
@@ -63,16 +66,45 @@ export function KitchenOrderBoard({
   onAccept,
   onReject,
   onPrimaryAction,
+  onBumpEta,
+  onSetEtaMinutes,
 }: KitchenOrderBoardProps) {
   const [showDelivered, setShowDelivered] = useState(false)
+  const [nowMs, setNowMs] = useState(() => Date.now())
 
-  const { pending, byColumn, delivered, cancelled } = useMemo(() => {
-    const pendingOrders = orders
-      .filter((order) => order.order_status === 'pending')
-      .sort(
-        (a, b) =>
-          new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-      )
+  useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 15_000)
+    return () => window.clearInterval(id)
+  }, [])
+
+  const { pending, byColumn, delivered, cancelled, delayed } = useMemo(() => {
+    const sortByEtaThenCreated = (list: AdminOrder[]) =>
+      [...list].sort((a, b) => {
+        const aDelayed = isOrderDelayed(a, nowMs)
+        const bDelayed = isOrderDelayed(b, nowMs)
+        if (aDelayed !== bDelayed) return aDelayed ? -1 : 1
+
+        const aEta = a.estimated_delivery
+          ? new Date(a.estimated_delivery).getTime()
+          : Number.POSITIVE_INFINITY
+        const bEta = b.estimated_delivery
+          ? new Date(b.estimated_delivery).getTime()
+          : Number.POSITIVE_INFINITY
+        if (aEta !== bEta) return aEta - bEta
+
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      })
+
+    const delayedIds = new Set(
+      orders.filter((order) => isOrderDelayed(order, nowMs)).map((o) => o.id),
+    )
+
+    const pendingOrders = sortByEtaThenCreated(
+      orders.filter(
+        (order) =>
+          order.order_status === 'pending' && !delayedIds.has(order.id),
+      ),
+    )
 
     const columns: Record<BoardColumnId, AdminOrder[]> = {
       confirmed: [],
@@ -82,6 +114,7 @@ export function KitchenOrderBoard({
     }
 
     for (const order of orders) {
+      if (delayedIds.has(order.id)) continue
       const column = STAGE_COLUMNS.find((col) =>
         col.statuses.includes(order.order_status),
       )
@@ -91,10 +124,7 @@ export function KitchenOrderBoard({
     }
 
     for (const key of Object.keys(columns) as BoardColumnId[]) {
-      columns[key].sort(
-        (a, b) =>
-          new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-      )
+      columns[key] = sortByEtaThenCreated(columns[key])
     }
 
     const deliveredOrders = orders
@@ -111,13 +141,18 @@ export function KitchenOrderBoard({
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
       )
 
+    const delayedOrders = sortByEtaThenCreated(
+      orders.filter((order) => isOrderDelayed(order, nowMs)),
+    )
+
     return {
       pending: pendingOrders,
       byColumn: columns,
       delivered: deliveredOrders,
       cancelled: cancelledOrders,
+      delayed: delayedOrders,
     }
-  }, [orders])
+  }, [orders, nowMs])
 
   const hasStageOrders = STAGE_COLUMNS.some(
     (column) => byColumn[column.id].length > 0,
@@ -131,6 +166,34 @@ export function KitchenOrderBoard({
 
   return (
     <div className="space-y-6">
+      {delayed.length > 0 && !cancelledOnly && !deliveredOnly && (
+        <section className="space-y-3">
+          <div className="flex items-center gap-3">
+            <h3 className="font-heading text-xl font-bold text-error">
+              Delayed
+            </h3>
+            <span className="inline-flex min-w-7 items-center justify-center rounded-full bg-error px-2 py-0.5 text-sm font-bold text-white">
+              {delayed.length}
+            </span>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            {delayed.map((order) => (
+              <KitchenOrderCard
+                key={`delayed-${order.id}`}
+                order={order}
+                isUpdating={updatingOrderId === order.id}
+                onView={onView}
+                onAccept={onAccept}
+                onReject={onReject}
+                onPrimaryAction={onPrimaryAction}
+                onBumpEta={onBumpEta}
+                onSetEtaMinutes={onSetEtaMinutes}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
       {!cancelledOnly && !deliveredOnly && (
         <section className="space-y-3">
           <div className="flex items-center gap-3">
@@ -164,6 +227,8 @@ export function KitchenOrderBoard({
                   onView={onView}
                   onAccept={onAccept}
                   onReject={onReject}
+                  onBumpEta={onBumpEta}
+                  onSetEtaMinutes={onSetEtaMinutes}
                 />
               ))}
             </div>
@@ -210,6 +275,8 @@ export function KitchenOrderBoard({
                           isUpdating={updatingOrderId === order.id}
                           onView={onView}
                           onPrimaryAction={onPrimaryAction}
+                          onBumpEta={onBumpEta}
+                          onSetEtaMinutes={onSetEtaMinutes}
                         />
                       ))
                     )}

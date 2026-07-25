@@ -5,6 +5,7 @@ import { OrderStatusBadge } from '@/components/admin/OrderStatusBadge'
 import { GoogleReviewPrompt } from '@/components/orders/GoogleReviewPrompt'
 import { LiveTrackingMap } from '@/components/orders/LiveTrackingMap'
 import { OrderDetailsPanel } from '@/components/orders/OrderDetailsPanel'
+import { OrderEtaBanner } from '@/components/orders/OrderEtaBanner'
 import { OrderTracking } from '@/components/orders/OrderTracking'
 import { Button } from '@/components/ui/Button'
 import { Container } from '@/components/ui/Container'
@@ -81,6 +82,12 @@ export default function OrderDetailsPage() {
             <h2 className="text-lg font-semibold text-text-primary">
               Order Tracking
             </h2>
+            <div className="mt-4">
+              <OrderEtaBanner
+                estimatedDelivery={order.estimated_delivery}
+                orderStatus={order.order_status}
+              />
+            </div>
             <div className="mt-6">
               <OrderTracking status={order.order_status} />
             </div>
