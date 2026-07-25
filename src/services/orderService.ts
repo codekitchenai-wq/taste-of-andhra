@@ -285,33 +285,39 @@ export async function createOrder(
     discount += loyaltyDiscount
   }
 
-  let branchId = input.branchId
+  let branchId = input.branchId ?? null
   if (!branchId) {
     const defaultBranch = await branchService.getDefaultBranch()
-    if (!defaultBranch.success) return defaultBranch
-    branchId = defaultBranch.data.id
+    if (defaultBranch.success) {
+      branchId = defaultBranch.data.id
+    }
   }
 
   const totals = calculateOrderTotals(cart.subtotal, discount)
   const orderNumber = generateOrderNumber()
 
+  const orderPayload: Record<string, unknown> = {
+    order_number: orderNumber,
+    user_id: userId,
+    address_id: input.addressId,
+    subtotal: totals.subtotal,
+    tax: totals.tax,
+    delivery_charge: totals.deliveryCharge,
+    discount: totals.discount,
+    total: totals.total,
+    payment_method: input.paymentMethod,
+    payment_status: 'pending',
+    order_status: 'pending',
+    special_instructions: input.specialInstructions?.trim() || null,
+  }
+
+  if (branchId) {
+    orderPayload.branch_id = branchId
+  }
+
   const { data: order, error: orderError } = await supabase
     .from('orders')
-    .insert({
-      order_number: orderNumber,
-      user_id: userId,
-      address_id: input.addressId,
-      branch_id: branchId,
-      subtotal: totals.subtotal,
-      tax: totals.tax,
-      delivery_charge: totals.deliveryCharge,
-      discount: totals.discount,
-      total: totals.total,
-      payment_method: input.paymentMethod,
-      payment_status: 'pending',
-      order_status: 'pending',
-      special_instructions: input.specialInstructions?.trim() || null,
-    })
+    .insert(orderPayload)
     .select()
     .single()
 

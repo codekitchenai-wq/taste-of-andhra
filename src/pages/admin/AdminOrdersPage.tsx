@@ -56,7 +56,7 @@ export default function AdminOrdersPage() {
     isMuted,
     toggleMute,
     dismissAlert,
-  } = useNewOrderAlerts(orders)
+  } = useNewOrderAlerts(orders, !isLoading)
 
   const boardOrders = useMemo(() => {
     if (!statusFilter || viewMode !== 'board') return orders

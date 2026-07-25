@@ -496,6 +496,25 @@ export async function updateDeliveryLocation(
   return createSuccessResponse(mapDelivery(data))
 }
 
+export function subscribeToAllDeliveries(
+  onUpdate: (delivery: Delivery) => void,
+): () => void {
+  const channel = supabase
+    .channel('delivery-admin-feed')
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'delivery' },
+      (payload) => {
+        onUpdate(mapDelivery(payload.new as Record<string, unknown>))
+      },
+    )
+    .subscribe()
+
+  return () => {
+    void supabase.removeChannel(channel)
+  }
+}
+
 export function subscribeToDeliveryLocation(
   orderId: string,
   onUpdate: (delivery: Delivery) => void,

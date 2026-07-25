@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { MapPin, Navigation } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -8,6 +8,7 @@ import { Container } from '@/components/ui/Container'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { LoadingState } from '@/components/ui/LoadingState'
 import { ROUTES } from '@/constants/ROUTES'
+import { useLiveLocationSharing } from '@/hooks/useLiveLocationSharing'
 import * as deliveryService from '@/services/deliveryService'
 import type { DeliveryWithOrder } from '@/services/deliveryService'
 import { formatPrice } from '@/utils/format'
@@ -15,11 +16,9 @@ import { formatPrice } from '@/utils/format'
 export default function DeliveryOrderPage() {
   const { deliveryId } = useParams<{ deliveryId: string }>()
   const navigate = useNavigate()
-  const watchIdRef = useRef<number | null>(null)
   const [delivery, setDelivery] = useState<DeliveryWithOrder | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [isSharingLocation, setIsSharingLocation] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
 
   const refetch = useCallback(async () => {
@@ -48,55 +47,23 @@ export default function DeliveryOrderPage() {
     void refetch()
   }, [refetch])
 
-  useEffect(() => {
-    return () => {
-      if (watchIdRef.current != null) {
-        navigator.geolocation.clearWatch(watchIdRef.current)
-      }
-    }
-  }, [])
+  const isActiveDelivery = delivery?.status === 'out_for_delivery'
+  const isTrackable =
+    delivery != null &&
+    delivery.status !== 'delivered' &&
+    delivery.status !== 'cancelled'
 
-  const stopSharingLocation = () => {
-    if (watchIdRef.current != null) {
-      navigator.geolocation.clearWatch(watchIdRef.current)
-      watchIdRef.current = null
-    }
-    setIsSharingLocation(false)
-  }
-
-  const handleShareLocation = () => {
-    if (!deliveryId) return
-
-    if (!navigator.geolocation) {
-      toast.error('Geolocation is not supported on this device.')
-      return
-    }
-
-    if (isSharingLocation) {
-      stopSharingLocation()
-      toast.success('Stopped sharing location')
-      return
-    }
-
-    const watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        void deliveryService.updateDeliveryLocation(
-          deliveryId,
-          position.coords.latitude,
-          position.coords.longitude,
-        )
-      },
-      (geoError) => {
-        toast.error(geoError.message || 'Unable to access location.')
-        stopSharingLocation()
-      },
-      { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 },
-    )
-
-    watchIdRef.current = watchId
-    setIsSharingLocation(true)
-    toast.success('Sharing live location')
-  }
+  const {
+    isSharing,
+    isScreenAwake,
+    lastSentAt,
+    error: locationError,
+    stop: stopSharingLocation,
+    toggle: toggleSharingLocation,
+  } = useLiveLocationSharing({
+    deliveryId,
+    autoStart: isActiveDelivery,
+  })
 
   const handleMarkDelivered = async () => {
     if (!delivery) return
@@ -186,15 +153,50 @@ export default function DeliveryOrderPage() {
             </p>
           </section>
 
+          {isTrackable && (
+            <section className="rounded-[var(--radius-card)] bg-surface p-5 shadow-md">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold text-text-primary">
+                    Live Location
+                  </h2>
+                  <p className="mt-1 flex items-center gap-2 text-sm text-text-secondary">
+                    <span
+                      className={`h-2 w-2 shrink-0 rounded-full ${
+                        isSharing ? 'bg-success' : 'bg-gray-400'
+                      }`}
+                      aria-hidden="true"
+                    />
+                    {isSharing
+                      ? lastSentAt
+                        ? `Sharing with the customer · last update ${lastSentAt.toLocaleTimeString()}`
+                        : 'Sharing with the customer · waiting for first GPS fix'
+                      : 'Not sharing. The customer cannot see where you are.'}
+                  </p>
+                  {isSharing && (
+                    <p className="mt-1 text-xs text-text-secondary">
+                      {isScreenAwake
+                        ? 'Screen will stay awake so tracking keeps running.'
+                        : 'Keep this screen on — tracking pauses when the phone locks.'}
+                    </p>
+                  )}
+                  {locationError && (
+                    <p className="mt-2 text-sm text-error">{locationError}</p>
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  variant={isSharing ? 'secondary' : 'primary'}
+                  onClick={toggleSharingLocation}
+                >
+                  <Navigation className="h-4 w-4" />
+                  {isSharing ? 'Stop Sharing' : 'Share Live Location'}
+                </Button>
+              </div>
+            </section>
+          )}
+
           <div className="flex flex-wrap gap-3">
-            <Button
-              type="button"
-              variant={isSharingLocation ? 'secondary' : 'primary'}
-              onClick={handleShareLocation}
-            >
-              <Navigation className="h-4 w-4" />
-              {isSharingLocation ? 'Stop Sharing Location' : 'Share Live Location'}
-            </Button>
             {delivery.status === 'out_for_delivery' && (
                 <Button
                   type="button"
