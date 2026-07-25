@@ -1,4 +1,4 @@
-﻿-- ===== 20250720180000_create_enums.sql =====
+-- ===== 20250720180000_create_enums.sql =====
 -- The Taste of Andhra: custom enum types
 -- Based on DATABASE_SCHEMA.md v1.0
 
@@ -886,3 +886,32 @@ FROM (
 ) agg
 WHERE d.id = agg.dish_id;
 
+-- ===== 20260726020000_order_eta_settings.sql =====
+-- Flexible delivery ETA: admin-configurable default + per-order deadline.
+
+CREATE TABLE IF NOT EXISTS public.app_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO public.app_settings (key, value)
+VALUES ('default_eta_minutes', '45')
+ON CONFLICT (key) DO NOTHING;
+
+ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "App settings are viewable by authenticated" ON public.app_settings;
+CREATE POLICY "App settings are viewable by authenticated"
+  ON public.app_settings
+  FOR SELECT
+  TO authenticated
+  USING (TRUE);
+
+DROP POLICY IF EXISTS "App settings are manageable by admin" ON public.app_settings;
+CREATE POLICY "App settings are manageable by admin"
+  ON public.app_settings
+  FOR ALL
+  TO authenticated
+  USING (public.is_admin())
+  WITH CHECK (public.is_admin());
