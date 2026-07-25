@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { AssignDeliveryModal } from '@/components/admin/AssignDeliveryModal'
 import { DeliveryTable } from '@/components/admin/DeliveryTable'
@@ -9,7 +9,9 @@ import { LoadingState } from '@/components/ui/LoadingState'
 import { ORDER_STATUS } from '@/constants/ORDER_STATUS'
 import { useAdminDeliveries } from '@/hooks/useAdminDeliveries'
 import type { AdminOrder } from '@/services/orderService'
+import * as deliveryQuoteService from '@/services/deliveryQuoteService'
 import * as deliveryService from '@/services/deliveryService'
+import * as deliverySettingsService from '@/services/deliverySettingsService'
 import type { OrderStatus } from '@/types/enums'
 import { formatPrice, formatDateTime } from '@/utils/format'
 
@@ -18,6 +20,40 @@ export default function AdminDeliveryPage() {
     useAdminDeliveries()
   const [assigningOrder, setAssigningOrder] = useState<AdminOrder | null>(null)
   const [isUpdating, setIsUpdating] = useState(false)
+  const [isPidgeEnabled, setIsPidgeEnabled] = useState(false)
+  const [dispatchingOrderId, setDispatchingOrderId] = useState<string | null>(
+    null,
+  )
+
+  useEffect(() => {
+    void deliverySettingsService.getDeliverySettings().then((result) => {
+      if (!result.success) return
+      setIsPidgeEnabled(
+        result.data.is_enabled && result.data.provider === 'pidge',
+      )
+    })
+  }, [])
+
+  // Riders are booked only once food is ready, otherwise the partner waits out
+  // the whole cook time at the counter.
+  const handleDispatchToPidge = async (order: AdminOrder) => {
+    if (order.order_status !== 'ready') {
+      toast.error('Mark the order ready before booking a Pidge rider.')
+      return
+    }
+
+    setDispatchingOrderId(order.id)
+    const result = await deliveryQuoteService.dispatchToPidge(order.id)
+    setDispatchingOrderId(null)
+
+    if (!result.success) {
+      toast.error(result.message)
+      return
+    }
+
+    toast.success('Pidge rider requested')
+    void refetch()
+  }
 
   const handleStatusChange = async (deliveryId: string, status: OrderStatus) => {
     setIsUpdating(true)
@@ -93,13 +129,38 @@ export default function AdminDeliveryPage() {
                           {formatDateTime(new Date(order.created_at))}
                         </td>
                         <td className="px-4 py-4">
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => setAssigningOrder(order)}
-                          >
-                            Assign
-                          </Button>
+                          <div className="flex flex-wrap gap-2">
+                            {isPidgeEnabled && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                disabled={
+                                  dispatchingOrderId === order.id ||
+                                  order.order_status !== 'ready'
+                                }
+                                title={
+                                  order.order_status === 'ready'
+                                    ? 'Book a Pidge rider now'
+                                    : 'Available once the kitchen marks this ready'
+                                }
+                                onClick={() =>
+                                  void handleDispatchToPidge(order)
+                                }
+                              >
+                                {dispatchingOrderId === order.id
+                                  ? 'Booking...'
+                                  : 'Book Pidge'}
+                              </Button>
+                            )}
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={isPidgeEnabled ? 'secondary' : 'primary'}
+                              onClick={() => setAssigningOrder(order)}
+                            >
+                              {isPidgeEnabled ? 'Own partner' : 'Assign'}
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}

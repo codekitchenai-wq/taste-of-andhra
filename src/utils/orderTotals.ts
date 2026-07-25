@@ -12,20 +12,26 @@ export interface OrderTotals {
   total: number
 }
 
+/** The built-in rate card, used when no provider quote is available. */
+export function defaultDeliveryCharge(subtotal: number): number {
+  return subtotal >= FREE_DELIVERY_THRESHOLD ? 0 : ORDER_DELIVERY_CHARGE
+}
+
 export function calculateOrderTotals(
   subtotal: number,
   discount = 0,
+  deliveryCharge?: number,
 ): OrderTotals {
-  const deliveryCharge =
-    subtotal >= FREE_DELIVERY_THRESHOLD ? 0 : ORDER_DELIVERY_CHARGE
+  const resolvedDelivery = deliveryCharge ?? defaultDeliveryCharge(subtotal)
   const tax = Math.round(subtotal * ORDER_TAX_RATE * 100) / 100
-  const total = Math.round((subtotal + tax + deliveryCharge - discount) * 100) / 100
+  const total =
+    Math.round((subtotal + tax + resolvedDelivery - discount) * 100) / 100
 
   return {
     subtotal,
     tax,
-    deliveryCharge,
+    deliveryCharge: resolvedDelivery,
     discount,
-    total,
+    total: Math.max(0, total),
   }
 }

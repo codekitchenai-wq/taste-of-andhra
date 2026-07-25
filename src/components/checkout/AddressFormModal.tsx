@@ -1,6 +1,7 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
+import { LocationPicker } from '@/components/checkout/LocationPicker'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
@@ -10,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth'
 import type { CreateAddressInput } from '@/services/addressService'
 import * as addressService from '@/services/addressService'
 import type { Address } from '@/types/Address'
+import { isGoogleMapsConfigured, type ResolvedPlace } from '@/utils/googleMaps'
 
 interface AddressFormValues {
   addressType: string
@@ -67,11 +69,16 @@ export function AddressFormModal({
 }: AddressFormModalProps) {
   const isEditing = Boolean(addressToEdit)
   const { user } = useAuth()
+  const [coordinates, setCoordinates] = useState<{
+    latitude: number
+    longitude: number
+  } | null>(null)
 
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<AddressFormValues>({
     defaultValues: emptyValues,
@@ -82,6 +89,14 @@ export function AddressFormModal({
 
     if (addressToEdit) {
       reset(toFormValues(addressToEdit))
+      setCoordinates(
+        addressToEdit.latitude !== null && addressToEdit.longitude !== null
+          ? {
+              latitude: addressToEdit.latitude,
+              longitude: addressToEdit.longitude,
+            }
+          : null,
+      )
       return
     }
 
@@ -93,7 +108,23 @@ export function AddressFormModal({
       phone: registeredPhone,
       isDefault: true,
     })
+    setCoordinates(null)
   }, [isOpen, addressToEdit, user, reset])
+
+  // The pin is the source of truth for pricing, so it also fills the text
+  // fields. Anything the customer already typed is left alone.
+  const handlePlaceSelected = (place: ResolvedPlace) => {
+    setCoordinates({ latitude: place.latitude, longitude: place.longitude })
+
+    if (place.city) setValue('city', place.city, { shouldValidate: true })
+    if (place.state) setValue('state', place.state, { shouldValidate: true })
+    if (place.pincode) {
+      setValue('pincode', place.pincode, { shouldValidate: true })
+    }
+    if (place.addressLine1) {
+      setValue('addressLine1', place.addressLine1, { shouldValidate: true })
+    }
+  }
 
   const onSubmit = async (values: AddressFormValues) => {
     const payload: CreateAddressInput = {
@@ -106,6 +137,8 @@ export function AddressFormModal({
       city: values.city,
       state: values.state,
       pincode: values.pincode,
+      latitude: coordinates?.latitude ?? null,
+      longitude: coordinates?.longitude ?? null,
       isDefault: values.isDefault,
     }
 
@@ -162,6 +195,22 @@ export function AddressFormModal({
         className="space-y-4"
         noValidate
       >
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-text-primary">
+            Pin your location
+          </p>
+          <LocationPicker
+            latitude={coordinates?.latitude ?? null}
+            longitude={coordinates?.longitude ?? null}
+            onChange={handlePlaceSelected}
+          />
+          {isGoogleMapsConfigured && !coordinates && (
+            <p className="text-xs text-warning">
+              Without a pin we can only estimate your delivery charge.
+            </p>
+          )}
+        </div>
+
         <Select
           label="Address Type"
           options={ADDRESS_TYPES.map((type) => ({

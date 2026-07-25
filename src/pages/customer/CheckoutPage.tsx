@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import {
   Building2,
   CreditCard,
+  MapPin,
+  MapPinOff,
   Plus,
   Smartphone,
   Wallet,
@@ -33,7 +35,10 @@ import { ROUTES } from '@/constants/ROUTES'
 import { useAddresses } from '@/hooks/useAddresses'
 import { useAuth } from '@/hooks/useAuth'
 import { useCart } from '@/hooks/useCart'
+import { useDeliveryQuote } from '@/hooks/useDeliveryQuote'
+import { useDeliverySettings } from '@/hooks/useDeliverySettings'
 import { useSelectedBranch } from '@/hooks/useSelectedBranch'
+import * as deliverySettingsService from '@/services/deliverySettingsService'
 import * as loyaltyService from '@/services/loyaltyService'
 import * as orderService from '@/services/orderService'
 import {
@@ -85,16 +90,22 @@ export default function CheckoutPage() {
     null,
   )
   const [redeemLoyalty, setRedeemLoyalty] = useState(false)
+  const [isCompletingCheckout, setIsCompletingCheckout] = useState(false)
 
   const isAwaitingPayment = Boolean(pendingOrder) || isPaymentOpen
+  const shouldStayOnCheckout =
+    isCartLoading ||
+    isAwaitingPayment ||
+    isPlacingOrder ||
+    isCompletingCheckout
 
   useEffect(() => {
-    if (isCartLoading || isAwaitingPayment) return
+    if (shouldStayOnCheckout) return
 
     if (!cart || cart.items.length === 0) {
       navigate(ROUTES.CART, { replace: true })
     }
-  }, [cart, isCartLoading, isAwaitingPayment, navigate])
+  }, [cart, shouldStayOnCheckout, navigate])
 
   useEffect(() => {
     if (addresses.length === 0) return
@@ -128,21 +139,66 @@ export default function CheckoutPage() {
 
   const discountAmount = couponDiscount + loyaltyDiscount
 
+  const selectedAddress = useMemo(
+    () => addresses.find((address) => address.id === selectedAddressId) ?? null,
+    [addresses, selectedAddressId],
+  )
+
+  const { quote: deliveryQuote, isLoading: isQuoteLoading } = useDeliveryQuote({
+    address: selectedAddress,
+    branchId: selectedBranch?.id ?? null,
+    subtotal: cart?.subtotal ?? 0,
+    itemCount,
+  })
+
+  const { settings: deliverySettings } = useDeliverySettings(
+    selectedBranch?.id ?? null,
+  )
+
+  const serviceAreaNotice = useMemo(
+    () =>
+      deliverySettings
+        ? deliverySettingsService.serviceAreaNotice(
+            deliverySettings,
+            selectedBranch?.name,
+          )
+        : null,
+    [deliverySettings, selectedBranch?.name],
+  )
+
   const totals = useMemo(
-    () => calculateOrderTotals(cart?.subtotal ?? 0, discountAmount),
-    [cart?.subtotal, discountAmount],
+    () =>
+      calculateOrderTotals(
+        cart?.subtotal ?? 0,
+        discountAmount,
+        deliveryQuote?.isServiceable ? deliveryQuote.amount : undefined,
+      ),
+    [cart?.subtotal, discountAmount, deliveryQuote],
+  )
+
+  const isUnserviceable = deliveryQuote?.isServiceable === false
+  const needsLocationPin = Boolean(
+    deliverySettings?.require_location_pin &&
+      selectedAddress &&
+      (selectedAddress.latitude === null || selectedAddress.longitude === null),
   )
 
   const finishCheckout = async (orderId: string, orderNumber: string) => {
-    await clearCart()
-    await refreshCart()
-    setIsPaymentOpen(false)
-    setPendingOrder(null)
-    toast.success('Order placed successfully')
-    navigate(ROUTES.ORDER_SUCCESS, {
-      replace: true,
-      state: { orderId, orderNumber },
-    })
+    setIsCompletingCheckout(true)
+    try {
+      await clearCart()
+      await refreshCart()
+      setIsPaymentOpen(false)
+      setPendingOrder(null)
+      toast.success('Order placed successfully')
+      navigate(ROUTES.ORDER_SUCCESS, {
+        replace: true,
+        state: { orderId, orderNumber },
+      })
+    } catch (error) {
+      setIsCompletingCheckout(false)
+      throw error
+    }
   }
 
   const handlePlaceOrder = async () => {
@@ -151,8 +207,21 @@ export default function CheckoutPage() {
       return
     }
 
-    if (!selectedBranch) {
+    if (branches.length > 0 && !selectedBranch) {
       toast.error('Please select a branch')
+      return
+    }
+
+    if (isUnserviceable) {
+      toast.error(
+        deliveryQuote?.unserviceableReason ??
+          'We do not deliver to this address yet.',
+      )
+      return
+    }
+
+    if (isQuoteLoading) {
+      toast.error('Please wait while we calculate your delivery charge')
       return
     }
 
@@ -163,7 +232,8 @@ export default function CheckoutPage() {
       paymentMethod,
       specialInstructions,
       couponCode,
-      branchId: selectedBranch.id,
+      branchId: selectedBranch?.id,
+      deliveryQuoteId: deliveryQuote?.quoteId ?? null,
       loyaltyPointsToRedeem:
         loyaltyPointsToRedeem > 0 ? loyaltyPointsToRedeem : undefined,
     })
@@ -273,6 +343,16 @@ export default function CheckoutPage() {
               </Button>
             </div>
 
+            {serviceAreaNotice && (
+              <p className="flex items-start gap-2 text-sm text-text-secondary">
+                <MapPin
+                  className="mt-0.5 h-4 w-4 shrink-0 text-primary"
+                  aria-hidden="true"
+                />
+                {serviceAreaNotice}
+              </p>
+            )}
+
             {addresses.length === 0 ? (
               <p className="text-sm text-text-secondary">
                 Add a delivery address to continue.
@@ -287,6 +367,30 @@ export default function CheckoutPage() {
                     onSelect={() => setSelectedAddressId(address.id)}
                   />
                 ))}
+              </div>
+            )}
+
+            {isUnserviceable && (
+              <div
+                className="flex items-start gap-3 rounded-[var(--radius-card)] border border-error/30 bg-error/5 p-4"
+                role="alert"
+              >
+                <MapPinOff
+                  className="mt-0.5 h-5 w-5 shrink-0 text-error"
+                  aria-hidden="true"
+                />
+                <div className="text-sm">
+                  <p className="font-medium text-text-primary">
+                    Outside our delivery area
+                  </p>
+                  <p className="mt-1 text-text-secondary">
+                    {deliveryQuote?.unserviceableReason ??
+                      'We cannot deliver to this address yet.'}{' '}
+                    {needsLocationPin
+                      ? 'Save the address again with a map pin, or pick another one.'
+                      : 'Choose a different address to continue.'}
+                  </p>
+                </div>
               </div>
             )}
           </section>
@@ -414,6 +518,8 @@ export default function CheckoutPage() {
             items={cart.items}
             totals={totals}
             itemCount={itemCount}
+            deliveryQuote={deliveryQuote}
+            isDeliveryQuoteLoading={isQuoteLoading}
           />
 
           <Button
@@ -422,17 +528,23 @@ export default function CheckoutPage() {
             size="lg"
             disabled={
               isPlacingOrder ||
+              isQuoteLoading ||
+              isUnserviceable ||
               !selectedAddressId ||
               addresses.length === 0 ||
-              !selectedBranch
+              (branches.length > 0 && !selectedBranch)
             }
             onClick={() => void handlePlaceOrder()}
           >
             {isPlacingOrder
               ? 'Creating order...'
-              : paymentMethod === 'razorpay'
-                ? 'Continue to Payment'
-                : 'Place Order'}
+              : isQuoteLoading
+                ? 'Calculating delivery...'
+                : isUnserviceable
+                  ? 'Not deliverable here'
+                  : paymentMethod === 'razorpay'
+                    ? 'Continue to Payment'
+                    : 'Place Order'}
           </Button>
         </div>
       </div>

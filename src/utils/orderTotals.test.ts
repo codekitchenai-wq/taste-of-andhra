@@ -46,4 +46,24 @@ describe('calculateOrderTotals', () => {
     expect(result.deliveryCharge).toBe(49)
     expect(result.total).toBe(49)
   })
+
+  it('uses a provider quote in place of the rate card', () => {
+    const result = calculateOrderTotals(300, 0, 72.5)
+
+    expect(result.deliveryCharge).toBe(72.5)
+    expect(result.total).toBe(387.5)
+  })
+
+  it('honours a zero quote even below the free-delivery threshold', () => {
+    const result = calculateOrderTotals(300, 0, 0)
+
+    expect(result.deliveryCharge).toBe(0)
+    expect(result.total).toBe(315)
+  })
+
+  it('never returns a negative total when the discount exceeds the bill', () => {
+    const result = calculateOrderTotals(100, 500, 40)
+
+    expect(result.total).toBe(0)
+  })
 })

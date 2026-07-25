@@ -1,6 +1,7 @@
 import { Card } from '@/components/ui/Card'
 import { FREE_DELIVERY_THRESHOLD } from '@/constants/ORDER'
 import type { CartItem } from '@/types/Cart'
+import type { DeliveryQuote } from '@/types/DeliveryQuote'
 import type { OrderTotals } from '@/utils/orderTotals'
 import { formatPrice } from '@/utils/format'
 
@@ -8,13 +9,23 @@ interface CheckoutOrderSummaryProps {
   items: CartItem[]
   totals: OrderTotals
   itemCount: number
+  deliveryQuote?: DeliveryQuote | null
+  isDeliveryQuoteLoading?: boolean
 }
 
 export function CheckoutOrderSummary({
   items,
   totals,
   itemCount,
+  deliveryQuote = null,
+  isDeliveryQuoteLoading = false,
 }: CheckoutOrderSummaryProps) {
+  const isLiveQuote = deliveryQuote?.provider === 'pidge'
+  const showFreeDeliveryHint =
+    !isLiveQuote &&
+    totals.deliveryCharge > 0 &&
+    totals.subtotal < FREE_DELIVERY_THRESHOLD
+
   return (
     <Card className="sticky top-24 space-y-4 p-6">
       <h2 className="text-lg font-semibold text-text-primary">Order Summary</h2>
@@ -55,18 +66,38 @@ export function CheckoutOrderSummary({
         </div>
         <div className="flex items-center justify-between text-text-secondary">
           <dt>Delivery</dt>
-          <dd>
-            {totals.deliveryCharge === 0
-              ? 'Free'
-              : formatPrice(totals.deliveryCharge)}
+          <dd aria-live="polite">
+            {isDeliveryQuoteLoading ? (
+              <span className="text-text-secondary">Calculating...</span>
+            ) : deliveryQuote?.isServiceable === false ? (
+              <span className="text-error">Unavailable</span>
+            ) : totals.deliveryCharge === 0 ? (
+              'Free'
+            ) : (
+              formatPrice(totals.deliveryCharge)
+            )}
           </dd>
         </div>
-        {totals.subtotal < FREE_DELIVERY_THRESHOLD && (
+
+        {!isDeliveryQuoteLoading && isLiveQuote && (
+          <p className="text-xs text-text-secondary">
+            Live rate from our delivery partner
+            {deliveryQuote.etaMinutes
+              ? ` · arrives in about ${deliveryQuote.etaMinutes} min`
+              : ''}
+            {deliveryQuote.distanceKm
+              ? ` · ${deliveryQuote.distanceKm.toFixed(1)} km`
+              : ''}
+          </p>
+        )}
+
+        {showFreeDeliveryHint && (
           <p className="text-xs text-text-secondary">
             Free delivery on orders above{' '}
             {formatPrice(FREE_DELIVERY_THRESHOLD)}
           </p>
         )}
+
         {totals.discount > 0 && (
           <div className="flex items-center justify-between text-success">
             <dt>Discount</dt>

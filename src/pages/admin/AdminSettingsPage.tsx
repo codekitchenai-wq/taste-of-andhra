@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
+import { DeliverySettingsPanel } from '@/components/admin/DeliverySettingsPanel'
 import { ConfigBanner } from '@/components/ui/ConfigBanner'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -190,6 +191,8 @@ export default function AdminSettingsPage() {
           <code className="rounded bg-background px-1">src/constants/ORDER.ts</code>.
         </p>
       </section>
+
+      <DeliverySettingsPanel />
 
       <section className="rounded-[var(--radius-card)] bg-surface p-6 shadow-md">
         <h3 className="text-lg font-semibold text-text-primary">

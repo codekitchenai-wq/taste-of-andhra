@@ -18,6 +18,8 @@ export interface CreateAddressInput {
   city: string
   state: string
   pincode: string
+  latitude?: number | null
+  longitude?: number | null
   isDefault?: boolean
 }
 
@@ -123,6 +125,8 @@ export async function addAddress(
       city: input.city.trim(),
       state: input.state.trim(),
       pincode: input.pincode.trim(),
+      latitude: input.latitude ?? null,
+      longitude: input.longitude ?? null,
       is_default: isDefault,
     })
     .select()
@@ -193,6 +197,14 @@ export async function updateAddress(
     }
 
     updates.pincode = input.pincode.trim()
+  }
+
+  if (input.latitude !== undefined) {
+    updates.latitude = input.latitude
+  }
+
+  if (input.longitude !== undefined) {
+    updates.longitude = input.longitude
   }
 
   if (input.isDefault !== undefined && input.isDefault) {
