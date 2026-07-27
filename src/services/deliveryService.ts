@@ -89,32 +89,6 @@ function mapAdminOrder(row: Record<string, unknown>): AdminOrder {
   }
 }
 
-type PartnerFunctionAction = 'list' | 'get' | 'update_status'
-
-async function invokeDeliveryPartnerFunction<T>(
-  body: Record<string, unknown> & { action: PartnerFunctionAction },
-): Promise<{ data: T | null; error: string | null; missing: boolean }> {
-  const { data, error } = await supabase.functions.invoke<{
-    data?: T
-    error?: string
-  }>('delivery-partner', { body })
-
-  if (error) {
-    const message = error.message || 'Delivery partner service unavailable.'
-    const missing =
-      message.toLowerCase().includes('not found') ||
-      message.toLowerCase().includes('failed to send') ||
-      message.includes('404')
-    return { data: null, error: message, missing }
-  }
-
-  if (data && typeof data === 'object' && 'error' in data && data.error) {
-    return { data: null, error: String(data.error), missing: false }
-  }
-
-  return { data: (data?.data as T) ?? null, error: null, missing: false }
-}
-
 export async function getDeliveries(): Promise<
   ServiceResponse<DeliveryWithOrder[]>
 > {
@@ -135,21 +109,6 @@ export async function getDeliveries(): Promise<
 export async function getMyPartnerDeliveries(): Promise<
   ServiceResponse<DeliveryWithOrder[]>
 > {
-  const viaFunction = await invokeDeliveryPartnerFunction<DeliveryWithOrder[]>({
-    action: 'list',
-  })
-
-  if (!viaFunction.missing && !viaFunction.error && viaFunction.data) {
-    return createSuccessResponse(viaFunction.data)
-  }
-
-  if (!viaFunction.missing && viaFunction.error) {
-    return createErrorResponse(
-      'Unable to load your deliveries.',
-      viaFunction.error,
-    )
-  }
-
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -164,12 +123,14 @@ export async function getMyPartnerDeliveries(): Promise<
     .eq('id', user.id)
     .maybeSingle()
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('delivery')
     .select(
       '*, orders(order_number, total, profiles(full_name, phone), addresses(address_line1, address_line2, city, pincode, latitude, longitude))',
     )
     .order('assigned_at', { ascending: false, nullsFirst: false })
+
+  const { data, error } = await query
 
   if (error) {
     return createErrorResponse('Unable to load your deliveries.', error.message)
@@ -191,19 +152,6 @@ export async function getMyPartnerDeliveries(): Promise<
 export async function getDeliveryById(
   deliveryId: string,
 ): Promise<ServiceResponse<DeliveryWithOrder>> {
-  const viaFunction = await invokeDeliveryPartnerFunction<DeliveryWithOrder>({
-    action: 'get',
-    deliveryId,
-  })
-
-  if (!viaFunction.missing && !viaFunction.error && viaFunction.data) {
-    return createSuccessResponse(viaFunction.data)
-  }
-
-  if (!viaFunction.missing && viaFunction.error) {
-    return createErrorResponse('Unable to load delivery.', viaFunction.error)
-  }
-
   const { data, error } = await supabase
     .from('delivery')
     .select(
@@ -458,34 +406,6 @@ export async function assignDelivery(
   return createSuccessResponse(mapDelivery(data))
 }
 
-async function notifyStatusAndLoyalty(
-  orderId: string,
-  status: OrderStatus,
-): Promise<void> {
-  const { data: order } = await supabase
-    .from('orders')
-    .select('id, user_id, order_number, total')
-    .eq('id', orderId)
-    .maybeSingle()
-
-  if (!order) return
-
-  void notificationService.notifyOrderStatus(
-    order.user_id as string,
-    order.id as string,
-    order.order_number as string,
-    status,
-  )
-
-  if (status === 'delivered') {
-    void loyaltyService.earnPointsForOrder(
-      order.user_id as string,
-      order.id as string,
-      Number(order.total),
-    )
-  }
-}
-
 export async function updateDeliveryStatus(
   deliveryId: string,
   status: OrderStatus,
@@ -514,14 +434,7 @@ export async function updateDeliveryStatus(
     status,
   )
 
-  // Allow repairing a delivery already marked delivered when the order sync
-  // previously failed under older RLS rules.
-  const repairingDeliveredSync =
-    status === 'delivered' &&
-    existing.status === 'delivered' &&
-    currentOrderStatus === 'out_for_delivery'
-
-  if (transitionError && !repairingDeliveredSync) {
+  if (transitionError) {
     return createErrorResponse(transitionError)
   }
 
@@ -531,57 +444,6 @@ export async function updateDeliveryStatus(
     )
   }
 
-  // Prefer the atomic RPC so delivery + order never diverge.
-  const { data: rpcData, error: rpcError } = await supabase.rpc(
-    'update_delivery_and_order_status',
-    {
-      p_delivery_id: deliveryId,
-      p_status: status,
-    },
-  )
-
-  if (!rpcError && rpcData) {
-    const mapped = mapDelivery(rpcData as Record<string, unknown>)
-    if (currentOrderStatus !== status || repairingDeliveredSync) {
-      void notifyStatusAndLoyalty(mapped.order_id, status)
-    }
-    return createSuccessResponse(mapped)
-  }
-
-  const rpcMissing =
-    rpcError &&
-    (rpcError.message.toLowerCase().includes('could not find the function') ||
-      rpcError.message.toLowerCase().includes('does not exist') ||
-      rpcError.code === 'PGRST202')
-
-  // Edge function path — works before the RPC migration is applied.
-  if (status === 'delivered' && (rpcMissing || rpcError)) {
-    const viaFunction = await invokeDeliveryPartnerFunction<Delivery>({
-      action: 'update_status',
-      deliveryId,
-      status,
-    })
-
-    if (!viaFunction.missing && !viaFunction.error && viaFunction.data) {
-      return createSuccessResponse(viaFunction.data)
-    }
-
-    if (!viaFunction.missing && viaFunction.error) {
-      return createErrorResponse(
-        'Unable to update delivery status.',
-        viaFunction.error,
-      )
-    }
-  }
-
-  if (rpcError && !rpcMissing) {
-    return createErrorResponse(
-      'Unable to update delivery status.',
-      rpcError.message,
-    )
-  }
-
-  // Fallback for environments that have not applied the RPC migration yet.
   const updates: Record<string, unknown> = { status }
 
   if (status === 'delivered') {
@@ -602,7 +464,7 @@ export async function updateDeliveryStatus(
     )
   }
 
-  if (currentOrderStatus !== status || repairingDeliveredSync) {
+  if (currentOrderStatus !== status) {
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .update({ order_status: status })
