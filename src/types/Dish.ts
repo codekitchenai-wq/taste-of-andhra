@@ -2,6 +2,7 @@ import type { SpiceLevel } from './enums'
 
 export interface Dish {
   id: string
+  organization_id: string
   category_id: string
   name: string
   slug: string

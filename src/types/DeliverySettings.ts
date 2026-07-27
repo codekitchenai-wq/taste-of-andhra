@@ -2,6 +2,7 @@ export type DeliveryProvider = 'own' | 'pidge'
 
 export interface DeliverySettings {
   id: string
+  organization_id: string
   branch_id: string | null
   provider: DeliveryProvider
   is_enabled: boolean

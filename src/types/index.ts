@@ -10,3 +10,20 @@ export type { Payment } from './Payment'
 export type { Offer } from './Offer'
 export type { Review } from './Review'
 export type { Delivery } from './Delivery'
+export type {
+  OrganizationStatus,
+  OrganizationMemberRole,
+  SubscriptionStatus,
+  EntitlementSource,
+  FeatureKey,
+  OrganizationBranding,
+  OrganizationOpeningHours,
+  Organization,
+  OrganizationMember,
+  Feature,
+  Plan,
+  PlanFeature,
+  Subscription,
+  OrganizationEntitlement,
+  OrganizationFormInput,
+} from './Organization'

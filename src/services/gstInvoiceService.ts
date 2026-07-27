@@ -3,6 +3,7 @@ import {
   GST_CGST_RATE,
   GST_SGST_RATE,
 } from '@/constants/LOYALTY'
+import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
 import {
   createErrorResponse,
   createSuccessResponse,
@@ -17,6 +18,7 @@ import { supabase } from '@/services/supabaseClient'
 function mapInvoice(row: Record<string, unknown>): GstInvoice {
   return {
     id: row.id as string,
+    organization_id: row.organization_id as string,
     order_id: row.order_id as string,
     branch_id: row.branch_id as string,
     invoice_number: row.invoice_number as string,
@@ -80,6 +82,7 @@ export async function ensureInvoiceForOrder(
   const { data, error } = await supabase
     .from('gst_invoices')
     .insert({
+      organization_id: DEFAULT_ORGANIZATION_ID,
       order_id: order.id,
       branch_id: branch.id,
       invoice_number: generateInvoiceNumber(order.order_number),

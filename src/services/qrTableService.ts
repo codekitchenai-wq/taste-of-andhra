@@ -5,12 +5,14 @@ import {
 } from '@/types/api'
 import type { QrTable } from '@/types/QrTable'
 import type { Branch } from '@/types/Branch'
+import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
 import { mapBranch } from '@/utils/mapBranch'
 import { supabase } from '@/services/supabaseClient'
 
 function mapQrTable(row: Record<string, unknown>): QrTable {
   return {
     id: row.id as string,
+    organization_id: row.organization_id as string,
     branch_id: row.branch_id as string,
     table_code: row.table_code as string,
     label: row.label as string,
@@ -97,6 +99,7 @@ export async function createQrTable(input: {
   const { data, error } = await supabase
     .from('qr_tables')
     .insert({
+      organization_id: DEFAULT_ORGANIZATION_ID,
       branch_id: input.branchId,
       label: input.label.trim(),
       table_code: code,

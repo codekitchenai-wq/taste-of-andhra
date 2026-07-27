@@ -5,6 +5,7 @@ import {
 } from '@/types/api'
 import type { Dish } from '@/types/Dish'
 import type { SpiceLevel } from '@/types/enums'
+import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
 import { isSupabaseConfigured, supabase } from '@/services/supabaseClient'
 import { uploadDishImage } from '@/services/storageService'
 import { mapDish, mapDishWithCategory } from '@/utils/mapDish'
@@ -202,6 +203,7 @@ export async function createDish(
     .from('dishes')
     .insert({
       id: dishId,
+      organization_id: DEFAULT_ORGANIZATION_ID,
       name,
       slug: generateSlug(name),
       description: input.description?.trim() || null,

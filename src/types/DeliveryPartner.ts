@@ -1,5 +1,6 @@
 export interface DeliveryPartner {
   id: string
+  organization_id: string
   full_name: string
   phone: string
   is_active: boolean

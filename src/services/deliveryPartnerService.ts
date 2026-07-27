@@ -7,12 +7,14 @@ import type {
   DeliveryPartner,
   DeliveryPartnerFormInput,
 } from '@/types/DeliveryPartner'
+import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
 import { supabase } from '@/services/supabaseClient'
 import { normalizeIndianPhone } from '@/utils/phone'
 
 function mapDeliveryPartner(row: Record<string, unknown>): DeliveryPartner {
   return {
     id: row.id as string,
+    organization_id: row.organization_id as string,
     full_name: row.full_name as string,
     phone: row.phone as string,
     is_active: Boolean(row.is_active),
@@ -71,6 +73,7 @@ export async function createDeliveryPartner(
   const { data, error } = await supabase
     .from('delivery_partners')
     .insert({
+      organization_id: DEFAULT_ORGANIZATION_ID,
       full_name: name,
       phone,
       notes: input.notes?.trim() || null,

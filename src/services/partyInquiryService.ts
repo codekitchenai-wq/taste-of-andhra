@@ -5,6 +5,7 @@ import {
 } from '@/types/api'
 import { supabase } from '@/services/supabaseClient'
 import type { PartyInquiry, PartyMealPreference } from '@/types/PartyInquiry'
+import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
 import { isValidEmail, isValidPhone } from '@/utils/validation'
 
 export interface PartyInquiryInput {
@@ -26,6 +27,7 @@ export interface PartyInquiryInput {
 function mapPartyInquiry(row: Record<string, unknown>): PartyInquiry {
   return {
     id: row.id as string,
+    organization_id: row.organization_id as string,
     full_name: row.full_name as string,
     email: row.email as string,
     phone: row.phone as string,
@@ -104,6 +106,7 @@ export async function submitPartyInquiry(
   const { data, error } = await supabase
     .from('party_inquiries')
     .insert({
+      organization_id: DEFAULT_ORGANIZATION_ID,
       full_name: fullName,
       email,
       phone,

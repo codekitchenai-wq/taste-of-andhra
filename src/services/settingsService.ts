@@ -4,6 +4,7 @@ import {
   type ServiceResponse,
 } from '@/types/api'
 import { DEFAULT_ETA_MINUTES } from '@/constants/ORDER'
+import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
 import { supabase } from '@/services/supabaseClient'
 
 const DEFAULT_ETA_KEY = 'default_eta_minutes'
@@ -22,6 +23,7 @@ export async function getDefaultEtaMinutes(): Promise<
   const { data, error } = await supabase
     .from('app_settings')
     .select('value')
+    .eq('organization_id', DEFAULT_ORGANIZATION_ID)
     .eq('key', DEFAULT_ETA_KEY)
     .maybeSingle()
 
@@ -52,11 +54,12 @@ export async function setDefaultEtaMinutes(
 
   const { error } = await supabase.from('app_settings').upsert(
     {
+      organization_id: DEFAULT_ORGANIZATION_ID,
       key: DEFAULT_ETA_KEY,
       value: String(next),
       updated_at: new Date().toISOString(),
     },
-    { onConflict: 'key' },
+    { onConflict: 'organization_id,key' },
   )
 
   if (error) {

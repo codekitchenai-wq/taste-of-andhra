@@ -1,5 +1,6 @@
 export interface Branch {
   id: string
+  organization_id: string
   name: string
   slug: string
   phone: string | null

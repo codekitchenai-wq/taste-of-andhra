@@ -142,6 +142,7 @@ Deno.serve(async (request) => {
     const { data, error } = await admin
       .from('delivery_quotes')
       .insert({
+        organization_id: 'a0000000-0000-4000-8000-000000000001',
         user_id: user.id,
         address_id: address.id,
         branch_id: body.branchId ?? null,

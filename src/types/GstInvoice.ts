@@ -1,5 +1,6 @@
 export interface GstInvoice {
   id: string
+  organization_id: string
   order_id: string
   branch_id: string
   invoice_number: string

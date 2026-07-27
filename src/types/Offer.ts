@@ -1,5 +1,6 @@
 export interface Offer {
   id: string
+  organization_id: string
   title: string
   description: string | null
   discount_percentage: number

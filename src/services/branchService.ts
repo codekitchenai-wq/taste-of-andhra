@@ -4,6 +4,7 @@ import {
   type ServiceResponse,
 } from '@/types/api'
 import type { Branch, BranchFormInput } from '@/types/Branch'
+import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
 import { supabase } from '@/services/supabaseClient'
 import { formatBranchAddress, mapBranch } from '@/utils/mapBranch'
 
@@ -112,6 +113,7 @@ export async function createBranch(
   const { data, error } = await supabase
     .from('branches')
     .insert({
+      organization_id: DEFAULT_ORGANIZATION_ID,
       name: input.name.trim(),
       slug: input.slug.trim().toLowerCase(),
       phone: input.phone?.trim() || null,

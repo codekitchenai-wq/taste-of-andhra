@@ -3,6 +3,7 @@ import type { Category } from '@/types/Category'
 export function mapCategory(row: Record<string, unknown>): Category {
   return {
     id: row.id as string,
+    organization_id: row.organization_id as string,
     name: row.name as string,
     slug: row.slug as string,
     description: (row.description as string | null) ?? null,

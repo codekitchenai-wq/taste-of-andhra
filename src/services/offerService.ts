@@ -4,6 +4,7 @@ import {
   type ServiceResponse,
 } from '@/types/api'
 import type { Offer } from '@/types/Offer'
+import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
 import { supabase } from '@/services/supabaseClient'
 import { mapOffer } from '@/utils/mapOffer'
 
@@ -74,6 +75,7 @@ export async function createOffer(
   const { data, error } = await supabase
     .from('offers')
     .insert({
+      organization_id: DEFAULT_ORGANIZATION_ID,
       title: input.title.trim(),
       description: input.description?.trim() || null,
       discount_percentage: input.discountPercentage,

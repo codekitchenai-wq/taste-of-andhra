@@ -5,6 +5,7 @@ import type { Payment } from './Payment'
 
 export interface Order {
   id: string
+  organization_id: string
   order_number: string
   user_id: string
   address_id: string

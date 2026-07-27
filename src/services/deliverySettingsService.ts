@@ -13,11 +13,13 @@ import {
   FREE_DELIVERY_THRESHOLD,
   ORDER_DELIVERY_CHARGE,
 } from '@/constants/ORDER'
+import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
 import { supabase } from '@/services/supabaseClient'
 
 /** Used before any row exists and when the settings table cannot be read. */
 export const DEFAULT_DELIVERY_SETTINGS: DeliverySettings = {
   id: 'default',
+  organization_id: DEFAULT_ORGANIZATION_ID,
   branch_id: null,
   provider: 'own',
   is_enabled: false,
@@ -36,6 +38,7 @@ export const DEFAULT_DELIVERY_SETTINGS: DeliverySettings = {
 function mapDeliverySettings(row: Record<string, unknown>): DeliverySettings {
   return {
     id: row.id as string,
+    organization_id: (row.organization_id as string) ?? DEFAULT_ORGANIZATION_ID,
     branch_id: (row.branch_id as string | null) ?? null,
     provider: (row.provider as DeliveryProvider) ?? 'own',
     is_enabled: Boolean(row.is_enabled),
@@ -138,6 +141,7 @@ export async function saveDeliverySettings(
   }
 
   const payload = {
+    organization_id: DEFAULT_ORGANIZATION_ID,
     branch_id: branchId,
     provider: input.provider,
     is_enabled: input.isEnabled,

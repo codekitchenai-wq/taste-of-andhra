@@ -4,6 +4,7 @@ export type PartyInquiryStatus = 'new' | 'contacted' | 'quoted' | 'closed'
 
 export interface PartyInquiry {
   id: string
+  organization_id: string
   full_name: string
   email: string
   phone: string

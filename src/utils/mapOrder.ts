@@ -4,6 +4,7 @@ import { mapDish } from '@/utils/mapDish'
 export function mapOrder(row: Record<string, unknown>): Order {
   return {
     id: row.id as string,
+    organization_id: row.organization_id as string,
     order_number: row.order_number as string,
     user_id: row.user_id as string,
     address_id: row.address_id as string,

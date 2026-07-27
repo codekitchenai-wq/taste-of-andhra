@@ -16,6 +16,7 @@ import { mapPayment } from '@/utils/mapPayment'
 import * as offerService from '@/services/offerService'
 import * as settingsService from '@/services/settingsService'
 import { DEFAULT_ETA_MINUTES } from '@/constants/ORDER'
+import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
 import { calculateOrderTotals } from '@/utils/orderTotals'
 import { addMinutesToIso } from '@/utils/orderEta'
 import { getOrderStatusTransitionError } from '@/utils/orderStatusTransitions'
@@ -386,6 +387,7 @@ export async function createOrder(
   const estimatedDelivery = addMinutesToIso(new Date(), etaMinutes)
 
   const orderPayload: Record<string, unknown> = {
+    organization_id: DEFAULT_ORGANIZATION_ID,
     order_number: orderNumber,
     user_id: userId,
     address_id: input.addressId,

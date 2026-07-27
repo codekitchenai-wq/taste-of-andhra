@@ -1,5 +1,6 @@
 export interface Category {
   id: string
+  organization_id: string
   name: string
   slug: string
   description: string | null
