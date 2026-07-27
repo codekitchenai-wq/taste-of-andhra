@@ -1,0 +1,355 @@
+{
+  "persona": "Admin",
+  "testedOn": "2026-07-27",
+  "environment": "Local (http://127.0.0.1:5173)",
+  "credentialsUsed": "admin@tasteofandhra.test",
+  "cases": [
+    {
+      "id": "ADM-01",
+      "area": "Authentication",
+      "functionality": "Admin login",
+      "steps": "Open /admin/login → fill demo admin credentials → Sign In to Admin",
+      "expected": "Redirect to /admin dashboard",
+      "status": "Pass",
+      "notes": "Login succeeded; landed on Dashboard with stats."
+    },
+    {
+      "id": "ADM-02",
+      "area": "Authentication",
+      "functionality": "Admin route guard (unauthenticated)",
+      "steps": "Visit protected admin URL without session",
+      "expected": "Redirect to /admin/login",
+      "status": "Pass",
+      "notes": "After session loss, protected URL redirected to /admin/login."
+    },
+    {
+      "id": "ADM-03",
+      "area": "Dashboard",
+      "functionality": "Dashboard stats & recent orders",
+      "steps": "Open /admin",
+      "expected": "Shows total orders, revenue, customers, popular dish, recent orders",
+      "status": "Pass",
+      "notes": "Total Orders 9, Revenue ₹6,467, Customers 9, Popular Dish Gongura Mutton Biryani."
+    },
+    {
+      "id": "ADM-04",
+      "area": "Dashboard",
+      "functionality": "Quick links to admin sections",
+      "steps": "View Manage Restaurant links on dashboard",
+      "expected": "Links to Categories, Dishes, Orders, Customers, Offers, Reports",
+      "status": "Pass",
+      "notes": "Quick links rendered and navigable."
+    },
+    {
+      "id": "ADM-10",
+      "area": "Categories",
+      "functionality": "List categories",
+      "steps": "Open /admin/categories",
+      "expected": "Categories table loads",
+      "status": "Pass",
+      "notes": "Starters, Biryani, Curries, Breads, Beverages listed."
+    },
+    {
+      "id": "ADM-11",
+      "area": "Categories",
+      "functionality": "Create category",
+      "steps": "Add Category → name 'QA Test Category' → Create",
+      "expected": "Category appears as Active",
+      "status": "Pass",
+      "notes": "Created with slug qa-test-category."
+    },
+    {
+      "id": "ADM-12",
+      "area": "Categories",
+      "functionality": "Soft-delete category",
+      "steps": "Delete QA Test Category → confirm",
+      "expected": "Category deactivated (Inactive)",
+      "status": "Pass",
+      "notes": "Status changed to Inactive."
+    },
+    {
+      "id": "ADM-13",
+      "area": "Categories",
+      "functionality": "Edit category / image upload UI",
+      "steps": "Open Add/Edit modal",
+      "expected": "Form fields including image upload available",
+      "status": "Pass",
+      "notes": "Modal fields present. File upload not end-to-end tested."
+    },
+    {
+      "id": "ADM-14",
+      "area": "Dishes",
+      "functionality": "List dishes",
+      "steps": "Open /admin/dishes",
+      "expected": "Dishes table with prices/availability",
+      "status": "Pass",
+      "notes": "8 dishes listed."
+    },
+    {
+      "id": "ADM-15",
+      "area": "Dishes",
+      "functionality": "Add Dish modal",
+      "steps": "Click Add Dish",
+      "expected": "Modal opens with required fields",
+      "status": "Pass",
+      "notes": "Name, Category, Price, Spice, Description, etc. present."
+    },
+    {
+      "id": "ADM-16",
+      "area": "Dishes",
+      "functionality": "Create/Edit/Delete dish (full save)",
+      "steps": "Create a new dish and save",
+      "expected": "Dish persists and appears on menu",
+      "status": "Blocked",
+      "notes": "List + modal verified; full create not executed to avoid polluting live menu."
+    },
+    {
+      "id": "ADM-20",
+      "area": "Orders",
+      "functionality": "Kitchen board list",
+      "steps": "Open /admin/orders",
+      "expected": "Board columns by status with live orders",
+      "status": "Pass",
+      "notes": "Board/List toggle, filters, Delayed/Mute present."
+    },
+    {
+      "id": "ADM-21",
+      "area": "Orders",
+      "functionality": "Update order status",
+      "steps": "Mark Ready on TOA-20260722-5820",
+      "expected": "Order moves to Ready column",
+      "status": "Pass",
+      "notes": "Moved from Preparing to Ready."
+    },
+    {
+      "id": "ADM-22",
+      "area": "Orders",
+      "functionality": "ETA bump controls",
+      "steps": "View +10/+15/+20/Set buttons",
+      "expected": "ETA controls visible per order",
+      "status": "Pass",
+      "notes": "Controls present; bump save not separately verified."
+    },
+    {
+      "id": "ADM-23",
+      "area": "Orders",
+      "functionality": "Order detail view button",
+      "steps": "Confirm View order buttons exist",
+      "expected": "Detail action available",
+      "status": "Pass",
+      "notes": "View TOA-… buttons present on board cards."
+    },
+    {
+      "id": "ADM-24",
+      "area": "Delivery",
+      "functionality": "Awaiting assignment & active deliveries",
+      "steps": "Open /admin/delivery",
+      "expected": "Shows awaiting queue and active deliveries",
+      "status": "Pass",
+      "notes": "Ready order in Awaiting Assignment; active deliveries with Track."
+    },
+    {
+      "id": "ADM-25",
+      "area": "Delivery",
+      "functionality": "Assign Delivery Partner modal",
+      "steps": "Click Assign on awaiting order",
+      "expected": "Modal opens with partner list",
+      "status": "Pass",
+      "notes": "Partners from delivery-role profiles listed. Submit not completed."
+    },
+    {
+      "id": "ADM-26",
+      "area": "Delivery",
+      "functionality": "Live GPS tracking for partners",
+      "steps": "Expand Track on active deliveries",
+      "expected": "Partner GPS location shown",
+      "status": "Fail",
+      "notes": "UI shows 'Partner not sharing GPS'."
+    },
+    {
+      "id": "ADM-27",
+      "area": "Delivery Partners",
+      "functionality": "List / CRUD delivery partners",
+      "steps": "Open /admin/delivery-partners",
+      "expected": "Partner list loads",
+      "status": "Fail",
+      "notes": "Unable to load delivery partners. Missing table public.delivery_partners (PGRST205). Migration not applied."
+    },
+    {
+      "id": "ADM-30",
+      "area": "Customers",
+      "functionality": "List customers",
+      "steps": "Open /admin/customers",
+      "expected": "Customer list with Deactivate actions",
+      "status": "Pass",
+      "notes": "9 customers listed."
+    },
+    {
+      "id": "ADM-31",
+      "area": "Customers",
+      "functionality": "Deactivate / reactivate customer",
+      "steps": "Toggle customer is_active",
+      "expected": "Status updates; login blocked when inactive",
+      "status": "Blocked",
+      "notes": "UI present; not executed on live customer accounts."
+    },
+    {
+      "id": "ADM-33",
+      "area": "Offers",
+      "functionality": "List offers",
+      "steps": "Open /admin/offers",
+      "expected": "Offers/coupons listed",
+      "status": "Pass",
+      "notes": "6 offers including test coupons."
+    },
+    {
+      "id": "ADM-34",
+      "area": "Offers",
+      "functionality": "Add Offer modal",
+      "steps": "Click Add Offer",
+      "expected": "Form modal opens",
+      "status": "Pass",
+      "notes": "Title, Discount, Coupon Code, dates present."
+    },
+    {
+      "id": "ADM-35",
+      "area": "Party Inquiries",
+      "functionality": "List party inquiries",
+      "steps": "Open /admin/party-inquiries",
+      "expected": "Page loads; inquiries or empty state",
+      "status": "Pass",
+      "notes": "Empty state shown; table exists with 0 rows."
+    },
+    {
+      "id": "ADM-36",
+      "area": "Party Inquiries",
+      "functionality": "Update inquiry status",
+      "steps": "Change status on an inquiry",
+      "expected": "Status saved",
+      "status": "Blocked",
+      "notes": "No inquiry records available."
+    },
+    {
+      "id": "ADM-40",
+      "area": "Branches",
+      "functionality": "List / manage branches",
+      "steps": "Open /admin/branches",
+      "expected": "Branches load",
+      "status": "Fail",
+      "notes": "Unable to load branches. Missing table public.branches (PGRST205)."
+    },
+    {
+      "id": "ADM-41",
+      "area": "QR Tables",
+      "functionality": "List / create QR tables",
+      "steps": "Open /admin/qr-tables",
+      "expected": "QR tables load",
+      "status": "Fail",
+      "notes": "Unable to load QR tables. Missing table public.qr_tables (PGRST205)."
+    },
+    {
+      "id": "ADM-37",
+      "area": "Reports",
+      "functionality": "Sales reports & popular dishes",
+      "steps": "Open /admin/reports",
+      "expected": "Revenue, sales breakdown, charts",
+      "status": "Pass",
+      "notes": "Revenue ₹6,467 from 9 orders; charts rendered."
+    },
+    {
+      "id": "ADM-38",
+      "area": "Settings",
+      "functionality": "View settings page",
+      "steps": "Open /admin/settings",
+      "expected": "Restaurant info, pricing, delivery settings",
+      "status": "Pass",
+      "notes": "Page loads with ETA, restaurant info, pricing, service area panel."
+    },
+    {
+      "id": "ADM-39",
+      "area": "Settings",
+      "functionality": "Save default ETA (app_settings)",
+      "steps": "Change Default ETA → Save",
+      "expected": "ETA persisted in app_settings",
+      "status": "Fail",
+      "notes": "Missing table public.app_settings (PGRST205). Load falls back; save cannot persist."
+    },
+    {
+      "id": "ADM-42",
+      "area": "Settings",
+      "functionality": "Persist delivery_settings",
+      "steps": "Save delivery provider / service area",
+      "expected": "Settings stored in delivery_settings",
+      "status": "Fail",
+      "notes": "Missing table public.delivery_settings (PGRST205). UI shows defaults only."
+    },
+    {
+      "id": "ADM-43",
+      "area": "Delivery infra",
+      "functionality": "check_delivery_service_area RPC",
+      "steps": "Invoke service-area RPC",
+      "expected": "Function exists and returns result",
+      "status": "Fail",
+      "notes": "Missing function public.check_delivery_service_area (PGRST202)."
+    },
+    {
+      "id": "ADM-44",
+      "area": "Delivery infra",
+      "functionality": "Pidge / delivery-quote Edge Function",
+      "steps": "Observed during delivery features",
+      "expected": "Edge function reachable or clean fallback",
+      "status": "Fail",
+      "notes": "Failed to send request to Edge Function; falls back to rate card."
+    }
+  ],
+  "notWorking": [
+    {
+      "functionality": "Delivery Partners CRUD page",
+      "reason": "Missing Supabase table public.delivery_partners — migration not applied.",
+      "severity": "High",
+      "fix": "Apply migration supabase/migrations/20250722100000_delivery_partners.sql"
+    },
+    {
+      "functionality": "Branches management",
+      "reason": "Missing Supabase table public.branches — future_features migration not applied.",
+      "severity": "High",
+      "fix": "Apply migration supabase/migrations/20250721200000_future_features.sql"
+    },
+    {
+      "functionality": "QR Tables management",
+      "reason": "Missing Supabase table public.qr_tables (depends on branches migration).",
+      "severity": "High",
+      "fix": "Apply future_features migration (creates qr_tables + branches)"
+    },
+    {
+      "functionality": "Save Default ETA in Settings",
+      "reason": "Missing Supabase table public.app_settings.",
+      "severity": "High",
+      "fix": "Apply migration that creates app_settings"
+    },
+    {
+      "functionality": "Persist Delivery & Service Area settings",
+      "reason": "Missing Supabase table public.delivery_settings.",
+      "severity": "High",
+      "fix": "Apply migration that creates delivery_settings"
+    },
+    {
+      "functionality": "Service area RPC check",
+      "reason": "Missing DB function public.check_delivery_service_area.",
+      "severity": "High",
+      "fix": "Apply SQL that creates check_delivery_service_area function"
+    },
+    {
+      "functionality": "Partner live GPS tracking",
+      "reason": "Partners not sharing GPS; Track shows 'Partner not sharing GPS'.",
+      "severity": "Medium",
+      "fix": "Require delivery partners to enable location sharing / verify GPS update path"
+    },
+    {
+      "functionality": "Pidge Edge Function / live delivery quote",
+      "reason": "Edge Function request failed; falls back to rate card.",
+      "severity": "Medium",
+      "fix": "Deploy and configure Supabase Edge Function delivery-quote + Pidge secrets"
+    }
+  ]
+}
