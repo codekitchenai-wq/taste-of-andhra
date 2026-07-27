@@ -164,10 +164,18 @@ export function useLiveLocationSharing({
           return
         }
 
+        if (geoError.code === geoError.TIMEOUT) {
+          setStatus('error')
+          setError(
+            'Could not get a GPS fix in time. Move outdoors or check that location services are on, then try again.',
+          )
+          return
+        }
+
         setStatus('error')
         setError(geoError.message || 'Unable to read your location.')
       },
-      { enableHighAccuracy: true, maximumAge: 5_000, timeout: 20_000 },
+      { enableHighAccuracy: true, maximumAge: 5_000, timeout: 30_000 },
     )
 
     setStatus('sharing')
