@@ -21,6 +21,12 @@ export const ROUTES = {
   NOTIFICATIONS: '/notifications',
   QR_MENU: (tableCode: string) => `/qr/${tableCode}`,
   BRANCH_MENU: (slug: string) => `/b/${slug}`,
+  MASTER: {
+    LOGIN: '/master/login',
+    DASHBOARD: '/master',
+    TENANTS: '/master/tenants',
+    FEATURES: '/master/features',
+  },
   ADMIN: {
     LOGIN: '/admin/login',
     DASHBOARD: '/admin',

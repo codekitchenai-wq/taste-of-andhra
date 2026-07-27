@@ -1,9 +1,10 @@
 # SaaS Multi-Tenant Architecture Plan
 
 **Product:** Taste of Andhra → Restaurant Platform (SaaS)  
-**Date:** 2026-07-27  
-**Status:** Design only — no implementation yet  
-**Stack:** Vite + React SPA · Supabase Auth · PostgreSQL · RLS · Edge Functions
+**Date:** 2026-07-27 (updated 2026-07-28)  
+**Status:** Phase 1 domain model + Phase 3 catalog **schema/types in repo**; migration must be applied to Supabase. App still defaults to Taste of Andhra org id. Master UI / org RLS rewrite / billing not started.  
+**Stack:** Vite + React SPA · Supabase Auth · PostgreSQL · RLS · Edge Functions  
+**Detailed DB diagrams:** [SAAS_DATABASE_DIAGRAM.md](./SAAS_DATABASE_DIAGRAM.md)
 
 ---
 

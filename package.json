@@ -17,6 +17,9 @@
     "docs:walkthrough-pdf": "node scripts/generate-walkthrough-pdf.mjs",
     "docs:test-excel": "node scripts/generate-test-excel.mjs",
     "seed:demo-users": "node scripts/seed-demo-users.mjs",
+    "seed:qa-testers": "node scripts/seed-qa-testers.mjs",
+    "seed:superuser": "node scripts/seed-superuser.mjs",
+    "seed:all-test-users": "node scripts/seed-all-test-users.mjs",
     "seed:test-coupons": "node scripts/seed-test-coupons.mjs",
     "seed:eta-samples": "node scripts/seed-eta-sample-data.mjs"
   },

@@ -1,19 +1,12 @@
 import { Link } from 'react-router-dom'
 import {
-  DEMO_ACCOUNTS,
+  ALL_TEST_ACCOUNTS,
   DEMO_PASSWORD,
+  MASTER_ACCOUNT,
   SHOW_TEST_HELPERS,
 } from '@/constants/DEMO_ACCOUNTS'
 import { footerTestPersonaLinks } from '@/data/navigation'
-import type { AppPersonaRole } from '@/types/enums'
-
-const ROLE_ORDER: AppPersonaRole[] = ['customer', 'admin', 'delivery']
-
-const ROLE_LABELS: Record<AppPersonaRole, string> = {
-  customer: 'Customer',
-  admin: 'Admin',
-  delivery: 'Delivery',
-}
+import { USER_ROLE } from '@/constants/USER_ROLE'
 
 /**
  * TEMPORARY QA panel for the public footer.
@@ -41,7 +34,7 @@ export function FooterTestHelpers() {
         </div>
       </div>
 
-      <div className="mt-4 grid gap-6 md:grid-cols-2">
+      <div className="mt-4 grid gap-6 lg:grid-cols-2">
         <div>
           <h4 className="text-sm font-semibold text-text-primary">
             Persona quick links
@@ -62,30 +55,44 @@ export function FooterTestHelpers() {
 
         <div>
           <h4 className="text-sm font-semibold text-text-primary">
-            Test login credentials
+            Superuser (platform)
           </h4>
-          <ul className="mt-2 space-y-3">
-            {ROLE_ORDER.map((role) => {
-              const account = DEMO_ACCOUNTS[role]
-              return (
-                <li
-                  key={role}
-                  className="rounded-[var(--radius-button)] border border-black/5 bg-surface px-3 py-2 text-sm"
-                >
-                  <p className="font-medium text-text-primary">
-                    {ROLE_LABELS[role]}
-                  </p>
-                  <p className="mt-0.5 break-all font-mono text-xs text-text-secondary">
-                    {account.email}
-                  </p>
-                  <p className="font-mono text-xs text-text-secondary">
-                    Password: {account.password}
-                  </p>
-                </li>
-              )
-            })}
-          </ul>
+          <div className="mt-2 rounded-[var(--radius-button)] border border-black/5 bg-surface px-3 py-2 text-sm">
+            <p className="font-medium text-text-primary">
+              {MASTER_ACCOUNT.fullName}
+            </p>
+            <p className="mt-0.5 break-all font-mono text-xs text-text-secondary">
+              {MASTER_ACCOUNT.email}
+            </p>
+            <p className="font-mono text-xs text-text-secondary">
+              Password: {MASTER_ACCOUNT.password}
+            </p>
+          </div>
         </div>
+      </div>
+
+      <div className="mt-6">
+        <h4 className="text-sm font-semibold text-text-primary">
+          All test login credentials
+        </h4>
+        <ul className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {ALL_TEST_ACCOUNTS.map((account) => (
+            <li
+              key={account.email}
+              className="rounded-[var(--radius-button)] border border-black/5 bg-surface px-3 py-2 text-sm"
+            >
+              <p className="font-medium text-text-primary">
+                {account.group} · {USER_ROLE[account.role]}
+              </p>
+              <p className="mt-0.5 break-all font-mono text-xs text-text-secondary">
+                {account.email}
+              </p>
+              <p className="font-mono text-xs text-text-secondary">
+                Password: {account.password}
+              </p>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   )

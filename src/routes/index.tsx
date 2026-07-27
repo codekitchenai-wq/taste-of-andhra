@@ -9,6 +9,10 @@ import { ProtectedRoute } from '@/components/routing/ProtectedRoute'
 import { AdminRoute } from '@/components/routing/AdminRoute'
 import { DeliveryRoute } from '@/components/routing/DeliveryRoute'
 import { GuestRoute } from '@/components/routing/GuestRoute'
+import {
+  MasterLayout,
+  MasterRoute,
+} from '@/components/routing/MasterRoute'
 
 const HomePage = lazy(() => import('@/pages/public/HomePage'))
 const AboutPage = lazy(() => import('@/pages/public/AboutPage'))
@@ -81,6 +85,15 @@ const DeliveryOrderPage = lazy(
   () => import('@/pages/delivery/DeliveryOrderPage'),
 )
 
+const MasterLoginPage = lazy(() => import('@/pages/master/MasterLoginPage'))
+const MasterDashboardPage = lazy(
+  () => import('@/pages/master/MasterDashboardPage'),
+)
+const MasterTenantsPage = lazy(() => import('@/pages/master/MasterTenantsPage'))
+const MasterFeaturesPage = lazy(
+  () => import('@/pages/master/MasterFeaturesPage'),
+)
+
 export const router = createBrowserRouter([
   {
     element: <MainLayout />,
@@ -129,6 +142,20 @@ export const router = createBrowserRouter([
   },
   { path: ROUTES.ADMIN.LOGIN, element: <AdminLoginPage /> },
   { path: ROUTES.DELIVERY.LOGIN, element: <DeliveryLoginPage /> },
+  { path: ROUTES.MASTER.LOGIN, element: <MasterLoginPage /> },
+  {
+    element: <MasterRoute />,
+    children: [
+      {
+        element: <MasterLayout />,
+        children: [
+          { path: ROUTES.MASTER.DASHBOARD, element: <MasterDashboardPage /> },
+          { path: ROUTES.MASTER.TENANTS, element: <MasterTenantsPage /> },
+          { path: ROUTES.MASTER.FEATURES, element: <MasterFeaturesPage /> },
+        ],
+      },
+    ],
+  },
   {
     element: <AdminRoute />,
     children: [

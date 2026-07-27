@@ -1,11 +1,21 @@
 /**
- * Seeds QA tester accounts using Supabase Admin API (service role).
- * Creates confirmed users (no email confirmation required).
- * Password for all: Test@123
+ * Seeds all QA / demo personas via Supabase Admin API (service role).
+ * Shared password: Test@123
+ *
+ * Includes:
+ *   - Platform Superuser (platform_master)
+ *   - Demo customer / admin / delivery
+ *   - Tester 1 + Tester 2 customer / admin / delivery
  *
  * Add to .env.local:
  *   VITE_SUPABASE_URL=...
+ *   VITE_SUPABASE_ANON_KEY=...
  *   SUPABASE_SERVICE_ROLE_KEY=...   (Project Settings → API → service_role)
+ *
+ * Requires profiles.role enum to include platform_master
+ * (from migration 20260727120000_saas_multi_tenant_model.sql).
+ * If Superuser seed fails on role, run:
+ *   ALTER TYPE public.user_role ADD VALUE IF NOT EXISTS 'platform_master';
  */
 import { createClient } from '@supabase/supabase-js'
 import { readFileSync, existsSync } from 'node:fs'
@@ -15,15 +25,33 @@ const PASSWORD = 'Test@123'
 
 const ACCOUNTS = [
   {
-    email: 'tester1.customer@thetasteofandhra.com',
-    fullName: 'Tester 1 Customer',
-    phone: '9000000001',
+    email: 'master@tasteofandhra.test',
+    fullName: 'Platform Superuser',
+    phone: '9000000099',
+    role: 'platform_master',
+  },
+  {
+    email: 'customer@tasteofandhra.test',
+    fullName: 'Demo Customer',
+    phone: '9876543210',
     role: 'customer',
   },
   {
-    email: 'tester2.customer@thetasteofandhra.com',
-    fullName: 'Tester 2 Customer',
-    phone: '9000000002',
+    email: 'admin@tasteofandhra.test',
+    fullName: 'Demo Admin',
+    phone: '9876543211',
+    role: 'admin',
+  },
+  {
+    email: 'delivery@tasteofandhra.test',
+    fullName: 'Demo Delivery',
+    phone: '9876543212',
+    role: 'delivery',
+  },
+  {
+    email: 'tester1.customer@thetasteofandhra.com',
+    fullName: 'Tester 1 Customer',
+    phone: '9000000001',
     role: 'customer',
   },
   {
@@ -33,16 +61,22 @@ const ACCOUNTS = [
     role: 'admin',
   },
   {
-    email: 'tester2.admin@thetasteofandhra.com',
-    fullName: 'Tester 2 Admin',
-    phone: '9000000012',
-    role: 'admin',
-  },
-  {
     email: 'tester1.delivery@thetasteofandhra.com',
     fullName: 'Tester 1 Delivery',
     phone: '9000000021',
     role: 'delivery',
+  },
+  {
+    email: 'tester2.customer@thetasteofandhra.com',
+    fullName: 'Tester 2 Customer',
+    phone: '9000000002',
+    role: 'customer',
+  },
+  {
+    email: 'tester2.admin@thetasteofandhra.com',
+    fullName: 'Tester 2 Admin',
+    phone: '9000000012',
+    role: 'admin',
   },
   {
     email: 'tester2.delivery@thetasteofandhra.com',
@@ -124,7 +158,6 @@ const client = anonKey
   : null
 
 async function findUserByEmail(email) {
-  // Paginate lightly; QA projects are small
   for (let page = 1; page <= 10; page++) {
     const { data, error } = await admin.auth.admin.listUsers({
       page,
@@ -140,8 +173,39 @@ async function findUserByEmail(email) {
   return null
 }
 
+async function upsertProfile(userId, account) {
+  const { error } = await admin.from('profiles').upsert(
+    {
+      id: userId,
+      full_name: account.fullName,
+      email: account.email,
+      phone: account.phone,
+      role: account.role,
+      is_active: true,
+    },
+    { onConflict: 'id' },
+  )
+
+  if (error) {
+    console.error(`PROFILE_ERR ${account.email}: ${error.message}`)
+    if (
+      account.role === 'platform_master' &&
+      error.message.toLowerCase().includes('platform_master')
+    ) {
+      console.error(
+        '  → Run: ALTER TYPE public.user_role ADD VALUE IF NOT EXISTS \'platform_master\';',
+      )
+    }
+    return false
+  }
+
+  return true
+}
+
 async function upsertAccount(account) {
   const existing = await findUserByEmail(account.email)
+  const bootstrapRole =
+    account.role === 'platform_master' ? 'admin' : account.role
 
   if (existing) {
     const { error } = await admin.auth.admin.updateUserById(existing.id, {
@@ -157,26 +221,14 @@ async function upsertAccount(account) {
       },
     })
     if (error) {
-      console.error(`UPDATE_ERR ${account.email}: ${error.message}`)
+      console.error(`UPDATE_ERR ${account.email}: ${error.message || error}`)
       return false
     }
 
-    // Ensure profiles row role is correct if table exists
-    await admin
-      .from('profiles')
-      .upsert(
-        {
-          id: existing.id,
-          full_name: account.fullName,
-          email: account.email,
-          phone: account.phone,
-          role: account.role,
-          is_active: true,
-        },
-        { onConflict: 'id' },
-      )
+    const profileOk = await upsertProfile(existing.id, account)
+    if (!profileOk) return false
 
-    console.log(`UPDATED ${account.role} ${account.email}`)
+    console.log(`UPDATED ${account.role.padEnd(16)} ${account.email}`)
     return true
   }
 
@@ -186,7 +238,8 @@ async function upsertAccount(account) {
     email_confirm: true,
     user_metadata: {
       full_name: account.fullName,
-      role: account.role,
+      // Avoid trigger failure when platform_master enum is not applied yet.
+      role: bootstrapRole,
       phone: account.phone,
     },
     app_metadata: {
@@ -195,25 +248,27 @@ async function upsertAccount(account) {
   })
 
   if (error) {
-    console.error(`CREATE_ERR ${account.email}: ${error.message}`)
+    console.error(`CREATE_ERR ${account.email}: ${error.message || error}`)
     return false
   }
 
   if (data.user) {
-    await admin.from('profiles').upsert(
-      {
-        id: data.user.id,
-        full_name: account.fullName,
-        email: account.email,
-        phone: account.phone,
-        role: account.role,
-        is_active: true,
-      },
-      { onConflict: 'id' },
-    )
+    if (account.role === 'platform_master') {
+      await admin.auth.admin.updateUserById(data.user.id, {
+        user_metadata: {
+          full_name: account.fullName,
+          role: account.role,
+          phone: account.phone,
+        },
+        app_metadata: { role: account.role },
+      })
+    }
+
+    const profileOk = await upsertProfile(data.user.id, account)
+    if (!profileOk) return false
   }
 
-  console.log(`CREATED ${account.role} ${account.email}`)
+  console.log(`CREATED ${account.role.padEnd(16)} ${account.email}`)
   return true
 }
 
@@ -233,23 +288,20 @@ async function verifyLogin(account) {
     return false
   }
 
-  const metaRole = data.user?.user_metadata?.role
-  let profileRole = null
   const { data: profile } = await client
     .from('profiles')
     .select('role')
     .eq('id', data.user.id)
     .maybeSingle()
-  profileRole = profile?.role ?? null
 
   console.log(
-    `LOGIN_OK ${account.email} meta=${metaRole} profile=${profileRole}`,
+    `LOGIN_OK ${account.email} profile=${profile?.role ?? 'missing'}`,
   )
   await client.auth.signOut()
   return true
 }
 
-console.log('Seeding QA testers via service role...\n')
+console.log(`Seeding ${ACCOUNTS.length} QA accounts (password ${PASSWORD})...\n`)
 
 let seedOk = true
 for (const account of ACCOUNTS) {
@@ -265,8 +317,14 @@ for (const account of ACCOUNTS) {
   if (!ok) loginOk = false
 }
 
+console.log('\n--- Tester quick list ---')
+for (const account of ACCOUNTS) {
+  console.log(`  ${account.role.padEnd(16)} ${account.email} / ${PASSWORD}`)
+}
+
 if (seedOk && loginOk) {
-  console.log('\nALL_OK — all 6 accounts ready with password Test@123')
+  console.log(`\nALL_OK — ${ACCOUNTS.length} accounts ready with password ${PASSWORD}`)
+  console.log('See docs/TESTER_LOGIN_REFERENCE.md for portals and links.')
   process.exit(0)
 }
 

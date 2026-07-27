@@ -7,10 +7,11 @@ import { TestCredentialsHint } from '@/components/auth/TestCredentialsHint'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { MIN_PASSWORD_LENGTH } from '@/constants/AUTH'
-import { DEMO_ACCOUNTS } from '@/constants/DEMO_ACCOUNTS'
+import { primaryAccountForRole } from '@/constants/DEMO_ACCOUNTS'
 import { ROUTES } from '@/constants/ROUTES'
 import { useAuth } from '@/hooks/useAuth'
-import type { AppPersonaRole } from '@/types/enums'
+import type { UserRole } from '@/types/enums'
+import { canAccessPortal } from '@/utils/platformMaster'
 
 type AuthMode = 'login' | 'register'
 
@@ -22,11 +23,13 @@ interface EmailAuthFormValues {
 }
 
 interface EmailAuthFormProps {
-  role: AppPersonaRole
+  role: UserRole
   /** Starting mode. Customer login page uses login; register page uses register. */
   initialMode?: AuthMode
   /** When false, hide the login/create toggle (e.g. dedicated /register page). */
   allowModeToggle?: boolean
+  /** When false, hide Google OAuth (staff / master portals). */
+  allowGoogle?: boolean
   redirectTo?: string
   submitLabel?: {
     login: string
@@ -44,6 +47,7 @@ export function EmailAuthForm({
   role,
   initialMode = 'login',
   allowModeToggle = true,
+  allowGoogle = role === 'customer',
   redirectTo,
   submitLabel = DEFAULT_SUBMIT,
   footer,
@@ -57,13 +61,15 @@ export function EmailAuthForm({
   const resolvedRedirect =
     redirectTo ??
     (location.state as { from?: string } | null)?.from ??
-    (role === 'admin'
-      ? ROUTES.ADMIN.DASHBOARD
-      : role === 'delivery'
-        ? ROUTES.DELIVERY.DASHBOARD
-        : ROUTES.HOME)
+    (role === 'platform_master'
+      ? ROUTES.MASTER.DASHBOARD
+      : role === 'admin'
+        ? ROUTES.ADMIN.DASHBOARD
+        : role === 'delivery'
+          ? ROUTES.DELIVERY.DASHBOARD
+          : ROUTES.HOME)
 
-  const demo = DEMO_ACCOUNTS[role]
+  const demo = primaryAccountForRole(role)
 
   const {
     register,
@@ -91,7 +97,7 @@ export function EmailAuthForm({
         return
       }
 
-      if (result.data.role !== role) {
+      if (!canAccessPortal(result.data.role, role, result.data.email)) {
         await logout()
         toast.error(
           `Access denied. A ${role} account is required for this portal.`,
@@ -141,7 +147,7 @@ export function EmailAuthForm({
 
   return (
     <div>
-      {role === 'customer' ? (
+      {allowGoogle ? (
         <div className="mb-6 space-y-4">
           <GoogleSignInButton redirectTo={resolvedRedirect} />
           <div className="flex items-center gap-3 text-xs text-text-secondary">

@@ -1,15 +1,15 @@
 /**
- * Seeds one email/password demo user per persona (customer, admin, delivery).
- * Password for all: 123456
+ * Seeds demo customer / admin / delivery via anon signUp.
+ * Password: Test@123
  *
- * Requires VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.local
- * and "Confirm email" disabled under Supabase Auth → Providers → Email.
+ * For Superuser + Tester 1/2 accounts, use: npm run seed:qa-testers
+ * (requires SUPABASE_SERVICE_ROLE_KEY).
  */
 import { createClient } from '@supabase/supabase-js'
 import { readFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-const DEMO_PASSWORD = '123456'
+const DEMO_PASSWORD = 'Test@123'
 
 const DEMO_ACCOUNTS = [
   {
@@ -130,7 +130,7 @@ for (const account of DEMO_ACCOUNTS) {
   await seedAccount(account)
 }
 
-console.log('\nDone. Use these on the login screens:')
+console.log('\nDone. Prefer `npm run seed:qa-testers` for Superuser + all testers.')
 for (const account of DEMO_ACCOUNTS) {
   console.log(`  ${account.role.padEnd(10)} ${account.email} / ${DEMO_PASSWORD}`)
 }
