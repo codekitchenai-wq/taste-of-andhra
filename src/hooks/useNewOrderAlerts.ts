@@ -42,6 +42,7 @@ export interface UseNewOrderAlertsResult {
 
 export function useNewOrderAlerts(
   orders: AdminOrder[],
+  isReady = true,
 ): UseNewOrderAlertsResult {
   const [isMuted, setIsMuted] = useState(readMuted)
   const [alertingIds, setAlertingIds] = useState<string[]>([])
@@ -65,6 +66,10 @@ export function useNewOrderAlerts(
   )
 
   useEffect(() => {
+    // Wait until the first orders fetch finishes so the initial pending queue
+    // is treated as known — not as a burst of brand-new alerts.
+    if (!isReady) return
+
     const pendingIds = new Set(
       pendingIdsKey ? pendingIdsKey.split(',') : [],
     )
@@ -122,7 +127,7 @@ export function useNewOrderAlerts(
         }
       }
     }
-  }, [pendingIdsKey, pendingOrders])
+  }, [isReady, pendingIdsKey, pendingOrders])
 
   const stopSound = useCallback(() => {
     if (soundIntervalRef.current != null) {

@@ -278,7 +278,8 @@ export async function assignDelivery(
       .from('profiles')
       .select('id, full_name')
       .eq('role', 'delivery')
-      .or(`phone.eq.${e164},phone.eq.${localPhone}`)
+      .or(`phone.eq."${e164}",phone.eq.${localPhone}`)
+      .limit(1)
       .maybeSingle()
 
     if (profile) {
@@ -331,20 +332,49 @@ export async function assignDelivery(
 
   const assignedAt = new Date().toISOString()
 
-  const { data, error } = await supabase
+  // Omit partner_user_id when unset so assign still works if the DB
+  // migration that adds that column has not been applied yet.
+  const insertRow: Record<string, unknown> = {
+    order_id: input.orderId,
+    delivery_partner: partner,
+    partner_phone: localPhone,
+    status: deliveryStatus,
+    assigned_at: assignedAt,
+  }
+  if (partnerUserId) {
+    insertRow.partner_user_id = partnerUserId
+  }
+
+  let { data, error } = await supabase
     .from('delivery')
-    .insert({
-      order_id: input.orderId,
-      delivery_partner: partner,
-      partner_phone: localPhone,
-      partner_user_id: partnerUserId,
-      status: deliveryStatus,
-      assigned_at: assignedAt,
-    })
+    .insert(insertRow)
     .select()
     .single()
 
+  // Older projects may not have partner_user_id yet — retry without it.
+  if (
+    error &&
+    partnerUserId &&
+    error.message.toLowerCase().includes('partner_user_id') &&
+    error.message.toLowerCase().includes('does not exist')
+  ) {
+    delete insertRow.partner_user_id
+    const retry = await supabase
+      .from('delivery')
+      .insert(insertRow)
+      .select()
+      .single()
+    data = retry.data
+    error = retry.error
+  }
+
   if (error) {
+    if (error.code === '23505' || error.message.toLowerCase().includes('duplicate key')) {
+      return createErrorResponse(
+        'This order already has a delivery assignment.',
+        error.message,
+      )
+    }
     return createErrorResponse('Unable to assign delivery.', error.message)
   }
 

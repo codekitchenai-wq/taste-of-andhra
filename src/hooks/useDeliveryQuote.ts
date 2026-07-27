@@ -28,27 +28,33 @@ export function useDeliveryQuote({
   const requestIdRef = useRef(0)
 
   const fetchQuote = useCallback(async () => {
-    if (!address) {
-      setQuote(null)
-      return
-    }
-
     const requestId = requestIdRef.current + 1
     requestIdRef.current = requestId
 
+    if (!address) {
+      setQuote(null)
+      setIsLoading(false)
+      return
+    }
+
     setIsLoading(true)
 
-    const result = await deliveryQuoteService.getDeliveryQuote({
-      address,
-      branchId,
-      subtotal,
-      itemCount,
-    })
+    try {
+      const result = await deliveryQuoteService.getDeliveryQuote({
+        address,
+        branchId,
+        subtotal,
+        itemCount,
+      })
 
-    if (requestIdRef.current !== requestId) return
+      if (requestIdRef.current !== requestId) return
 
-    setQuote(result.success ? result.data : null)
-    setIsLoading(false)
+      setQuote(result.success ? result.data : null)
+    } finally {
+      if (requestIdRef.current === requestId) {
+        setIsLoading(false)
+      }
+    }
   }, [address, branchId, subtotal, itemCount])
 
   useEffect(() => {

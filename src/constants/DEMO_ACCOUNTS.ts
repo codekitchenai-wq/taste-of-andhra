@@ -8,6 +8,12 @@ export interface DemoAccount {
   role: UserRole
 }
 
+/**
+ * TEMPORARY — QA / local testing helpers in the public footer.
+ * Set to `false` (or remove FooterTestHelpers) before production release.
+ */
+export const SHOW_TEST_HELPERS = true
+
 /** Shared password for all seeded test personas. */
 export const DEMO_PASSWORD = '123456'
 

@@ -24,6 +24,15 @@ export const footerQuickLinks: NavLink[] = [
   { label: 'Contact', to: ROUTES.CONTACT },
 ]
 
+/** TEMPORARY — persona entry points for QA. Gated by SHOW_TEST_HELPERS. */
+export const footerTestPersonaLinks: NavLink[] = [
+  { label: 'Customer login', to: ROUTES.LOGIN },
+  { label: 'Admin login', to: ROUTES.ADMIN.LOGIN },
+  { label: 'Delivery login', to: ROUTES.DELIVERY.LOGIN },
+  { label: 'Admin dashboard', to: ROUTES.ADMIN.DASHBOARD },
+  { label: 'Delivery dashboard', to: ROUTES.DELIVERY.DASHBOARD },
+]
+
 export const footerCustomerLinks: NavLink[] = [
   { label: 'My Orders', to: ROUTES.ORDERS },
   { label: 'Favorites', to: ROUTES.FAVORITES },

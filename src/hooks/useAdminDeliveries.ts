@@ -39,5 +39,19 @@ export function useAdminDeliveries() {
     void refetch()
   }, [refetch])
 
+  // Keep partner positions current without refetching the whole board, so the
+  // location column and the tracking map stay live between manual refreshes.
+  useEffect(() => {
+    return deliveryService.subscribeToAllDeliveries((updated) => {
+      setDeliveries((previous) =>
+        previous.map((delivery) =>
+          delivery.id === updated.id
+            ? { ...delivery, ...updated }
+            : delivery,
+        ),
+      )
+    })
+  }, [])
+
   return { deliveries, awaitingOrders, isLoading, error, refetch }
 }

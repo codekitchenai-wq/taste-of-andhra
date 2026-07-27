@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Card } from '@/components/ui/Card'
 import { FREE_DELIVERY_THRESHOLD } from '@/constants/ORDER'
 import type { CartItem } from '@/types/Cart'
@@ -11,6 +12,8 @@ interface CheckoutOrderSummaryProps {
   itemCount: number
   deliveryQuote?: DeliveryQuote | null
   isDeliveryQuoteLoading?: boolean
+  /** Place-order CTA kept inside the card so it scrolls with the summary. */
+  action?: ReactNode
 }
 
 export function CheckoutOrderSummary({
@@ -19,6 +22,7 @@ export function CheckoutOrderSummary({
   itemCount,
   deliveryQuote = null,
   isDeliveryQuoteLoading = false,
+  action,
 }: CheckoutOrderSummaryProps) {
   const isLiveQuote = deliveryQuote?.provider === 'pidge'
   const showFreeDeliveryHint =
@@ -27,7 +31,7 @@ export function CheckoutOrderSummary({
     totals.subtotal < FREE_DELIVERY_THRESHOLD
 
   return (
-    <Card className="sticky top-24 space-y-4 p-6">
+    <Card className="space-y-4 p-6 lg:self-start">
       <h2 className="text-lg font-semibold text-text-primary">Order Summary</h2>
 
       <ul className="max-h-64 space-y-3 overflow-y-auto pr-1">
@@ -109,6 +113,8 @@ export function CheckoutOrderSummary({
           <dd className="text-primary">{formatPrice(totals.total)}</dd>
         </div>
       </dl>
+
+      {action ? <div className="pt-1">{action}</div> : null}
     </Card>
   )
 }

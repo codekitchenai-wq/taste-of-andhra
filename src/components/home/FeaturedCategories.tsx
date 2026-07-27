@@ -3,10 +3,16 @@ import { ArrowRight } from 'lucide-react'
 import { Container } from '@/components/ui/Container'
 import { LazyImage } from '@/components/ui/LazyImage'
 import { SectionHeader } from '@/components/home/SectionHeader'
-import { featuredCategories } from '@/data/home'
+import type { HomeCategory } from '@/data/home'
 import { ROUTES } from '@/constants/ROUTES'
 
-export function FeaturedCategories() {
+interface FeaturedCategoriesProps {
+  categories: HomeCategory[]
+}
+
+export function FeaturedCategories({ categories }: FeaturedCategoriesProps) {
+  if (categories.length === 0) return null
+
   return (
     <section className="bg-background py-12 md:py-16 lg:py-20">
       <Container as="div">
@@ -16,7 +22,7 @@ export function FeaturedCategories() {
         />
 
         <div className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-6">
-          {featuredCategories.map((category) => (
+          {categories.map((category) => (
             <Link
               key={category.id}
               to={ROUTES.MENU}
@@ -34,7 +40,8 @@ export function FeaturedCategories() {
                   {category.name}
                 </h3>
                 <p className="mt-1 text-sm text-text-secondary">
-                  {category.dishCount} dishes
+                  {category.dishCount}{' '}
+                  {category.dishCount === 1 ? 'dish' : 'dishes'}
                 </p>
               </div>
             </Link>

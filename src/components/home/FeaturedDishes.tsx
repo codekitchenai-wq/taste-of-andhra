@@ -8,6 +8,8 @@ interface FeaturedDishesProps {
 }
 
 export function FeaturedDishes({ dishes }: FeaturedDishesProps) {
+  if (dishes.length === 0) return null
+
   return (
     <section className="bg-surface py-12 md:py-16 lg:py-20">
       <Container as="div">

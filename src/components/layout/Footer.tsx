@@ -8,8 +8,11 @@ import {
 import {
   footerCustomerLinks,
   footerQuickLinks,
+  footerTestPersonaLinks,
 } from '@/data/navigation'
+import { SHOW_TEST_HELPERS } from '@/constants/DEMO_ACCOUNTS'
 import { Container } from '@/components/ui/Container'
+import { FooterTestHelpers } from '@/components/layout/FooterTestHelpers'
 
 export function Footer() {
   return (
@@ -67,6 +70,17 @@ export function Footer() {
                   </Link>
                 </li>
               ))}
+              {SHOW_TEST_HELPERS &&
+                footerTestPersonaLinks.map((link) => (
+                  <li key={link.to}>
+                    <Link
+                      to={link.to}
+                      className="text-sm text-text-secondary transition-colors hover:text-primary"
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
             </ul>
           </div>
 
@@ -133,6 +147,8 @@ export function Footer() {
             </ul>
           </div>
         </div>
+
+        <FooterTestHelpers />
 
         <div className="mt-10 border-t border-black/5 pt-6 text-center text-sm text-text-secondary">
           © {new Date().getFullYear()} {APP_NAME}. All rights reserved.

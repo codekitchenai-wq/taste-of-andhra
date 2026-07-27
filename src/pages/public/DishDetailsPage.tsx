@@ -1,5 +1,5 @@
-import { Link, useNavigate } from 'react-router-dom'
-import { useParams } from 'react-router-dom'
+import { lazy, Suspense } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   Clock,
   Flame,
@@ -23,12 +23,27 @@ import { useCart } from '@/hooks/useCart'
 import { useDishBySlug } from '@/hooks/useDishBySlug'
 import { formatPrice } from '@/utils/format'
 
+const LightMenuPage = lazy(() => import('@/pages/public/LightMenuPage'))
+
+/** Reserved under `/menu/:slug` so they never resolve as dishes. */
+const RESERVED_MENU_SLUGS = new Set(['light'])
+
 export default function DishDetailsPage() {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
   const { isAuthenticated } = useAuth()
   const { addItem, isUpdating } = useCart()
-  const { dish, category, isLoading, error, refetch } = useDishBySlug(slug)
+  const { dish, category, isLoading, error, refetch } = useDishBySlug(
+    slug && !RESERVED_MENU_SLUGS.has(slug) ? slug : undefined,
+  )
+
+  if (slug && RESERVED_MENU_SLUGS.has(slug)) {
+    return (
+      <Suspense fallback={<LoadingState />}>
+        <LightMenuPage />
+      </Suspense>
+    )
+  }
 
   const handleAddToCart = async () => {
     if (!dish) return

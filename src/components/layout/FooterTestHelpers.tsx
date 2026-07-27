@@ -1,0 +1,92 @@
+import { Link } from 'react-router-dom'
+import {
+  DEMO_ACCOUNTS,
+  DEMO_PASSWORD,
+  SHOW_TEST_HELPERS,
+} from '@/constants/DEMO_ACCOUNTS'
+import { footerTestPersonaLinks } from '@/data/navigation'
+import type { UserRole } from '@/types/enums'
+
+const ROLE_ORDER: UserRole[] = ['customer', 'admin', 'delivery']
+
+const ROLE_LABELS: Record<UserRole, string> = {
+  customer: 'Customer',
+  admin: 'Admin',
+  delivery: 'Delivery',
+}
+
+/**
+ * TEMPORARY QA panel for the public footer.
+ * Remove this component (and its Footer import) when testing is complete,
+ * or set SHOW_TEST_HELPERS = false in DEMO_ACCOUNTS.ts.
+ */
+export function FooterTestHelpers() {
+  if (!SHOW_TEST_HELPERS) return null
+
+  return (
+    <div className="mt-10 rounded-[var(--radius-card)] border border-dashed border-amber-500/40 bg-amber-50/80 p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-text-primary">
+            QA test helpers
+          </p>
+          <p className="mt-1 text-xs text-text-secondary">
+            Temporary — remove after testing (
+            <code className="rounded bg-black/5 px-1">SHOW_TEST_HELPERS</code>
+            ). Shared password for all personas:{' '}
+            <span className="font-mono font-medium text-text-primary">
+              {DEMO_PASSWORD}
+            </span>
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-6 md:grid-cols-2">
+        <div>
+          <h4 className="text-sm font-semibold text-text-primary">
+            Persona quick links
+          </h4>
+          <ul className="mt-2 space-y-1.5">
+            {footerTestPersonaLinks.map((link) => (
+              <li key={link.to}>
+                <Link
+                  to={link.to}
+                  className="text-sm text-primary transition-colors hover:text-primary-dark"
+                >
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div>
+          <h4 className="text-sm font-semibold text-text-primary">
+            Test login credentials
+          </h4>
+          <ul className="mt-2 space-y-3">
+            {ROLE_ORDER.map((role) => {
+              const account = DEMO_ACCOUNTS[role]
+              return (
+                <li
+                  key={role}
+                  className="rounded-[var(--radius-button)] border border-black/5 bg-surface px-3 py-2 text-sm"
+                >
+                  <p className="font-medium text-text-primary">
+                    {ROLE_LABELS[role]}
+                  </p>
+                  <p className="mt-0.5 break-all font-mono text-xs text-text-secondary">
+                    {account.email}
+                  </p>
+                  <p className="font-mono text-xs text-text-secondary">
+                    Password: {account.password}
+                  </p>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      </div>
+    </div>
+  )
+}

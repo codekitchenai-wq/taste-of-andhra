@@ -66,7 +66,8 @@ export default function CheckoutPage() {
     useCart()
   const { addresses, isLoading: isAddressesLoading, error, refetch } =
     useAddresses()
-  const { branches, selectedBranch, setSelectedBranchId } = useSelectedBranch()
+  const { branches, selectedBranch, setSelectedBranchId, isLoading: isBranchLoading } =
+    useSelectedBranch()
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
     null,
   )
@@ -396,6 +397,25 @@ export default function CheckoutPage() {
           </section>
 
           <section className="space-y-4">
+            <h2 className="text-lg font-semibold text-text-primary">Coupon</h2>
+            <CouponInput
+              subtotal={cart.subtotal}
+              appliedOffer={appliedOffer}
+              discountAmount={couponDiscount}
+              onApply={(offer, discount) => {
+                setAppliedOffer(offer)
+                setCouponDiscount(discount)
+                setCouponCode(offer.coupon_code ?? undefined)
+              }}
+              onRemove={() => {
+                setAppliedOffer(null)
+                setCouponDiscount(0)
+                setCouponCode(undefined)
+              }}
+            />
+          </section>
+
+          <section className="space-y-4">
             <h2 className="text-lg font-semibold text-text-primary">
               Payment Method
             </h2>
@@ -448,25 +468,6 @@ export default function CheckoutPage() {
             )}
           </section>
 
-          <section className="space-y-4">
-            <h2 className="text-lg font-semibold text-text-primary">Coupon</h2>
-            <CouponInput
-              subtotal={cart.subtotal}
-              appliedOffer={appliedOffer}
-              discountAmount={couponDiscount}
-              onApply={(offer, discount) => {
-                setAppliedOffer(offer)
-                setCouponDiscount(discount)
-                setCouponCode(offer.coupon_code ?? undefined)
-              }}
-              onRemove={() => {
-                setAppliedOffer(null)
-                setCouponDiscount(0)
-                setCouponCode(undefined)
-              }}
-            />
-          </section>
-
           {loyaltyAccount &&
             loyaltyAccount.points_balance >= LOYALTY_REDEEM_POINTS && (
               <section className="space-y-3 rounded-[var(--radius-card)] bg-surface p-5 shadow-md">
@@ -513,40 +514,40 @@ export default function CheckoutPage() {
           </Link>
         </div>
 
-        <div className="space-y-4">
-          <CheckoutOrderSummary
-            items={cart.items}
-            totals={totals}
-            itemCount={itemCount}
-            deliveryQuote={deliveryQuote}
-            isDeliveryQuoteLoading={isQuoteLoading}
-          />
-
-          <Button
-            type="button"
-            fullWidth
-            size="lg"
-            disabled={
-              isPlacingOrder ||
-              isQuoteLoading ||
-              isUnserviceable ||
-              !selectedAddressId ||
-              addresses.length === 0 ||
-              (branches.length > 0 && !selectedBranch)
-            }
-            onClick={() => void handlePlaceOrder()}
-          >
-            {isPlacingOrder
-              ? 'Creating order...'
-              : isQuoteLoading
-                ? 'Calculating delivery...'
-                : isUnserviceable
-                  ? 'Not deliverable here'
-                  : paymentMethod === 'razorpay'
-                    ? 'Continue to Payment'
-                    : 'Place Order'}
-          </Button>
-        </div>
+        <CheckoutOrderSummary
+          items={cart.items}
+          totals={totals}
+          itemCount={itemCount}
+          deliveryQuote={deliveryQuote}
+          isDeliveryQuoteLoading={isQuoteLoading}
+          action={
+            <Button
+              type="button"
+              fullWidth
+              size="lg"
+              disabled={
+                isPlacingOrder ||
+                isQuoteLoading ||
+                isBranchLoading ||
+                isUnserviceable ||
+                !selectedAddressId ||
+                addresses.length === 0 ||
+                (branches.length > 0 && !selectedBranch)
+              }
+              onClick={() => void handlePlaceOrder()}
+            >
+              {isPlacingOrder
+                ? 'Creating order...'
+                : isQuoteLoading || isBranchLoading
+                  ? 'Preparing checkout...'
+                  : isUnserviceable
+                    ? 'Not deliverable here'
+                    : paymentMethod === 'razorpay'
+                      ? 'Continue to Payment'
+                      : 'Place Order'}
+            </Button>
+          }
+        />
       </div>
 
       <AddressFormModal
