@@ -9,6 +9,7 @@ import { supabase } from '@/services/supabaseClient'
 import { mapCategory } from '@/utils/mapCategory'
 import { generateSlug } from '@/utils/slug'
 import { uploadCategoryImage } from '@/services/storageService'
+import { insertWithOrgFallback } from '@/utils/insertWithOrgFallback'
 
 export interface CategoryFormInput {
   name: string
@@ -90,19 +91,15 @@ export async function createCategory(
     return createErrorResponse('Category name is required.')
   }
 
-  const { data, error } = await supabase
-    .from('categories')
-    .insert({
-      organization_id: DEFAULT_ORGANIZATION_ID,
-      name,
-      slug: generateSlug(name),
-      description: input.description?.trim() || null,
-      image_url: input.imageUrl?.trim() || null,
-      display_order: input.displayOrder ?? 0,
-      is_active: input.isActive ?? true,
-    })
-    .select()
-    .single()
+  const { data, error } = await insertWithOrgFallback(supabase, 'categories', {
+    organization_id: DEFAULT_ORGANIZATION_ID,
+    name,
+    slug: generateSlug(name),
+    description: input.description?.trim() || null,
+    image_url: input.imageUrl?.trim() || null,
+    display_order: input.displayOrder ?? 0,
+    is_active: input.isActive ?? true,
+  })
 
   if (error) {
     return createErrorResponse(
@@ -111,8 +108,15 @@ export async function createCategory(
     )
   }
 
+  if (!data) {
+    return createErrorResponse('Unable to create category.')
+  }
+
   if (input.imageFile) {
-    const uploadResult = await uploadCategoryImage(input.imageFile, data.id)
+    const uploadResult = await uploadCategoryImage(
+      input.imageFile,
+      String(data.id),
+    )
 
     if (!uploadResult.success) {
       return uploadResult

@@ -3,7 +3,7 @@ import type { Offer } from '@/types/Offer'
 export function mapOffer(row: Record<string, unknown>): Offer {
   return {
     id: row.id as string,
-    organization_id: row.organization_id as string,
+    organization_id: (row.organization_id as string) ?? '',
     title: row.title as string,
     description: (row.description as string | null) ?? null,
     discount_percentage: Number(row.discount_percentage),

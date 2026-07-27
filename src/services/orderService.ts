@@ -20,6 +20,10 @@ import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
 import { calculateOrderTotals } from '@/utils/orderTotals'
 import { addMinutesToIso } from '@/utils/orderEta'
 import { getOrderStatusTransitionError } from '@/utils/orderStatusTransitions'
+import {
+  isMissingColumnError,
+  withoutOrganizationId,
+} from '@/utils/supabaseSchema'
 
 export interface CreateOrderInput {
   addressId: string
@@ -36,14 +40,6 @@ interface ResolvedDeliveryQuote {
   amount: number | null
   provider: string
   quoteId: string | null
-}
-
-function isMissingColumnError(message: string): boolean {
-  const lower = message.toLowerCase()
-  return (
-    lower.includes('does not exist') &&
-    (lower.includes('delivery_provider') || lower.includes('delivery_quote_id'))
-  )
 }
 
 const SERVICE_AREA_ERROR_PREFIX = 'OUTSIDE_SERVICE_AREA:'
@@ -415,11 +411,16 @@ export async function createOrder(
     .select()
     .single()
 
-  // Projects that have not applied the provider migration yet still need to be
-  // able to take orders, so retry without the new columns.
+  // Projects that have not applied newer migrations still need to take orders.
   if (orderError && isMissingColumnError(orderError.message)) {
-    delete orderPayload.delivery_provider
-    delete orderPayload.delivery_quote_id
+    const msg = orderError.message.toLowerCase()
+    if (msg.includes('organization_id')) {
+      Object.assign(orderPayload, withoutOrganizationId(orderPayload))
+    }
+    if (msg.includes('delivery_provider') || msg.includes('delivery_quote_id')) {
+      delete orderPayload.delivery_provider
+      delete orderPayload.delivery_quote_id
+    }
 
     const retry = await supabase
       .from('orders')

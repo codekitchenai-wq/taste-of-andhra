@@ -7,6 +7,7 @@ import { supabase } from '@/services/supabaseClient'
 import type { PartyInquiry, PartyMealPreference } from '@/types/PartyInquiry'
 import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
 import { isValidEmail, isValidPhone } from '@/utils/validation'
+import { insertWithOrgFallback } from '@/utils/insertWithOrgFallback'
 
 export interface PartyInquiryInput {
   fullName: string
@@ -27,7 +28,7 @@ export interface PartyInquiryInput {
 function mapPartyInquiry(row: Record<string, unknown>): PartyInquiry {
   return {
     id: row.id as string,
-    organization_id: row.organization_id as string,
+    organization_id: (row.organization_id as string) ?? '',
     full_name: row.full_name as string,
     email: row.email as string,
     phone: row.phone as string,
@@ -103,9 +104,10 @@ export async function submitPartyInquiry(
     return createErrorResponse('Enter a valid 6-digit pincode.')
   }
 
-  const { data, error } = await supabase
-    .from('party_inquiries')
-    .insert({
+  const { data, error } = await insertWithOrgFallback(
+    supabase,
+    'party_inquiries',
+    {
       organization_id: DEFAULT_ORGANIZATION_ID,
       full_name: fullName,
       email,
@@ -120,14 +122,19 @@ export async function submitPartyInquiry(
       state,
       pincode,
       notes: input.notes?.trim() || null,
-    })
-    .select()
-    .single()
+    },
+  )
 
   if (error) {
     return createErrorResponse(
       'Unable to submit your party order enquiry. Please try again.',
       error.message,
+    )
+  }
+
+  if (!data) {
+    return createErrorResponse(
+      'Unable to submit your party order enquiry. Please try again.',
     )
   }
 

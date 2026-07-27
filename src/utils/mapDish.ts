@@ -7,7 +7,7 @@ export interface DishWithCategory extends Dish {
 export function mapDish(row: Record<string, unknown>): Dish {
   return {
     id: row.id as string,
-    organization_id: row.organization_id as string,
+    organization_id: (row.organization_id as string) ?? '',
     category_id: row.category_id as string,
     name: row.name as string,
     slug: row.slug as string,

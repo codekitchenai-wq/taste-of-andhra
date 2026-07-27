@@ -5,11 +5,11 @@ import {
   SHOW_TEST_HELPERS,
 } from '@/constants/DEMO_ACCOUNTS'
 import { footerTestPersonaLinks } from '@/data/navigation'
-import type { UserRole } from '@/types/enums'
+import type { AppPersonaRole } from '@/types/enums'
 
-const ROLE_ORDER: UserRole[] = ['customer', 'admin', 'delivery']
+const ROLE_ORDER: AppPersonaRole[] = ['customer', 'admin', 'delivery']
 
-const ROLE_LABELS: Record<UserRole, string> = {
+const ROLE_LABELS: Record<AppPersonaRole, string> = {
   customer: 'Customer',
   admin: 'Admin',
   delivery: 'Delivery',

@@ -3,7 +3,7 @@ import type { Branch } from '@/types/Branch'
 export function mapBranch(row: Record<string, unknown>): Branch {
   return {
     id: row.id as string,
-    organization_id: row.organization_id as string,
+    organization_id: (row.organization_id as string) ?? '',
     name: row.name as string,
     slug: row.slug as string,
     phone: (row.phone as string | null) ?? null,

@@ -14,11 +14,12 @@ import type { OrderFullDetails } from '@/types/Order'
 import type { Branch } from '@/types/Branch'
 import * as branchService from '@/services/branchService'
 import { supabase } from '@/services/supabaseClient'
+import { insertWithOrgFallback } from '@/utils/insertWithOrgFallback'
 
 function mapInvoice(row: Record<string, unknown>): GstInvoice {
   return {
     id: row.id as string,
-    organization_id: row.organization_id as string,
+    organization_id: (row.organization_id as string) ?? '',
     order_id: row.order_id as string,
     branch_id: row.branch_id as string,
     invoice_number: row.invoice_number as string,
@@ -79,22 +80,18 @@ export async function ensureInvoiceForOrder(
   const invoiceTotal =
     Math.round((taxable + cgst + sgst + order.delivery_charge) * 100) / 100
 
-  const { data, error } = await supabase
-    .from('gst_invoices')
-    .insert({
-      organization_id: DEFAULT_ORGANIZATION_ID,
-      order_id: order.id,
-      branch_id: branch.id,
-      invoice_number: generateInvoiceNumber(order.order_number),
-      gstin: branch.gstin ?? DEFAULT_GSTIN,
-      taxable_amount: taxable,
-      cgst,
-      sgst,
-      igst: 0,
-      total: invoiceTotal,
-    })
-    .select()
-    .single()
+  const { data, error } = await insertWithOrgFallback(supabase, 'gst_invoices', {
+    organization_id: DEFAULT_ORGANIZATION_ID,
+    order_id: order.id,
+    branch_id: branch.id,
+    invoice_number: generateInvoiceNumber(order.order_number),
+    gstin: branch.gstin ?? DEFAULT_GSTIN,
+    taxable_amount: taxable,
+    cgst,
+    sgst,
+    igst: 0,
+    total: invoiceTotal,
+  })
 
   if (error) {
     if (error.code === '23505') {
@@ -104,6 +101,10 @@ export async function ensureInvoiceForOrder(
       }
     }
     return createErrorResponse('Unable to create GST invoice.', error.message)
+  }
+
+  if (!data) {
+    return createErrorResponse('Unable to create GST invoice.')
   }
 
   return createSuccessResponse(mapInvoice(data))

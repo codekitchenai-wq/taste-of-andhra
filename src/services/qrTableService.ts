@@ -8,11 +8,12 @@ import type { Branch } from '@/types/Branch'
 import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
 import { mapBranch } from '@/utils/mapBranch'
 import { supabase } from '@/services/supabaseClient'
+import { insertWithOrgFallback } from '@/utils/insertWithOrgFallback'
 
 function mapQrTable(row: Record<string, unknown>): QrTable {
   return {
     id: row.id as string,
-    organization_id: row.organization_id as string,
+    organization_id: (row.organization_id as string) ?? '',
     branch_id: row.branch_id as string,
     table_code: row.table_code as string,
     label: row.label as string,
@@ -96,20 +97,20 @@ export async function createQrTable(input: {
     input.tableCode?.trim().toUpperCase() ||
     `T${Math.random().toString(36).slice(2, 8).toUpperCase()}`
 
-  const { data, error } = await supabase
-    .from('qr_tables')
-    .insert({
-      organization_id: DEFAULT_ORGANIZATION_ID,
-      branch_id: input.branchId,
-      label: input.label.trim(),
-      table_code: code,
-      is_active: true,
-    })
-    .select()
-    .single()
+  const { data, error } = await insertWithOrgFallback(supabase, 'qr_tables', {
+    organization_id: DEFAULT_ORGANIZATION_ID,
+    branch_id: input.branchId,
+    label: input.label.trim(),
+    table_code: code,
+    is_active: true,
+  })
 
   if (error) {
     return createErrorResponse('Unable to create QR table.', error.message)
+  }
+
+  if (!data) {
+    return createErrorResponse('Unable to create QR table.')
   }
 
   return createSuccessResponse(mapQrTable(data))

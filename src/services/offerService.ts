@@ -7,6 +7,7 @@ import type { Offer } from '@/types/Offer'
 import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
 import { supabase } from '@/services/supabaseClient'
 import { mapOffer } from '@/utils/mapOffer'
+import { insertWithOrgFallback } from '@/utils/insertWithOrgFallback'
 
 export interface OfferFormInput {
   title: string
@@ -72,24 +73,24 @@ export async function createOffer(
     return createErrorResponse(validationError)
   }
 
-  const { data, error } = await supabase
-    .from('offers')
-    .insert({
-      organization_id: DEFAULT_ORGANIZATION_ID,
-      title: input.title.trim(),
-      description: input.description?.trim() || null,
-      discount_percentage: input.discountPercentage,
-      minimum_order: input.minimumOrder ?? 0,
-      coupon_code: input.couponCode?.trim() || null,
-      start_date: input.startDate,
-      end_date: input.endDate,
-      is_active: input.isActive ?? true,
-    })
-    .select()
-    .single()
+  const { data, error } = await insertWithOrgFallback(supabase, 'offers', {
+    organization_id: DEFAULT_ORGANIZATION_ID,
+    title: input.title.trim(),
+    description: input.description?.trim() || null,
+    discount_percentage: input.discountPercentage,
+    minimum_order: input.minimumOrder ?? 0,
+    coupon_code: input.couponCode?.trim() || null,
+    start_date: input.startDate,
+    end_date: input.endDate,
+    is_active: input.isActive ?? true,
+  })
 
   if (error) {
     return createErrorResponse('Unable to create offer.', error.message)
+  }
+
+  if (!data) {
+    return createErrorResponse('Unable to create offer.')
   }
 
   return createSuccessResponse(mapOffer(data))

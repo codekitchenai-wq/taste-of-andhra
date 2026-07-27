@@ -10,7 +10,7 @@ import { MIN_PASSWORD_LENGTH } from '@/constants/AUTH'
 import { DEMO_ACCOUNTS } from '@/constants/DEMO_ACCOUNTS'
 import { ROUTES } from '@/constants/ROUTES'
 import { useAuth } from '@/hooks/useAuth'
-import type { UserRole } from '@/types/enums'
+import type { AppPersonaRole } from '@/types/enums'
 
 type AuthMode = 'login' | 'register'
 
@@ -22,7 +22,7 @@ interface EmailAuthFormValues {
 }
 
 interface EmailAuthFormProps {
-  role: UserRole
+  role: AppPersonaRole
   /** Starting mode. Customer login page uses login; register page uses register. */
   initialMode?: AuthMode
   /** When false, hide the login/create toggle (e.g. dedicated /register page). */

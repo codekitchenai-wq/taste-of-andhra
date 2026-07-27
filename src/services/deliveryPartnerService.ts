@@ -10,11 +10,12 @@ import type {
 import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
 import { supabase } from '@/services/supabaseClient'
 import { normalizeIndianPhone } from '@/utils/phone'
+import { insertWithOrgFallback } from '@/utils/insertWithOrgFallback'
 
 function mapDeliveryPartner(row: Record<string, unknown>): DeliveryPartner {
   return {
     id: row.id as string,
-    organization_id: row.organization_id as string,
+    organization_id: (row.organization_id as string) ?? '',
     full_name: row.full_name as string,
     phone: row.phone as string,
     is_active: Boolean(row.is_active),
@@ -70,23 +71,27 @@ export async function createDeliveryPartner(
     return createErrorResponse('Enter a valid 10-digit phone number.')
   }
 
-  const { data, error } = await supabase
-    .from('delivery_partners')
-    .insert({
+  const { data, error } = await insertWithOrgFallback(
+    supabase,
+    'delivery_partners',
+    {
       organization_id: DEFAULT_ORGANIZATION_ID,
       full_name: name,
       phone,
       notes: input.notes?.trim() || null,
       is_active: input.isActive ?? true,
-    })
-    .select()
-    .single()
+    },
+  )
 
   if (error) {
     if (error.code === '23505') {
       return createErrorResponse('A partner with this phone already exists.')
     }
     return createErrorResponse('Unable to add delivery partner.', error.message)
+  }
+
+  if (!data) {
+    return createErrorResponse('Unable to add delivery partner.')
   }
 
   return createSuccessResponse(mapDeliveryPartner(data))

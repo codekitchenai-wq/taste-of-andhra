@@ -7,6 +7,7 @@ import type { Branch, BranchFormInput } from '@/types/Branch'
 import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
 import { supabase } from '@/services/supabaseClient'
 import { formatBranchAddress, mapBranch } from '@/utils/mapBranch'
+import { insertWithOrgFallback } from '@/utils/insertWithOrgFallback'
 
 export async function getActiveBranches(): Promise<ServiceResponse<Branch[]>> {
   const { data, error } = await supabase
@@ -110,31 +111,31 @@ export async function createBranch(
     await supabase.from('branches').update({ is_default: false }).eq('is_default', true)
   }
 
-  const { data, error } = await supabase
-    .from('branches')
-    .insert({
-      organization_id: DEFAULT_ORGANIZATION_ID,
-      name: input.name.trim(),
-      slug: input.slug.trim().toLowerCase(),
-      phone: input.phone?.trim() || null,
-      email: input.email?.trim() || null,
-      address_line1: input.addressLine1.trim(),
-      address_line2: input.addressLine2?.trim() || null,
-      city: input.city.trim(),
-      state: input.state.trim(),
-      pincode: input.pincode.trim(),
-      latitude: input.latitude ?? null,
-      longitude: input.longitude ?? null,
-      gstin: input.gstin?.trim() || null,
-      is_active: input.isActive ?? true,
-      is_default: input.isDefault ?? false,
-      opening_hours: input.openingHours?.trim() || null,
-    })
-    .select()
-    .single()
+  const { data, error } = await insertWithOrgFallback(supabase, 'branches', {
+    organization_id: DEFAULT_ORGANIZATION_ID,
+    name: input.name.trim(),
+    slug: input.slug.trim().toLowerCase(),
+    phone: input.phone?.trim() || null,
+    email: input.email?.trim() || null,
+    address_line1: input.addressLine1.trim(),
+    address_line2: input.addressLine2?.trim() || null,
+    city: input.city.trim(),
+    state: input.state.trim(),
+    pincode: input.pincode.trim(),
+    latitude: input.latitude ?? null,
+    longitude: input.longitude ?? null,
+    gstin: input.gstin?.trim() || null,
+    is_active: input.isActive ?? true,
+    is_default: input.isDefault ?? false,
+    opening_hours: input.openingHours?.trim() || null,
+  })
 
   if (error) {
     return createErrorResponse('Unable to create branch.', error.message)
+  }
+
+  if (!data) {
+    return createErrorResponse('Unable to create branch.')
   }
 
   return createSuccessResponse(mapBranch(data))

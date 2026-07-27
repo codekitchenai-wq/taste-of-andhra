@@ -1,12 +1,12 @@
 import { DEMO_ACCOUNTS } from '@/constants/DEMO_ACCOUNTS'
-import type { UserRole } from '@/types/enums'
+import type { AppPersonaRole } from '@/types/enums'
 
 interface TestCredentialsHintProps {
-  role: UserRole
+  role: AppPersonaRole
   onUseCredentials?: (email: string, password: string) => void
 }
 
-const ROLE_LABELS: Record<UserRole, string> = {
+const ROLE_LABELS: Record<AppPersonaRole, string> = {
   customer: 'Customer',
   admin: 'Admin',
   delivery: 'Delivery partner',

@@ -1,5 +1,6 @@
 export type { ServiceResponse, ServiceSuccessResponse, ServiceErrorResponse } from './api'
 export type { UserRole, OrderStatus, PaymentStatus, PaymentMethod, SpiceLevel } from './enums'
+export type { AppPersonaRole } from './enums'
 export type { Profile } from './Profile'
 export type { Category } from './Category'
 export type { Dish } from './Dish'

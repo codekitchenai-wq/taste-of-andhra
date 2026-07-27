@@ -11,6 +11,7 @@ import { uploadDishImage } from '@/services/storageService'
 import { mapDish, mapDishWithCategory } from '@/utils/mapDish'
 import type { DishWithCategory } from '@/utils/mapDish'
 import { generateSlug } from '@/utils/slug'
+import { insertWithOrgFallback } from '@/utils/insertWithOrgFallback'
 
 export interface DishFilters {
   categoryId?: string
@@ -199,30 +200,30 @@ export async function createDish(
     return imageResult
   }
 
-  const { data, error } = await supabase
-    .from('dishes')
-    .insert({
-      id: dishId,
-      organization_id: DEFAULT_ORGANIZATION_ID,
-      name,
-      slug: generateSlug(name),
-      description: input.description?.trim() || null,
-      ingredients: input.ingredients?.trim() || null,
-      category_id: input.categoryId,
-      price: input.price,
-      calories: input.calories ?? null,
-      preparation_time: input.preparationTime ?? null,
-      image_url: imageResult.data,
-      is_veg: input.isVeg,
-      is_available: input.isAvailable ?? true,
-      is_featured: input.isFeatured ?? false,
-      spice_level: input.spiceLevel ?? null,
-    })
-    .select()
-    .single()
+  const { data, error } = await insertWithOrgFallback(supabase, 'dishes', {
+    id: dishId,
+    organization_id: DEFAULT_ORGANIZATION_ID,
+    name,
+    slug: generateSlug(name),
+    description: input.description?.trim() || null,
+    ingredients: input.ingredients?.trim() || null,
+    category_id: input.categoryId,
+    price: input.price,
+    calories: input.calories ?? null,
+    preparation_time: input.preparationTime ?? null,
+    image_url: imageResult.data,
+    is_veg: input.isVeg,
+    is_available: input.isAvailable ?? true,
+    is_featured: input.isFeatured ?? false,
+    spice_level: input.spiceLevel ?? null,
+  })
 
   if (error) {
     return createErrorResponse(mapDatabaseError(error.message), error.message)
+  }
+
+  if (!data) {
+    return createErrorResponse('Unable to create dish.')
   }
 
   return createSuccessResponse(mapDish(data))

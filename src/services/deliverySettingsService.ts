@@ -15,6 +15,10 @@ import {
 } from '@/constants/ORDER'
 import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
 import { supabase } from '@/services/supabaseClient'
+import {
+  isMissingColumnError,
+  withoutOrganizationId,
+} from '@/utils/supabaseSchema'
 
 /** Used before any row exists and when the settings table cannot be read. */
 export const DEFAULT_DELIVERY_SETTINGS: DeliverySettings = {
@@ -164,18 +168,41 @@ export async function saveDeliverySettings(
       .is('branch_id', null)
       .maybeSingle()
 
-    const { data, error } = existing
-      ? await supabase
+    let data: Record<string, unknown> | null = null
+    let error: { message: string } | null = null
+
+    if (existing) {
+      const updated = await supabase
+        .from('delivery_settings')
+        .update(payload)
+        .eq('id', existing.id)
+        .select()
+        .single()
+      data = updated.data as Record<string, unknown> | null
+      error = updated.error
+    } else {
+      const inserted = await supabase
+        .from('delivery_settings')
+        .insert(payload)
+        .select()
+        .single()
+      data = inserted.data as Record<string, unknown> | null
+      error = inserted.error
+
+      if (
+        error &&
+        isMissingColumnError(error.message) &&
+        error.message.toLowerCase().includes('organization_id')
+      ) {
+        const retry = await supabase
           .from('delivery_settings')
-          .update(payload)
-          .eq('id', existing.id)
+          .insert(withoutOrganizationId(payload))
           .select()
           .single()
-      : await supabase
-          .from('delivery_settings')
-          .insert(payload)
-          .select()
-          .single()
+        data = retry.data as Record<string, unknown> | null
+        error = retry.error
+      }
+    }
 
     if (error) {
       return createErrorResponse(
@@ -184,14 +211,32 @@ export async function saveDeliverySettings(
       )
     }
 
+    if (!data) {
+      return createErrorResponse('Unable to save delivery settings.')
+    }
+
     return createSuccessResponse(mapDeliverySettings(data))
   }
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('delivery_settings')
     .upsert(payload, { onConflict: 'branch_id' })
     .select()
     .single()
+
+  if (
+    error &&
+    isMissingColumnError(error.message) &&
+    error.message.toLowerCase().includes('organization_id')
+  ) {
+    const retry = await supabase
+      .from('delivery_settings')
+      .upsert(withoutOrganizationId(payload), { onConflict: 'branch_id' })
+      .select()
+      .single()
+    data = retry.data
+    error = retry.error
+  }
 
   if (error) {
     return createErrorResponse('Unable to save delivery settings.', error.message)
