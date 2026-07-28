@@ -21,7 +21,8 @@
     "seed:superuser": "node scripts/seed-superuser.mjs",
     "seed:all-test-users": "node scripts/seed-all-test-users.mjs",
     "seed:test-coupons": "node scripts/seed-test-coupons.mjs",
-    "seed:eta-samples": "node scripts/seed-eta-sample-data.mjs"
+    "seed:eta-samples": "node scripts/seed-eta-sample-data.mjs",
+    "db:apply-qa-tables": "node scripts/apply-qa-missing-tables.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.7",

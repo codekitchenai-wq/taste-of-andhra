@@ -60,6 +60,33 @@ function serviceAreaErrorMessage(message: string): string | null {
   )
 }
 
+/** Drop columns named in a PostgREST "missing column" error so retries can succeed. */
+export function stripMissingOrderColumns(
+  payload: Record<string, unknown>,
+  errorMessage: string,
+): Record<string, unknown> {
+  const msg = errorMessage.toLowerCase()
+  let next = { ...payload }
+
+  if (msg.includes('organization_id')) {
+    next = withoutOrganizationId(next)
+  }
+  if (msg.includes('delivery_provider') || msg.includes('delivery_quote_id')) {
+    const {
+      delivery_provider: _provider,
+      delivery_quote_id: _quoteId,
+      ...rest
+    } = next
+    next = rest
+  }
+  if (msg.includes('branch_id')) {
+    const { branch_id: _branchId, ...rest } = next
+    next = rest
+  }
+
+  return next
+}
+
 /**
  * Re-reads the quote from the database rather than trusting a client-supplied
  * price. An expired, already-used, or mismatched quote is ignored so the order
@@ -412,19 +439,15 @@ export async function createOrder(
     .single()
 
   // Projects that have not applied newer migrations still need to take orders.
-  if (orderError && isMissingColumnError(orderError.message)) {
-    const msg = orderError.message.toLowerCase()
-    if (msg.includes('organization_id')) {
-      Object.assign(orderPayload, withoutOrganizationId(orderPayload))
-    }
-    if (msg.includes('delivery_provider') || msg.includes('delivery_quote_id')) {
-      delete orderPayload.delivery_provider
-      delete orderPayload.delivery_quote_id
-    }
+  // Object.assign cannot remove keys — rebuild the payload without missing columns.
+  let compatPayload = orderPayload
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (!orderError || !isMissingColumnError(orderError.message)) break
 
+    compatPayload = stripMissingOrderColumns(compatPayload, orderError.message)
     const retry = await supabase
       .from('orders')
-      .insert(orderPayload)
+      .insert(compatPayload)
       .select()
       .single()
 
