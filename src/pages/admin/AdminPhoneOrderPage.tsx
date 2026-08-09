@@ -231,7 +231,9 @@ export default function AdminPhoneOrderPage() {
     setIsSubmitting(false)
 
     if (!result.success) {
-      toast.error(result.message)
+      toast.error(
+        result.error ? `${result.message} (${result.error})` : result.message,
+      )
       return
     }
 
