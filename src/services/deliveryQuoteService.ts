@@ -10,6 +10,7 @@ import type {
   ServiceAreaCheck,
 } from '@/types/DeliverySettings'
 import * as deliverySettingsService from '@/services/deliverySettingsService'
+import { calculateRateCardAmount } from '@/utils/deliveryRateCard'
 import { supabase } from '@/services/supabaseClient'
 import type { Address } from '@/types/Address'
 
@@ -63,15 +64,15 @@ export function buildRateCardQuote(
     }
   }
 
-  const isFree =
-    settings.free_delivery_threshold !== null &&
-    subtotal >= settings.free_delivery_threshold
-
   return {
     quoteId: null,
     provider: 'own',
     isServiceable: true,
-    amount: isFree ? 0 : settings.fallback_charge,
+    amount: calculateRateCardAmount(
+      settings,
+      subtotal,
+      area?.distanceKm ?? null,
+    ),
     etaMinutes: null,
     distanceKm: area?.distanceKm ?? null,
     unserviceableReason: null,

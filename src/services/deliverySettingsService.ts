@@ -34,6 +34,7 @@ export const DEFAULT_DELIVERY_SETTINGS: DeliverySettings = {
   markup_flat: 0,
   markup_percent: 0,
   fallback_charge: ORDER_DELIVERY_CHARGE,
+  per_km_charge: 0,
   free_delivery_threshold: FREE_DELIVERY_THRESHOLD,
   quote_ttl_seconds: 900,
   updated_at: new Date(0).toISOString(),
@@ -54,6 +55,7 @@ function mapDeliverySettings(row: Record<string, unknown>): DeliverySettings {
     markup_flat: Number(row.markup_flat ?? 0),
     markup_percent: Number(row.markup_percent ?? 0),
     fallback_charge: Number(row.fallback_charge ?? ORDER_DELIVERY_CHARGE),
+    per_km_charge: Number(row.per_km_charge ?? 0),
     free_delivery_threshold:
       row.free_delivery_threshold != null
         ? Number(row.free_delivery_threshold)
@@ -137,7 +139,11 @@ export async function saveDeliverySettings(
   }
 
   if (input.fallbackCharge < 0) {
-    return createErrorResponse('Fallback charge cannot be negative.')
+    return createErrorResponse('Base delivery charge cannot be negative.')
+  }
+
+  if (input.perKmCharge < 0) {
+    return createErrorResponse('Per-km charge cannot be negative.')
   }
 
   if (input.maxDistanceKm !== null && input.maxDistanceKm <= 0) {
@@ -156,6 +162,7 @@ export async function saveDeliverySettings(
     markup_flat: input.markupFlat,
     markup_percent: input.markupPercent,
     fallback_charge: input.fallbackCharge,
+    per_km_charge: input.perKmCharge,
     free_delivery_threshold: input.freeDeliveryThreshold,
   }
 

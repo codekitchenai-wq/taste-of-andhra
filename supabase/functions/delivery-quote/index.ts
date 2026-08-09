@@ -12,6 +12,7 @@ import { corsHeaders, errorResponse, jsonResponse } from '../_shared/cors.ts'
 import { isPidgeConfigured, requestQuote } from '../_shared/pidge.ts'
 import {
   applyMarkup,
+  calculateRateCardAmount,
   DEFAULT_SETTINGS,
   roundCurrency,
   type DeliverySettingsRow,
@@ -165,10 +166,11 @@ Deno.serve(async (request) => {
     settings.free_delivery_threshold !== null &&
     subtotal >= settings.free_delivery_threshold
 
+  // Own fleet: base + optional ₹/km from haversine distance (branch → address).
   const ownFleetQuote = (distanceKm: number | null) => ({
     provider: 'own',
     is_serviceable: true,
-    amount: isFreeDelivery ? 0 : roundCurrency(settings.fallback_charge),
+    amount: calculateRateCardAmount(settings, subtotal, distanceKm),
     provider_amount: null,
     eta_minutes: null,
     distance_km: distanceKm,

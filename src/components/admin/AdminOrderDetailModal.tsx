@@ -11,6 +11,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Select } from '@/components/ui/Select'
 import { ORDER_STATUS } from '@/constants/ORDER_STATUS'
 import * as orderService from '@/services/orderService'
+import * as printerService from '@/services/printerService'
 import type { OrderFullDetails } from '@/types/Order'
 import type { OrderStatus } from '@/types/enums'
 import { getAllowedNextStatuses } from '@/utils/orderStatusTransitions'
@@ -30,6 +31,7 @@ export function AdminOrderDetailModal({
   const [isLoading, setIsLoading] = useState(false)
   const [status, setStatus] = useState<OrderStatus>('pending')
   const [isUpdating, setIsUpdating] = useState(false)
+  const [isPrinting, setIsPrinting] = useState(false)
 
   useEffect(() => {
     if (!orderId) {
@@ -108,6 +110,33 @@ export function AdminOrderDetailModal({
     setOrder({ ...order, estimated_delivery: result.data.estimated_delivery })
     toast.success(`ETA set to ${minutes} minutes from now`)
     onStatusUpdated()
+  }
+
+  const handlePrintTickets = async () => {
+    if (!order) return
+    setIsPrinting(true)
+    const result = await printerService.printOrderTickets(order, {
+      manual: true,
+    })
+    setIsPrinting(false)
+
+    if (!result.success) {
+      toast.error(result.message)
+      return
+    }
+
+    if (result.data.printed.length) {
+      const labels = result.data.printed.map((type) =>
+        type === 'kitchen' ? 'KOT' : 'Bill',
+      )
+      toast.success(`Printed ${labels.join(' + ')}`)
+    } else {
+      toast.error('No printers enabled. Turn them on in Admin → Settings.')
+    }
+
+    if (result.data.errors.length) {
+      toast.error(result.data.errors.join(' · '))
+    }
   }
 
   const nextStatuses = order
@@ -194,21 +223,31 @@ export function AdminOrderDetailModal({
             </section>
           </div>
 
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            <Button type="button" variant="secondary" onClick={onClose}>
-              Close
-            </Button>
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
             <Button
               type="button"
-              disabled={
-                isUpdating ||
-                status === order.order_status ||
-                nextStatuses.length === 0
-              }
-              onClick={() => void handleUpdateStatus()}
+              variant="secondary"
+              disabled={isPrinting}
+              onClick={() => void handlePrintTickets()}
             >
-              {isUpdating ? 'Updating...' : 'Save Status'}
+              {isPrinting ? 'Printing…' : 'Print Bill + KOT'}
             </Button>
+            <div className="flex flex-col-reverse gap-3 sm:flex-row">
+              <Button type="button" variant="secondary" onClick={onClose}>
+                Close
+              </Button>
+              <Button
+                type="button"
+                disabled={
+                  isUpdating ||
+                  status === order.order_status ||
+                  nextStatuses.length === 0
+                }
+                onClick={() => void handleUpdateStatus()}
+              >
+                {isUpdating ? 'Updating...' : 'Save Status'}
+              </Button>
+            </div>
           </div>
         </div>
       )}

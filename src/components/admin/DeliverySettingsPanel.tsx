@@ -25,6 +25,7 @@ interface FormState {
   markupFlat: string
   markupPercent: string
   fallbackCharge: string
+  perKmCharge: string
   freeDeliveryThreshold: string
 }
 
@@ -39,6 +40,7 @@ function toFormState(settings: DeliverySettings): FormState {
     markupFlat: settings.markup_flat.toString(),
     markupPercent: settings.markup_percent.toString(),
     fallbackCharge: settings.fallback_charge.toString(),
+    perKmCharge: settings.per_km_charge.toString(),
     freeDeliveryThreshold: settings.free_delivery_threshold?.toString() ?? '',
   }
 }
@@ -151,6 +153,7 @@ export function DeliverySettingsPanel() {
       markupFlat: toNumberOrNull(form.markupFlat) ?? 0,
       markupPercent: toNumberOrNull(form.markupPercent) ?? 0,
       fallbackCharge: toNumberOrNull(form.fallbackCharge) ?? 0,
+      perKmCharge: toNumberOrNull(form.perKmCharge) ?? 0,
       freeDeliveryThreshold: toNumberOrNull(form.freeDeliveryThreshold),
     })
 
@@ -380,17 +383,36 @@ export function DeliverySettingsPanel() {
           </div>
         )}
 
-        <Input
-          label="Fallback delivery charge (₹)"
-          type="number"
-          min={0}
-          value={form.fallbackCharge}
-          onChange={(event) => update('fallbackCharge', event.target.value)}
-        />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Input
+            label="Base delivery charge (₹)"
+            type="number"
+            min={0}
+            value={form.fallbackCharge}
+            onChange={(event) => update('fallbackCharge', event.target.value)}
+          />
+          <Input
+            label="Charge per km (₹)"
+            type="number"
+            min={0}
+            step="1"
+            value={form.perKmCharge}
+            onChange={(event) => update('perKmCharge', event.target.value)}
+          />
+        </div>
         <p className="-mt-3 text-xs text-text-secondary">
-          Charged when the provider is unreachable or returns no price, so a
-          checkout never fails. Currently{' '}
-          {formatPrice(toNumberOrNull(form.fallbackCharge) ?? 0)}.
+          Own-fleet fee is base
+          {toNumberOrNull(form.perKmCharge)
+            ? ` + ${formatPrice(toNumberOrNull(form.perKmCharge) ?? 0)} × distance (km)`
+            : ' only (flat rate)'}
+          . Distance is the straight line from your branch pin to the customer
+          pin. Also used when a third-party quote is unavailable. Example at
+          3.5 km:{' '}
+          {formatPrice(
+            (toNumberOrNull(form.fallbackCharge) ?? 0) +
+              3.5 * (toNumberOrNull(form.perKmCharge) ?? 0),
+          )}
+          .
         </p>
       </div>
 

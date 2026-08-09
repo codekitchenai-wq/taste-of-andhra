@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { DeliverySettingsPanel } from '@/components/admin/DeliverySettingsPanel'
+import { PrinterSettingsPanel } from '@/components/admin/PrinterSettingsPanel'
 import { WhatsAppSettingsPanel } from '@/components/admin/WhatsAppSettingsPanel'
 import { ConfigBanner } from '@/components/ui/ConfigBanner'
 import { Button } from '@/components/ui/Button'
@@ -259,6 +260,8 @@ export default function AdminSettingsPage() {
       </section>
 
       <DeliverySettingsPanel />
+
+      <PrinterSettingsPanel />
 
       <WhatsAppSettingsPanel />
 

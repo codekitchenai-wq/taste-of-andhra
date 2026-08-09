@@ -17,6 +17,7 @@ import { Select } from '@/components/ui/Select'
 import { ORDER_STATUS, ORDER_STATUS_LIST } from '@/constants/ORDER_STATUS'
 import { ROUTES } from '@/constants/ROUTES'
 import { useAdminOrders } from '@/hooks/useAdminOrders'
+import { useAutoPrintOrders } from '@/hooks/useAutoPrintOrders'
 import { useNewOrderAlerts } from '@/hooks/useNewOrderAlerts'
 import * as orderService from '@/services/orderService'
 import type { AdminOrder } from '@/services/orderService'
@@ -67,6 +68,7 @@ export default function AdminOrdersPage() {
     toggleMute,
     dismissAlert,
   } = useNewOrderAlerts(orders, !isLoading)
+  useAutoPrintOrders(orders, !isLoading)
 
   const delayedCount = useMemo(
     () => orders.filter((order) => isOrderDelayed(order, nowMs)).length,

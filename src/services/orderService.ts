@@ -165,6 +165,8 @@ async function resolveDeliveryQuote(
 export interface AdminOrderItemSummary {
   quantity: number
   name: string
+  unitPrice?: number
+  modifiers?: string[]
 }
 
 export interface AdminOrder extends Order {
@@ -193,6 +195,11 @@ function mapAdminOrder(row: Record<string, unknown>): AdminOrder {
     (row.order_items as
       | {
           quantity: number
+          price?: number | null
+          dish_name_snapshot?: string | null
+          modifiers_snapshot?:
+            | { modifier_name?: string; price_delta?: number }[]
+            | null
           dishes: { name: string } | null
         }[]
       | null) ?? []
@@ -219,10 +226,28 @@ function mapAdminOrder(row: Record<string, unknown>): AdminOrder {
     customer_email: profile?.email ?? '',
     customer_phone:
       (row.guest_phone as string | null)?.trim() || profile?.phone || null,
-    items: itemRows.map((item) => ({
-      quantity: Number(item.quantity),
-      name: item.dishes?.name ?? 'Item',
-    })),
+    items: itemRows.map((item) => {
+      const modifiers = (item.modifiers_snapshot ?? [])
+        .map((mod) => {
+          const name = mod.modifier_name?.trim()
+          if (!name) return null
+          const delta =
+            typeof mod.price_delta === 'number' && mod.price_delta !== 0
+              ? ` (${mod.price_delta > 0 ? '+' : ''}${mod.price_delta})`
+              : ''
+          return `${name}${delta}`
+        })
+        .filter((value): value is string => Boolean(value))
+
+      return {
+        quantity: Number(item.quantity),
+        name:
+          item.dish_name_snapshot?.trim() || item.dishes?.name || 'Item',
+        unitPrice:
+          typeof item.price === 'number' ? Number(item.price) : undefined,
+        modifiers: modifiers.length ? modifiers : undefined,
+      }
+    }),
     delivery_partner: delivery?.delivery_partner ?? null,
     partner_phone: delivery?.partner_phone ?? null,
   }
@@ -824,6 +849,19 @@ const ADMIN_ORDERS_SELECT = `
   profiles(full_name, email, phone),
   order_items(
     quantity,
+    price,
+    dish_name_snapshot,
+    modifiers_snapshot,
+    dishes(name)
+  ),
+  delivery(delivery_partner, partner_phone)
+`
+
+const ADMIN_ORDERS_SELECT_LEGACY = `
+  *,
+  profiles(full_name, email, phone),
+  order_items(
+    quantity,
     dishes(name)
   ),
   delivery(delivery_partner, partner_phone)
@@ -832,30 +870,42 @@ const ADMIN_ORDERS_SELECT = `
 export async function getAllOrders(
   filters?: AdminOrderFilters,
 ): Promise<ServiceResponse<AdminOrder[]>> {
-  let query = supabase
-    .from('orders')
-    .select(ADMIN_ORDERS_SELECT)
-    .order('created_at', { ascending: false })
+  const buildQuery = (select: string) => {
+    let query = supabase
+      .from('orders')
+      .select(select)
+      .order('created_at', { ascending: false })
 
-  if (filters?.status) {
-    query = query.eq('order_status', filters.status)
+    if (filters?.status) {
+      query = query.eq('order_status', filters.status)
+    }
+
+    if (filters?.search?.trim()) {
+      query = query.ilike('order_number', `%${filters.search.trim()}%`)
+    }
+
+    if (filters?.limit) {
+      query = query.limit(filters.limit)
+    }
+
+    return query
   }
 
-  if (filters?.search?.trim()) {
-    query = query.ilike('order_number', `%${filters.search.trim()}%`)
-  }
+  let { data, error } = await buildQuery(ADMIN_ORDERS_SELECT)
 
-  if (filters?.limit) {
-    query = query.limit(filters.limit)
+  if (error && isMissingOrderItemColumnError(error.message)) {
+    const retry = await buildQuery(ADMIN_ORDERS_SELECT_LEGACY)
+    data = retry.data
+    error = retry.error
   }
-
-  const { data, error } = await query
 
   if (error) {
     return createErrorResponse('Unable to load orders.', error.message)
   }
 
-  return createSuccessResponse((data ?? []).map(mapAdminOrder))
+  return createSuccessResponse(
+    ((data ?? []) as unknown as Record<string, unknown>[]).map(mapAdminOrder),
+  )
 }
 
 /** Subscribe to order INSERT/UPDATE for live kitchen board refreshes. */

@@ -13,6 +13,8 @@ export interface DeliverySettings {
   markup_flat: number
   markup_percent: number
   fallback_charge: number
+  /** Added to fallback_charge for each km between branch and address. */
+  per_km_charge: number
   free_delivery_threshold: number | null
   quote_ttl_seconds: number
   updated_at: string
@@ -28,6 +30,7 @@ export interface DeliverySettingsInput {
   markupFlat: number
   markupPercent: number
   fallbackCharge: number
+  perKmCharge: number
   freeDeliveryThreshold: number | null
 }
 

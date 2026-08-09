@@ -90,17 +90,19 @@ export function CheckoutOrderSummary({
           </dd>
         </div>
 
-        {!isDeliveryQuoteLoading && isLiveQuote && (
-          <p className="text-xs text-text-secondary">
-            Live rate from our delivery partner
-            {deliveryQuote.etaMinutes
-              ? ` · arrives in about ${deliveryQuote.etaMinutes} min`
-              : ''}
-            {deliveryQuote.distanceKm
-              ? ` · ${deliveryQuote.distanceKm.toFixed(1)} km`
-              : ''}
-          </p>
-        )}
+        {!isDeliveryQuoteLoading &&
+          deliveryQuote?.isServiceable !== false &&
+          deliveryQuote?.distanceKm != null && (
+            <p className="text-xs text-text-secondary">
+              {isLiveQuote
+                ? 'Live rate from our delivery partner'
+                : 'Based on distance from the kitchen'}
+              {deliveryQuote.etaMinutes
+                ? ` · arrives in about ${deliveryQuote.etaMinutes} min`
+                : ''}
+              {` · ${deliveryQuote.distanceKm.toFixed(1)} km`}
+            </p>
+          )}
 
         {showFreeDeliveryHint && (
           <p className="text-xs text-text-secondary">
