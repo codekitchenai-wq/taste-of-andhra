@@ -108,6 +108,8 @@ export default function AdminSettingsPage() {
 
       {!isSupabaseConfigured && <ConfigBanner />}
 
+      <DeliverySettingsPanel />
+
       <section className="rounded-[var(--radius-card)] bg-surface p-6 shadow-md">
         <h3 className="text-lg font-semibold text-text-primary">
           Delivery time
@@ -241,25 +243,24 @@ export default function AdminSettingsPage() {
             </dd>
           </div>
           <div>
-            <dt className="text-sm text-text-secondary">Delivery Charge</dt>
+            <dt className="text-sm text-text-secondary">Default delivery charge</dt>
             <dd className="font-medium text-text-primary">
               {formatPrice(ORDER_DELIVERY_CHARGE)}
             </dd>
           </div>
           <div>
-            <dt className="text-sm text-text-secondary">Free Delivery Above</dt>
+            <dt className="text-sm text-text-secondary">Default free delivery above</dt>
             <dd className="font-medium text-text-primary">
               {formatPrice(FREE_DELIVERY_THRESHOLD)}
             </dd>
           </div>
         </dl>
         <p className="mt-4 text-xs text-text-secondary">
-          Pricing rules are defined in{' '}
-          <code className="rounded bg-background px-1">src/constants/ORDER.ts</code>.
+          Live delivery fees, distance rates, and free-delivery thresholds are
+          edited in <strong>Delivery &amp; Service Areas</strong> at the top of
+          this page. The values above are app defaults only.
         </p>
       </section>
-
-      <DeliverySettingsPanel />
 
       <PrinterSettingsPanel />
 

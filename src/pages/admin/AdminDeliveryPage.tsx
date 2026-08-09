@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { AssignDeliveryModal } from '@/components/admin/AssignDeliveryModal'
 import { DeliveryTable } from '@/components/admin/DeliveryTable'
@@ -7,6 +8,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { LoadingState } from '@/components/ui/LoadingState'
 import { ORDER_STATUS } from '@/constants/ORDER_STATUS'
+import { ROUTES } from '@/constants/ROUTES'
 import { useAdminDeliveries } from '@/hooks/useAdminDeliveries'
 import type { AdminOrder } from '@/services/orderService'
 import * as deliveryQuoteService from '@/services/deliveryQuoteService'
@@ -73,11 +75,19 @@ export default function AdminDeliveryPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h2 className="text-2xl font-bold">Delivery</h2>
-        <p className="mt-1 text-sm text-text-secondary">
-          Assign delivery partners and track active deliveries.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Delivery</h2>
+          <p className="mt-1 text-sm text-text-secondary">
+            Assign delivery partners and track active deliveries.
+          </p>
+        </div>
+        <Link
+          to={ROUTES.ADMIN.SETTINGS}
+          className="text-sm font-medium text-primary hover:text-primary-dark"
+        >
+          Delivery fees &amp; service area →
+        </Link>
       </div>
 
       {isLoading && <LoadingState variant="inline" />}
