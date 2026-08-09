@@ -262,7 +262,9 @@ export default function AdminPhoneOrderPage() {
       return
     }
 
-    toast.success(`Phone order ${result.data.order_number} placed`)
+    toast.success(
+      `Phone order ${result.data.order_number} placed — now on the kitchen board`,
+    )
     navigate(ROUTES.ADMIN.ORDERS)
   }
 
@@ -275,8 +277,8 @@ export default function AdminPhoneOrderPage() {
       <div>
         <h2 className="text-2xl font-bold">Phone Order</h2>
         <p className="mt-1 text-sm text-text-secondary">
-          Create an order from a phone call. It joins the kitchen queue; payment
-          is collected later via UPI QR.
+          Create an order from a phone call. It goes straight to the kitchen
+          board (Confirmed); payment is collected later via UPI QR.
         </p>
       </div>
 

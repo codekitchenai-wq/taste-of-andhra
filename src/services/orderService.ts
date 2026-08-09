@@ -716,7 +716,8 @@ export async function createPhoneOrder(
     total: totals.total,
     payment_method: 'pay_later' satisfies PaymentMethod,
     payment_status: 'pending',
-    order_status: 'pending',
+    // Staff already took the call — land on the kitchen board (Confirmed), not New Orders.
+    order_status: 'confirmed',
     fulfillment_type: input.fulfillmentType,
     order_source: 'phone',
     guest_name: customerName,
@@ -837,7 +838,7 @@ export async function createPhoneOrder(
       input.userId,
       order.id as string,
       orderNumber,
-      'pending',
+      'confirmed',
     )
   }
 
