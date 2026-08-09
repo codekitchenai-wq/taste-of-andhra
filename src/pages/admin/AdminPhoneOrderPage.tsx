@@ -56,6 +56,27 @@ export default function AdminPhoneOrderPage() {
   const [guestState, setGuestState] = useState('Karnataka')
   const [guestPincode, setGuestPincode] = useState('')
 
+  const clearCustomerDetails = () => {
+    setMatchedCustomer(null)
+    setCustomerName('')
+    setAddresses([])
+    setAddressId('')
+    setGuestLine1('')
+    setGuestLine2('')
+    setGuestLandmark('')
+    setGuestCity('Bangalore')
+    setGuestState('Karnataka')
+    setGuestPincode('')
+  }
+
+  const handlePhoneChange = (value: string) => {
+    const next = value.replace(/\D/g, '').slice(0, 10)
+    if (next !== phone) {
+      clearCustomerDetails()
+    }
+    setPhone(next)
+  }
+
   useEffect(() => {
     let cancelled = false
 
@@ -124,15 +145,19 @@ export default function AdminPhoneOrderPage() {
     }
 
     if (!result.data) {
-      setMatchedCustomer(null)
-      setAddresses([])
-      setAddressId('')
-      toast.success('No existing customer — continue as guest.')
+      clearCustomerDetails()
+      toast.success('No existing customer — enter name and address, then place the order.')
       return
     }
 
     setMatchedCustomer(result.data)
     setCustomerName(result.data.full_name)
+    setGuestLine1('')
+    setGuestLine2('')
+    setGuestLandmark('')
+    setGuestCity('Bangalore')
+    setGuestState('Karnataka')
+    setGuestPincode('')
     const addressResult = await customerService.getCustomerAddresses(
       result.data.id,
     )
@@ -264,7 +289,7 @@ export default function AdminPhoneOrderPage() {
               inputMode="numeric"
               maxLength={10}
               value={phone}
-              onChange={(event) => setPhone(event.target.value.replace(/\D/g, ''))}
+              onChange={(event) => handlePhoneChange(event.target.value)}
               placeholder="10-digit mobile"
             />
             <div className="flex items-end">
