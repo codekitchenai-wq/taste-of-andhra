@@ -15,6 +15,10 @@ export type OrderStatus =
 
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded'
 
-export type PaymentMethod = 'cod' | 'razorpay'
+export type PaymentMethod = 'cod' | 'razorpay' | 'pay_later'
+
+export type FulfillmentType = 'delivery' | 'pickup'
+
+export type OrderSource = 'app' | 'phone'
 
 export type SpiceLevel = 'mild' | 'medium' | 'hot' | 'extra_hot'

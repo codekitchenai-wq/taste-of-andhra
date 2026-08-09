@@ -149,7 +149,16 @@ export default function InvoicePage() {
                 {invoiceView.order.items.map((item) => (
                   <tr key={item.id} className="border-b border-black/5">
                     <td className="py-3 text-text-primary">
-                      {item.dish?.name ?? 'Dish'}
+                      <div>
+                        {item.dish_name_snapshot ?? item.dish?.name ?? 'Dish'}
+                      </div>
+                      {item.modifiers_snapshot.length > 0 && (
+                        <div className="mt-1 text-xs text-text-secondary">
+                          {item.modifiers_snapshot
+                            .map((mod) => mod.modifier_name)
+                            .join(' · ')}
+                        </div>
+                      )}
                     </td>
                     <td className="py-3 text-center text-text-secondary">
                       {item.quantity}

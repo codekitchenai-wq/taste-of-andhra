@@ -3,7 +3,7 @@ import {
   createSuccessResponse,
   type ServiceResponse,
 } from '@/types/api'
-import type { OrderStatus, PaymentMethod } from '@/types/enums'
+import type { FulfillmentType, OrderStatus, PaymentMethod } from '@/types/enums'
 import type { Order, OrderFullDetails } from '@/types/Order'
 import * as branchService from '@/services/branchService'
 import * as cartService from '@/services/cartService'
@@ -17,7 +17,7 @@ import * as offerService from '@/services/offerService'
 import * as settingsService from '@/services/settingsService'
 import { DEFAULT_ETA_MINUTES } from '@/constants/ORDER'
 import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
-import { calculateOrderTotals } from '@/utils/orderTotals'
+import { calculateOrderTotals, defaultDeliveryCharge } from '@/utils/orderTotals'
 import { addMinutesToIso } from '@/utils/orderEta'
 import { getOrderStatusTransitionError } from '@/utils/orderStatusTransitions'
 import {
@@ -34,6 +34,8 @@ export interface CreateOrderInput {
   loyaltyPointsToRedeem?: number
   /** Quote shown at checkout; its stored amount is what the customer pays. */
   deliveryQuoteId?: string | null
+  /** Customer opted in to WhatsApp order-status updates. */
+  whatsappUpdatesOptIn?: boolean
 }
 
 interface ResolvedDeliveryQuote {
@@ -60,6 +62,15 @@ function serviceAreaErrorMessage(message: string): string | null {
   )
 }
 
+function isMissingOrderItemColumnError(message: string): boolean {
+  const msg = message.toLowerCase()
+  return (
+    msg.includes('modifiers_snapshot') ||
+    msg.includes('dish_name_snapshot') ||
+    msg.includes('schema cache')
+  )
+}
+
 /** Drop columns named in a PostgREST "missing column" error so retries can succeed. */
 export function stripMissingOrderColumns(
   payload: Record<string, unknown>,
@@ -81,6 +92,32 @@ export function stripMissingOrderColumns(
   }
   if (msg.includes('branch_id')) {
     const { branch_id: _branchId, ...rest } = next
+    next = rest
+  }
+  if (msg.includes('whatsapp_updates_opt_in')) {
+    const { whatsapp_updates_opt_in: _wa, ...rest } = next
+    next = rest
+  }
+  if (
+    msg.includes('fulfillment_type') ||
+    msg.includes('order_source') ||
+    msg.includes('guest_name') ||
+    msg.includes('guest_phone') ||
+    msg.includes('guest_address')
+  ) {
+    const {
+      fulfillment_type: _ft,
+      order_source: _os,
+      guest_name: _gn,
+      guest_phone: _gp,
+      guest_address_line1: _ga1,
+      guest_address_line2: _ga2,
+      guest_landmark: _gl,
+      guest_city: _gc,
+      guest_state: _gs,
+      guest_pincode: _gpc,
+      ...rest
+    } = next
     next = rest
   }
 
@@ -175,9 +212,13 @@ function mapAdminOrder(row: Record<string, unknown>): AdminOrder {
 
   return {
     ...mapOrder(row),
-    customer_name: profile?.full_name ?? 'Unknown',
+    customer_name:
+      (row.guest_name as string | null)?.trim() ||
+      profile?.full_name ||
+      'Unknown',
     customer_email: profile?.email ?? '',
-    customer_phone: profile?.phone ?? null,
+    customer_phone:
+      (row.guest_phone as string | null)?.trim() || profile?.phone || null,
     items: itemRows.map((item) => ({
       quantity: Number(item.quantity),
       name: item.dishes?.name ?? 'Item',
@@ -422,10 +463,13 @@ export async function createOrder(
     payment_method: input.paymentMethod,
     payment_status: 'pending',
     order_status: 'pending',
+    fulfillment_type: 'delivery',
+    order_source: 'app',
     special_instructions: input.specialInstructions?.trim() || null,
     estimated_delivery: estimatedDelivery,
     delivery_provider: quote.provider,
     delivery_quote_id: quote.quoteId,
+    whatsapp_updates_opt_in: Boolean(input.whatsappUpdatesOptIn),
   }
 
   if (branchId) {
@@ -489,13 +533,28 @@ export async function createOrder(
     order_id: order.id,
     dish_id: item.dish_id,
     quantity: item.quantity,
-    price: item.dish!.price,
-    total: item.dish!.price * item.quantity,
+    price: item.unit_price,
+    total: item.unit_price * item.quantity,
+    dish_name_snapshot: item.dish?.name ?? null,
+    modifiers_snapshot: item.modifiers_snapshot ?? [],
   }))
 
-  const { error: itemsError } = await supabase
+  let { error: itemsError } = await supabase
     .from('order_items')
     .insert(orderItems)
+
+  if (itemsError && isMissingOrderItemColumnError(itemsError.message)) {
+    const legacyItems = cart.items.map((item) => ({
+      order_id: order.id,
+      dish_id: item.dish_id,
+      quantity: item.quantity,
+      price: item.unit_price ?? item.dish!.price,
+      total: (item.unit_price ?? item.dish!.price) * item.quantity,
+    }))
+
+    const retry = await supabase.from('order_items').insert(legacyItems)
+    itemsError = retry.error
+  }
 
   if (itemsError) {
     return createErrorResponse('Unable to create order items.', itemsError.message)
@@ -518,6 +577,244 @@ export async function createOrder(
     orderNumber,
     'pending',
   )
+
+  return createSuccessResponse(mapOrder(order))
+}
+
+export interface PhoneOrderItemInput {
+  dishId: string
+  quantity: number
+  /** Snapshot unit price (dish price; modifiers not required for phone take). */
+  unitPrice: number
+  dishName: string
+}
+
+export interface CreatePhoneOrderInput {
+  customerName: string
+  customerPhone: string
+  /** When set, order is linked to an existing customer profile. */
+  userId?: string | null
+  fulfillmentType: FulfillmentType
+  /** Existing customer address for delivery. */
+  addressId?: string | null
+  /** Inline guest delivery address when no saved address is used. */
+  guestAddress?: {
+    line1: string
+    line2?: string
+    landmark?: string
+    city: string
+    state: string
+    pincode: string
+  } | null
+  branchId?: string | null
+  specialInstructions?: string
+  items: PhoneOrderItemInput[]
+  /** Manual delivery charge override; 0 for pickup. */
+  deliveryCharge?: number
+}
+
+export async function createPhoneOrder(
+  input: CreatePhoneOrderInput,
+): Promise<ServiceResponse<Order>> {
+  const customerName = input.customerName.trim()
+  const customerPhone = input.customerPhone.trim()
+
+  if (!customerName) {
+    return createErrorResponse('Customer name is required.')
+  }
+
+  if (!/^\d{10}$/.test(customerPhone)) {
+    return createErrorResponse('Enter a valid 10-digit phone number.')
+  }
+
+  if (!input.items.length) {
+    return createErrorResponse('Add at least one dish to the order.')
+  }
+
+  for (const item of input.items) {
+    if (item.quantity < 1 || item.unitPrice <= 0) {
+      return createErrorResponse('Each item needs a valid quantity and price.')
+    }
+  }
+
+  if (input.fulfillmentType === 'delivery') {
+    const hasAddress = Boolean(input.addressId)
+    const guest = input.guestAddress
+    const hasGuestAddress = Boolean(
+      guest?.line1?.trim() &&
+        guest?.city?.trim() &&
+        guest?.state?.trim() &&
+        /^\d{6}$/.test(guest?.pincode?.trim() ?? ''),
+    )
+
+    if (!hasAddress && !hasGuestAddress) {
+      return createErrorResponse(
+        'Delivery orders need a saved address or a delivery address.',
+      )
+    }
+  }
+
+  const subtotal = input.items.reduce(
+    (sum, item) => sum + item.unitPrice * item.quantity,
+    0,
+  )
+  const deliveryCharge =
+    input.fulfillmentType === 'pickup'
+      ? 0
+      : (input.deliveryCharge ?? defaultDeliveryCharge(subtotal))
+  const totals = calculateOrderTotals(subtotal, 0, deliveryCharge)
+
+  let branchId = input.branchId ?? null
+  if (!branchId) {
+    const defaultBranch = await branchService.getDefaultBranch()
+    if (defaultBranch.success) {
+      branchId = defaultBranch.data.id
+    }
+  }
+
+  const etaResult = await settingsService.getDefaultEtaMinutes()
+  const etaMinutes = etaResult.success ? etaResult.data : DEFAULT_ETA_MINUTES
+  const estimatedDelivery = addMinutesToIso(new Date(), etaMinutes)
+  const orderNumber = generateOrderNumber()
+  const guest = input.guestAddress
+
+  const orderPayload: Record<string, unknown> = {
+    organization_id: DEFAULT_ORGANIZATION_ID,
+    order_number: orderNumber,
+    user_id: input.userId?.trim() || null,
+    address_id:
+      input.fulfillmentType === 'delivery' ? (input.addressId ?? null) : null,
+    subtotal: totals.subtotal,
+    tax: totals.tax,
+    delivery_charge: totals.deliveryCharge,
+    discount: 0,
+    total: totals.total,
+    payment_method: 'pay_later' satisfies PaymentMethod,
+    payment_status: 'pending',
+    order_status: 'pending',
+    fulfillment_type: input.fulfillmentType,
+    order_source: 'phone',
+    guest_name: customerName,
+    guest_phone: customerPhone,
+    guest_address_line1:
+      input.fulfillmentType === 'delivery' && !input.addressId
+        ? guest?.line1.trim() || null
+        : null,
+    guest_address_line2:
+      input.fulfillmentType === 'delivery' && !input.addressId
+        ? guest?.line2?.trim() || null
+        : null,
+    guest_landmark:
+      input.fulfillmentType === 'delivery' && !input.addressId
+        ? guest?.landmark?.trim() || null
+        : null,
+    guest_city:
+      input.fulfillmentType === 'delivery' && !input.addressId
+        ? guest?.city.trim() || null
+        : null,
+    guest_state:
+      input.fulfillmentType === 'delivery' && !input.addressId
+        ? guest?.state.trim() || null
+        : null,
+    guest_pincode:
+      input.fulfillmentType === 'delivery' && !input.addressId
+        ? guest?.pincode.trim() || null
+        : null,
+    special_instructions: input.specialInstructions?.trim() || null,
+    estimated_delivery: estimatedDelivery,
+    delivery_provider: 'own',
+    whatsapp_updates_opt_in: false,
+  }
+
+  if (branchId) {
+    orderPayload.branch_id = branchId
+  }
+
+  let { data: order, error: orderError } = await supabase
+    .from('orders')
+    .insert(orderPayload)
+    .select()
+    .single()
+
+  let compatPayload = orderPayload
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (!orderError || !isMissingColumnError(orderError.message)) break
+
+    compatPayload = stripMissingOrderColumns(compatPayload, orderError.message)
+    const retry = await supabase
+      .from('orders')
+      .insert(compatPayload)
+      .select()
+      .single()
+
+    order = retry.data
+    orderError = retry.error
+  }
+
+  if (orderError || !order) {
+    return createErrorResponse(
+      'Unable to create phone order.',
+      orderError?.message,
+    )
+  }
+
+  const orderItems = input.items.map((item) => ({
+    order_id: order.id,
+    dish_id: item.dishId,
+    quantity: item.quantity,
+    price: item.unitPrice,
+    total: item.unitPrice * item.quantity,
+    dish_name_snapshot: item.dishName,
+    modifiers_snapshot: [],
+  }))
+
+  let { error: itemsError } = await supabase
+    .from('order_items')
+    .insert(orderItems)
+
+  if (itemsError && isMissingOrderItemColumnError(itemsError.message)) {
+    const legacyItems = input.items.map((item) => ({
+      order_id: order.id,
+      dish_id: item.dishId,
+      quantity: item.quantity,
+      price: item.unitPrice,
+      total: item.unitPrice * item.quantity,
+    }))
+    const retry = await supabase.from('order_items').insert(legacyItems)
+    itemsError = retry.error
+  }
+
+  if (itemsError) {
+    await supabase.from('orders').delete().eq('id', order.id)
+    return createErrorResponse(
+      'Unable to create order items.',
+      itemsError.message,
+    )
+  }
+
+  const { error: paymentError } = await supabase.from('payments').insert({
+    order_id: order.id,
+    payment_gateway: 'pay_later',
+    amount: totals.total,
+    status: 'pending',
+  })
+
+  if (paymentError) {
+    await supabase.from('orders').delete().eq('id', order.id)
+    return createErrorResponse(
+      'Unable to create payment record.',
+      paymentError.message,
+    )
+  }
+
+  if (input.userId) {
+    void notificationService.notifyOrderStatus(
+      input.userId,
+      order.id as string,
+      orderNumber,
+      'pending',
+    )
+  }
 
   return createSuccessResponse(mapOrder(order))
 }
@@ -588,7 +885,7 @@ export async function updateOrderStatus(
 ): Promise<ServiceResponse<Order>> {
   const { data: existing, error: fetchError } = await supabase
     .from('orders')
-    .select('id, order_status, estimated_delivery')
+    .select('id, order_status, estimated_delivery, fulfillment_type, user_id')
     .eq('id', orderId)
     .maybeSingle()
 
@@ -601,13 +898,25 @@ export async function updateOrderStatus(
   }
 
   const currentStatus = existing.order_status as OrderStatus
-  const transitionError = getOrderStatusTransitionError(currentStatus, status)
+  const fulfillmentType =
+    (existing.fulfillment_type as FulfillmentType | null) ?? 'delivery'
+  const transitionError = getOrderStatusTransitionError(
+    currentStatus,
+    status,
+    fulfillmentType,
+  )
 
   if (transitionError) {
     return createErrorResponse(transitionError)
   }
 
   if (status === 'out_for_delivery') {
+    if (fulfillmentType === 'pickup') {
+      return createErrorResponse(
+        'Pickup orders cannot be marked out for delivery. Mark as picked up instead.',
+      )
+    }
+
     const { data: delivery, error: deliveryError } = await supabase
       .from('delivery')
       .select('id')
@@ -676,14 +985,16 @@ export async function updateOrderStatus(
     })
     .eq('order_id', orderId)
 
-  void notificationService.notifyOrderStatus(
-    data.user_id as string,
-    data.id as string,
-    data.order_number as string,
-    status,
-  )
+  if (data.user_id) {
+    void notificationService.notifyOrderStatus(
+      data.user_id as string,
+      data.id as string,
+      data.order_number as string,
+      status,
+    )
+  }
 
-  if (status === 'delivered') {
+  if (status === 'delivered' && data.user_id) {
     void loyaltyService.earnPointsForOrder(
       data.user_id as string,
       data.id as string,

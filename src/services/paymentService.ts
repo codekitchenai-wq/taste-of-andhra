@@ -116,6 +116,53 @@ export async function markOrderPaid(
 }
 
 /**
+ * Marks a pay-later / COD collection without resetting kitchen status.
+ * Use after the customer pays via UPI QR (or cash) at pickup/delivery.
+ */
+export async function markPaymentCollected(
+  orderId: string,
+  transactionId?: string,
+): Promise<ServiceResponse<Payment>> {
+  const paidAt = new Date().toISOString()
+  const txn =
+    transactionId?.trim() ||
+    `upi_collected_${Date.now().toString(36)}`
+
+  const { data: payment, error: paymentError } = await supabase
+    .from('payments')
+    .update({
+      status: 'paid',
+      transaction_id: txn,
+      paid_at: paidAt,
+      payment_gateway: 'upi_qr',
+    })
+    .eq('order_id', orderId)
+    .select()
+    .single()
+
+  if (paymentError) {
+    return createErrorResponse(
+      'Unable to update payment status.',
+      paymentError.message,
+    )
+  }
+
+  const { error: orderError } = await supabase
+    .from('orders')
+    .update({ payment_status: 'paid' })
+    .eq('id', orderId)
+
+  if (orderError) {
+    return createErrorResponse(
+      'Payment recorded but order payment status update failed.',
+      orderError.message,
+    )
+  }
+
+  return createSuccessResponse(mapPaymentRow(payment))
+}
+
+/**
  * Opens Razorpay Checkout when VITE_RAZORPAY_KEY_ID is set.
  * Otherwise resolves with a demo transaction so the UI can be tested.
  */

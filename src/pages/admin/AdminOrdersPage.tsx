@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, LayoutGrid, List, Search, Volume2, VolumeX } from 'lucide-react'
+import { AlertTriangle, LayoutGrid, List, Phone, Search, Volume2, VolumeX } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { Link } from 'react-router-dom'
 import { AdminOrderDetailModal } from '@/components/admin/AdminOrderDetailModal'
 import { AssignDeliveryModal } from '@/components/admin/AssignDeliveryModal'
 import { KitchenOrderBoard } from '@/components/admin/KitchenOrderBoard'
@@ -14,6 +15,7 @@ import { Input } from '@/components/ui/Input'
 import { LoadingState } from '@/components/ui/LoadingState'
 import { Select } from '@/components/ui/Select'
 import { ORDER_STATUS, ORDER_STATUS_LIST } from '@/constants/ORDER_STATUS'
+import { ROUTES } from '@/constants/ROUTES'
 import { useAdminOrders } from '@/hooks/useAdminOrders'
 import { useNewOrderAlerts } from '@/hooks/useNewOrderAlerts'
 import * as orderService from '@/services/orderService'
@@ -198,6 +200,13 @@ export default function AdminOrdersPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <Link to={ROUTES.ADMIN.PHONE_ORDER}>
+            <Button type="button" size="sm">
+              <Phone className="h-4 w-4" />
+              Phone Order
+            </Button>
+          </Link>
+
           <Button
             type="button"
             variant={delayedOnly ? 'danger' : 'secondary'}

@@ -33,6 +33,7 @@ export const ROUTES = {
     CATEGORIES: '/admin/categories',
     DISHES: '/admin/dishes',
     ORDERS: '/admin/orders',
+    PHONE_ORDER: '/admin/phone-order',
     CUSTOMERS: '/admin/customers',
     DELIVERY: '/admin/delivery',
     DELIVERY_PARTNERS: '/admin/delivery-partners',

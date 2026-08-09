@@ -1,5 +1,9 @@
 import type { Cart, CartItem, CartWithItems } from '@/types/Cart'
 import { mapDish } from '@/utils/mapDish'
+import {
+  calculateUnitPrice,
+  parseModifierSnapshots,
+} from '@/utils/modifiers'
 
 export function mapCart(row: Record<string, unknown>): Cart {
   return {
@@ -12,14 +16,25 @@ export function mapCart(row: Record<string, unknown>): Cart {
 
 export function mapCartItem(row: Record<string, unknown>): CartItem {
   const dishRow = row.dishes as Record<string, unknown> | null
+  const dish = dishRow ? mapDish(dishRow) : undefined
+  const modifiers_snapshot = parseModifierSnapshots(row.modifiers_snapshot)
+  const storedUnit =
+    row.unit_price !== null && row.unit_price !== undefined
+      ? Number(row.unit_price)
+      : null
 
   return {
     id: row.id as string,
     cart_id: row.cart_id as string,
     dish_id: row.dish_id as string,
     quantity: Number(row.quantity),
+    unit_price:
+      storedUnit !== null && !Number.isNaN(storedUnit)
+        ? storedUnit
+        : calculateUnitPrice(dish?.price ?? 0, modifiers_snapshot),
+    modifiers_snapshot,
     created_at: row.created_at as string,
-    dish: dishRow ? mapDish(dishRow) : undefined,
+    dish,
   }
 }
 
@@ -34,7 +49,7 @@ export function buildCartWithItems(
     .filter((item) => item.dish !== undefined)
 
   const subtotal = items.reduce(
-    (total, item) => total + (item.dish?.price ?? 0) * item.quantity,
+    (total, item) => total + item.unit_price * item.quantity,
     0,
   )
 

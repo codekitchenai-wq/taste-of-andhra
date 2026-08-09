@@ -33,4 +33,15 @@ describe('orderStatusTransitions', () => {
     ])
     expect(getAllowedNextStatuses('delivered')).toEqual([])
   })
+
+  it('lets pickup orders go ready → delivered', () => {
+    expect(canTransitionOrderStatus('ready', 'delivered', 'pickup')).toBe(true)
+    expect(canTransitionOrderStatus('ready', 'out_for_delivery', 'pickup')).toBe(
+      false,
+    )
+    expect(getAllowedNextStatuses('ready', 'pickup')).toEqual([
+      'delivered',
+      'cancelled',
+    ])
+  })
 })

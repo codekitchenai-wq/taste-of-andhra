@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { MasterWhatsAppObservability } from '@/components/master/MasterWhatsAppObservability'
 import {
   ALL_TEST_ACCOUNTS,
   DEMO_PASSWORD,
@@ -59,6 +60,8 @@ export default function MasterTenantsPage() {
           </Link>
         </div>
       </section>
+
+      <MasterWhatsAppObservability />
 
       <section>
         <h2 className="text-lg font-semibold">Persona logins for this tenant</h2>

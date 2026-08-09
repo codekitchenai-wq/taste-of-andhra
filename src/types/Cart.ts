@@ -1,4 +1,5 @@
 import type { Dish } from './Dish'
+import type { ModifierSelectionSnapshot } from './Modifier'
 
 export interface Cart {
   id: string
@@ -12,6 +13,9 @@ export interface CartItem {
   cart_id: string
   dish_id: string
   quantity: number
+  /** Dish base + modifier deltas at add time. */
+  unit_price: number
+  modifiers_snapshot: ModifierSelectionSnapshot[]
   created_at: string
   dish?: Dish
 }

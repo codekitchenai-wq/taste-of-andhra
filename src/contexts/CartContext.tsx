@@ -22,6 +22,7 @@ export interface CartContextValue {
   addItem: (
     dishId: string,
     quantity?: number,
+    selectedModifierIds?: string[],
   ) => Promise<ServiceResponse<CartWithItems>>
   removeItem: (cartItemId: string) => Promise<ServiceResponse<CartWithItems>>
   updateQuantity: (
@@ -69,10 +70,14 @@ export function CartProvider({ children }: CartProviderProps) {
   }, [isAuthLoading, refreshCart])
 
   const addItem = useCallback(
-    async (dishId: string, quantity = 1) => {
+    async (dishId: string, quantity = 1, selectedModifierIds: string[] = []) => {
       setIsUpdating(true)
 
-      const result = await cartService.addCartItem(dishId, quantity)
+      const result = await cartService.addCartItem(
+        dishId,
+        quantity,
+        selectedModifierIds,
+      )
 
       if (result.success) {
         setCart(result.data)

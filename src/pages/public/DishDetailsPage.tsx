@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   Clock,
@@ -10,6 +10,7 @@ import {
 import toast from 'react-hot-toast'
 import { DishReviews } from '@/components/dish/DishReviews'
 import { FavoriteButton } from '@/components/menu/FavoriteButton'
+import { DishModifierPicker } from '@/components/menu/DishModifierPicker'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Container } from '@/components/ui/Container'
@@ -21,7 +22,13 @@ import { ROUTES } from '@/constants/ROUTES'
 import { useAuth } from '@/hooks/useAuth'
 import { useCart } from '@/hooks/useCart'
 import { useDishBySlug } from '@/hooks/useDishBySlug'
+import * as modifierService from '@/services/modifierService'
+import type { DishModifierGroup } from '@/types/Modifier'
 import { formatPrice } from '@/utils/format'
+import {
+  buildModifierSnapshots,
+  calculateUnitPrice,
+} from '@/utils/modifiers'
 
 const LightMenuPage = lazy(() => import('@/pages/public/LightMenuPage'))
 
@@ -30,14 +37,50 @@ const RESERVED_MENU_SLUGS = new Set(['light'])
 
 export default function DishDetailsPage() {
   const { slug } = useParams<{ slug: string }>()
+  const isReserved = Boolean(slug && RESERVED_MENU_SLUGS.has(slug))
   const navigate = useNavigate()
   const { isAuthenticated } = useAuth()
   const { addItem, isUpdating } = useCart()
   const { dish, category, isLoading, error, refetch } = useDishBySlug(
-    slug && !RESERVED_MENU_SLUGS.has(slug) ? slug : undefined,
+    !isReserved && slug ? slug : undefined,
   )
+  const [groups, setGroups] = useState<DishModifierGroup[]>([])
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
 
-  if (slug && RESERVED_MENU_SLUGS.has(slug)) {
+  useEffect(() => {
+    if (!dish?.id) {
+      setGroups([])
+      setSelectedIds([])
+      return
+    }
+
+    let cancelled = false
+
+    void (async () => {
+      const result = await modifierService.getDishModifierGroups(dish.id)
+      if (cancelled) return
+
+      if (result.success) {
+        setGroups(result.data)
+        setSelectedIds([])
+      } else {
+        setGroups([])
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [dish?.id])
+
+  const previewUnitPrice = useMemo(() => {
+    if (!dish) return 0
+    const built = buildModifierSnapshots(groups, selectedIds)
+    if (!built.ok) return dish.price
+    return calculateUnitPrice(dish.price, built.snapshots)
+  }, [dish, groups, selectedIds])
+
+  if (isReserved) {
     return (
       <Suspense fallback={<LoadingState />}>
         <LightMenuPage />
@@ -50,11 +93,13 @@ export default function DishDetailsPage() {
 
     if (!isAuthenticated) {
       toast.error('Please sign in to add items to your cart')
-      navigate(ROUTES.LOGIN, { state: { from: ROUTES.DISH_DETAILS(slug ?? '') } })
+      navigate(ROUTES.LOGIN, {
+        state: { from: ROUTES.DISH_DETAILS(slug ?? '') },
+      })
       return
     }
 
-    const result = await addItem(dish.id)
+    const result = await addItem(dish.id, 1, selectedIds)
 
     if (result.success) {
       toast.success(`${dish.name} added to cart`)
@@ -160,12 +205,23 @@ export default function DishDetailsPage() {
             )}
           </div>
 
+          <DishModifierPicker
+            groups={groups}
+            selectedIds={selectedIds}
+            onChange={setSelectedIds}
+          />
+
           <div className="flex items-center justify-between rounded-[var(--radius-card)] bg-background p-5">
             <div>
               <p className="text-sm text-text-secondary">Price</p>
               <p className="text-2xl font-bold text-primary">
-                {formatPrice(dish.price)}
+                {formatPrice(previewUnitPrice)}
               </p>
+              {previewUnitPrice !== dish.price && (
+                <p className="text-xs text-text-secondary">
+                  Base {formatPrice(dish.price)}
+                </p>
+              )}
             </div>
             <Button
               type="button"

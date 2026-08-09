@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { DeliverySettingsPanel } from '@/components/admin/DeliverySettingsPanel'
+import { WhatsAppSettingsPanel } from '@/components/admin/WhatsAppSettingsPanel'
 import { ConfigBanner } from '@/components/ui/ConfigBanner'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -28,19 +29,32 @@ export default function AdminSettingsPage() {
   const [etaMinutes, setEtaMinutes] = useState(String(DEFAULT_ETA_MINUTES))
   const [isLoadingEta, setIsLoadingEta] = useState(true)
   const [isSavingEta, setIsSavingEta] = useState(false)
+  const [upiVpa, setUpiVpa] = useState('')
+  const [upiPayeeName, setUpiPayeeName] = useState(APP_NAME)
+  const [isLoadingUpi, setIsLoadingUpi] = useState(true)
+  const [isSavingUpi, setIsSavingUpi] = useState(false)
 
   useEffect(() => {
     let cancelled = false
 
     const load = async () => {
       setIsLoadingEta(true)
-      const result = await settingsService.getDefaultEtaMinutes()
+      setIsLoadingUpi(true)
+      const [etaResult, upiResult] = await Promise.all([
+        settingsService.getDefaultEtaMinutes(),
+        settingsService.getUpiSettings(),
+      ])
       if (cancelled) return
 
-      if (result.success) {
-        setEtaMinutes(String(result.data))
+      if (etaResult.success) {
+        setEtaMinutes(String(etaResult.data))
+      }
+      if (upiResult.success) {
+        setUpiVpa(upiResult.data.vpa)
+        setUpiPayeeName(upiResult.data.payeeName)
       }
       setIsLoadingEta(false)
+      setIsLoadingUpi(false)
     }
 
     void load()
@@ -62,6 +76,24 @@ export default function AdminSettingsPage() {
 
     setEtaMinutes(String(result.data))
     toast.success(`Default delivery time set to ${result.data} minutes`)
+  }
+
+  const handleSaveUpi = async () => {
+    setIsSavingUpi(true)
+    const result = await settingsService.setUpiSettings({
+      vpa: upiVpa,
+      payeeName: upiPayeeName,
+    })
+    setIsSavingUpi(false)
+
+    if (!result.success) {
+      toast.error(result.message)
+      return
+    }
+
+    setUpiVpa(result.data.vpa)
+    setUpiPayeeName(result.data.payeeName)
+    toast.success('UPI payment settings saved')
   }
 
   return (
@@ -102,6 +134,40 @@ export default function AdminSettingsPage() {
             {isSavingEta ? 'Saving…' : 'Save'}
           </Button>
         </div>
+      </section>
+
+      <section className="rounded-[var(--radius-card)] bg-surface p-6 shadow-md">
+        <h3 className="text-lg font-semibold text-text-primary">
+          UPI payment QR
+        </h3>
+        <p className="mt-1 text-sm text-text-secondary">
+          Used for phone orders and pay-later collection. Customers scan a QR
+          with this UPI ID and the billed amount.
+        </p>
+        <div className="mt-4 grid max-w-xl gap-3 sm:grid-cols-2">
+          <Input
+            label="UPI ID (VPA)"
+            value={upiVpa}
+            disabled={isLoadingUpi || isSavingUpi}
+            onChange={(event) => setUpiVpa(event.target.value)}
+            placeholder="restaurant@upi"
+          />
+          <Input
+            label="Payee name"
+            value={upiPayeeName}
+            disabled={isLoadingUpi || isSavingUpi}
+            onChange={(event) => setUpiPayeeName(event.target.value)}
+            placeholder={APP_NAME}
+          />
+        </div>
+        <Button
+          type="button"
+          className="mt-4"
+          disabled={isLoadingUpi || isSavingUpi}
+          onClick={() => void handleSaveUpi()}
+        >
+          {isSavingUpi ? 'Saving…' : 'Save UPI settings'}
+        </Button>
       </section>
 
       <section className="rounded-[var(--radius-card)] bg-surface p-6 shadow-md">
@@ -193,6 +259,8 @@ export default function AdminSettingsPage() {
       </section>
 
       <DeliverySettingsPanel />
+
+      <WhatsAppSettingsPanel />
 
       <section className="rounded-[var(--radius-card)] bg-surface p-6 shadow-md">
         <h3 className="text-lg font-semibold text-text-primary">

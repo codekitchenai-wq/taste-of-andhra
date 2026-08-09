@@ -111,11 +111,14 @@ export function AdminOrderDetailModal({
   }
 
   const nextStatuses = order
-    ? getAllowedNextStatuses(order.order_status)
+    ? getAllowedNextStatuses(order.order_status, order.fulfillment_type)
     : []
   const statusOptions = order
     ? [order.order_status, ...nextStatuses].map((value) => ({
-        label: ORDER_STATUS[value],
+        label:
+          order.fulfillment_type === 'pickup' && value === 'delivered'
+            ? 'Picked Up'
+            : ORDER_STATUS[value],
         value,
       }))
     : []
@@ -136,7 +139,19 @@ export function AdminOrderDetailModal({
       {!isLoading && order && (
         <div className="space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <OrderStatusBadge status={order.order_status} />
+            <div className="flex flex-wrap items-center gap-2">
+              <OrderStatusBadge status={order.order_status} />
+              {order.order_source === 'phone' && (
+                <span className="rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
+                  Phone order
+                </span>
+              )}
+              {order.fulfillment_type === 'pickup' && (
+                <span className="rounded-md bg-background px-2 py-1 text-xs font-medium text-text-secondary">
+                  Pickup
+                </span>
+              )}
+            </div>
             <Select
               label="Update Status"
               options={statusOptions}
@@ -169,7 +184,13 @@ export function AdminOrderDetailModal({
             </section>
 
             <section className="max-h-80 overflow-y-auto">
-              <OrderDetailsPanel order={order} />
+              <OrderDetailsPanel
+                order={order}
+                onOrderUpdated={(next) => {
+                  setOrder(next)
+                  onStatusUpdated()
+                }}
+              />
             </section>
           </div>
 

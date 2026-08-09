@@ -44,6 +44,7 @@ interface KitchenOrderCardProps {
 function getNextAction(
   status: OrderStatus,
   hasDeliveryPartner: boolean,
+  fulfillmentType: 'delivery' | 'pickup' = 'delivery',
 ): { action: KitchenPrimaryAction; label: string; variant: 'primary' | 'success' } | null {
   switch (status) {
     case 'confirmed':
@@ -55,6 +56,13 @@ function getNextAction(
     case 'preparing':
       return { action: 'mark_ready', label: 'Mark Ready', variant: 'success' }
     case 'ready':
+      if (fulfillmentType === 'pickup') {
+        return {
+          action: 'mark_delivered',
+          label: 'Mark Picked Up',
+          variant: 'success',
+        }
+      }
       if (hasDeliveryPartner) {
         return {
           action: 'mark_out_for_delivery',
@@ -95,6 +103,7 @@ export function KitchenOrderCard({
   const next = getNextAction(
     order.order_status,
     Boolean(order.delivery_partner),
+    order.fulfillment_type,
   )
   const canEditEta =
     Boolean(onBumpEta && onSetEtaMinutes) &&
@@ -179,6 +188,16 @@ export function KitchenOrderCard({
         <span className="text-text-secondary">
           {PAYMENT_METHOD[order.payment_method]}
         </span>
+        {order.order_source === 'phone' && (
+          <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
+            Phone
+          </span>
+        )}
+        {order.fulfillment_type === 'pickup' && (
+          <span className="rounded-md bg-background px-1.5 py-0.5 text-xs font-medium text-text-secondary">
+            Pickup
+          </span>
+        )}
       </div>
 
       <div className="space-y-1 text-sm text-text-secondary">

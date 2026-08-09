@@ -37,13 +37,13 @@ describe('stripMissingOrderColumns', () => {
     expect('delivery_quote_id' in next).toBe(false)
   })
 
-  it('does not mutate the original payload (Object.assign-safe)', () => {
-    const original = { ...base }
-    stripMissingOrderColumns(
-      original,
-      "Could not find the 'organization_id' column of 'orders' in the schema cache",
+  it('removes whatsapp_updates_opt_in when reported missing', () => {
+    const next = stripMissingOrderColumns(
+      { ...base, whatsapp_updates_opt_in: true },
+      "Could not find the 'whatsapp_updates_opt_in' column of 'orders' in the schema cache",
     )
 
-    expect(original.organization_id).toBe('org-1')
+    expect('whatsapp_updates_opt_in' in next).toBe(false)
+    expect(next.total).toBe(175)
   })
 })

@@ -3,6 +3,7 @@ import {
   FolderOpen,
   UtensilsCrossed,
   ShoppingBag,
+  Phone,
   Users,
   Truck,
   Bike,
@@ -27,6 +28,7 @@ export const adminNavItems: AdminNavItem[] = [
   { label: 'Categories', to: ROUTES.ADMIN.CATEGORIES, icon: FolderOpen },
   { label: 'Dishes', to: ROUTES.ADMIN.DISHES, icon: UtensilsCrossed },
   { label: 'Orders', to: ROUTES.ADMIN.ORDERS, icon: ShoppingBag },
+  { label: 'Phone Order', to: ROUTES.ADMIN.PHONE_ORDER, icon: Phone },
   { label: 'Customers', to: ROUTES.ADMIN.CUSTOMERS, icon: Users },
   { label: 'Delivery', to: ROUTES.ADMIN.DELIVERY, icon: Truck },
   {

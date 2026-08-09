@@ -47,12 +47,19 @@ export function CheckoutOrderSummary({
             >
               <div className="min-w-0">
                 <p className="font-medium text-text-primary">{dish.name}</p>
+                {item.modifiers_snapshot.length > 0 && (
+                  <p className="text-xs text-text-secondary">
+                    {item.modifiers_snapshot
+                      .map((mod) => mod.modifier_name)
+                      .join(' · ')}
+                  </p>
+                )}
                 <p className="text-text-secondary">
-                  {item.quantity} × {formatPrice(dish.price)}
+                  {item.quantity} × {formatPrice(item.unit_price)}
                 </p>
               </div>
               <span className="shrink-0 font-medium text-text-primary">
-                {formatPrice(dish.price * item.quantity)}
+                {formatPrice(item.unit_price * item.quantity)}
               </span>
             </li>
           )

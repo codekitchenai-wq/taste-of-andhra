@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "docs:pdf": "node scripts/generate-flow-pdf.mjs",
     "docs:walkthrough-pdf": "node scripts/generate-walkthrough-pdf.mjs",
+    "docs:features-flow-pdf": "node scripts/generate-features-flow-pdf.mjs",
     "docs:test-excel": "node scripts/generate-test-excel.mjs",
     "seed:demo-users": "node scripts/seed-demo-users.mjs",
     "seed:qa-testers": "node scripts/seed-qa-testers.mjs",

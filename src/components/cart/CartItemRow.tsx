@@ -23,7 +23,10 @@ export function CartItemRow({
 
   if (!dish) return null
 
-  const lineTotal = dish.price * item.quantity
+  const lineTotal = item.unit_price * item.quantity
+  const modifierLabels = item.modifiers_snapshot
+    .map((mod) => mod.modifier_name)
+    .filter(Boolean)
 
   return (
     <article className="flex gap-4 rounded-[var(--radius-card)] bg-surface p-4 shadow-sm sm:items-center sm:p-5">
@@ -56,8 +59,13 @@ export function CartItemRow({
               {dish.is_veg ? 'Veg' : 'Non-Veg'}
             </Badge>
           </div>
+          {modifierLabels.length > 0 && (
+            <p className="mt-1 text-xs text-text-secondary">
+              {modifierLabels.join(' · ')}
+            </p>
+          )}
           <p className="mt-1 text-sm text-text-secondary">
-            {formatPrice(dish.price)} each
+            {formatPrice(item.unit_price)} each
           </p>
           <p className="mt-2 font-semibold text-primary sm:hidden">
             {formatPrice(lineTotal)}

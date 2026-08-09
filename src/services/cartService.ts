@@ -4,8 +4,16 @@ import {
   type ServiceResponse,
 } from '@/types/api'
 import type { CartWithItems } from '@/types/Cart'
+import type { ModifierSelectionSnapshot } from '@/types/Modifier'
 import { supabase } from '@/services/supabaseClient'
+import * as modifierService from '@/services/modifierService'
 import { buildCartWithItems } from '@/utils/mapCart'
+import {
+  buildModifierSnapshots,
+  calculateUnitPrice,
+  modifierSnapshotsEqual,
+  parseModifierSnapshots,
+} from '@/utils/modifiers'
 
 const CART_SELECT = `
   id,
@@ -17,6 +25,8 @@ const CART_SELECT = `
     cart_id,
     dish_id,
     quantity,
+    unit_price,
+    modifiers_snapshot,
     created_at,
     dishes (*)
   )
@@ -74,6 +84,40 @@ async function fetchCartById(cartId: string): Promise<ServiceResponse<CartWithIt
     .eq('id', cartId)
     .single()
 
+  if (
+    error &&
+    (error.message.toLowerCase().includes('unit_price') ||
+      error.message.toLowerCase().includes('modifiers_snapshot') ||
+      error.message.toLowerCase().includes('schema cache'))
+  ) {
+    const legacy = await supabase
+      .from('cart')
+      .select(
+        `
+      id,
+      user_id,
+      created_at,
+      updated_at,
+      cart_items (
+        id,
+        cart_id,
+        dish_id,
+        quantity,
+        created_at,
+        dishes (*)
+      )
+    `,
+      )
+      .eq('id', cartId)
+      .single()
+
+    if (legacy.error) {
+      return createErrorResponse('Unable to load cart.', legacy.error.message)
+    }
+
+    return createSuccessResponse(buildCartWithItems(legacy.data))
+  }
+
   if (error) {
     return createErrorResponse('Unable to load cart.', error.message)
   }
@@ -100,6 +144,7 @@ export async function getCart(): Promise<ServiceResponse<CartWithItems>> {
 export async function addCartItem(
   dishId: string,
   quantity = 1,
+  selectedModifierIds: string[] = [],
 ): Promise<ServiceResponse<CartWithItems>> {
   if (quantity < 1) {
     return createErrorResponse('Quantity must be at least 1.')
@@ -113,7 +158,7 @@ export async function addCartItem(
 
   const { data: dish, error: dishError } = await supabase
     .from('dishes')
-    .select('id, is_available')
+    .select('id, is_available, price')
     .eq('id', dishId)
     .maybeSingle()
 
@@ -125,6 +170,24 @@ export async function addCartItem(
     return createErrorResponse('This dish is not available.')
   }
 
+  const groupsResult = await modifierService.getDishModifierGroups(dishId)
+
+  if (!groupsResult.success) {
+    return groupsResult
+  }
+
+  const snapshotResult = buildModifierSnapshots(
+    groupsResult.data,
+    selectedModifierIds,
+  )
+
+  if (!snapshotResult.ok) {
+    return createErrorResponse(snapshotResult.message)
+  }
+
+  const snapshots = snapshotResult.snapshots
+  const unitPrice = calculateUnitPrice(Number(dish.price), snapshots)
+
   const cartResult = await getOrCreateCartId(userResult.data)
 
   if (!cartResult.success) {
@@ -133,6 +196,76 @@ export async function addCartItem(
 
   const cartId = cartResult.data
 
+  const { data: existingItems, error: existingError } = await supabase
+    .from('cart_items')
+    .select('id, quantity, modifiers_snapshot')
+    .eq('cart_id', cartId)
+    .eq('dish_id', dishId)
+
+  if (existingError) {
+    return createErrorResponse('Unable to update cart.', existingError.message)
+  }
+
+  const match = (existingItems ?? []).find((item) =>
+    modifierSnapshotsEqual(
+      parseModifierSnapshots(item.modifiers_snapshot),
+      snapshots,
+    ),
+  )
+
+  if (match) {
+    const { error } = await supabase
+      .from('cart_items')
+      .update({
+        quantity: match.quantity + quantity,
+        unit_price: unitPrice,
+        modifiers_snapshot: snapshots,
+      })
+      .eq('id', match.id)
+
+    if (error) {
+      return createErrorResponse('Unable to update cart.', error.message)
+    }
+  } else {
+    const insertPayload: Record<string, unknown> = {
+      cart_id: cartId,
+      dish_id: dishId,
+      quantity,
+      unit_price: unitPrice,
+      modifiers_snapshot: snapshots,
+    }
+
+    const { error } = await supabase.from('cart_items').insert(insertPayload)
+
+    if (error) {
+      // Pre-migration DBs may lack new columns / still have unique(cart_id, dish_id).
+      if (isMissingColumnError(error.message)) {
+        const fallback = await addCartItemLegacy(cartId, dishId, quantity)
+        if (!fallback.success) return fallback
+        return fetchCartById(cartId)
+      }
+
+      return createErrorResponse('Unable to add item to cart.', error.message)
+    }
+  }
+
+  return fetchCartById(cartId)
+}
+
+function isMissingColumnError(message: string): boolean {
+  const normalized = message.toLowerCase()
+  return (
+    normalized.includes('modifiers_snapshot') ||
+    normalized.includes('unit_price') ||
+    normalized.includes('schema cache')
+  )
+}
+
+async function addCartItemLegacy(
+  cartId: string,
+  dishId: string,
+  quantity: number,
+): Promise<ServiceResponse<null>> {
   const { data: existingItem, error: existingError } = await supabase
     .from('cart_items')
     .select('id, quantity')
@@ -165,7 +298,7 @@ export async function addCartItem(
     }
   }
 
-  return fetchCartById(cartId)
+  return createSuccessResponse(null)
 }
 
 export async function updateCartItemQuantity(
@@ -267,3 +400,5 @@ export async function clearCart(): Promise<ServiceResponse<null>> {
 
   return createSuccessResponse(null)
 }
+
+export type { ModifierSelectionSnapshot }

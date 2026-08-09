@@ -46,7 +46,10 @@ export function OrderTable({
         </thead>
         <tbody>
           {orders.map((order) => {
-            const nextStatuses = getAllowedNextStatuses(order.order_status)
+            const nextStatuses = getAllowedNextStatuses(
+              order.order_status,
+              order.fulfillment_type,
+            )
             const statusOptions = [order.order_status, ...nextStatuses]
             const delayed = isOrderDelayed(order)
 

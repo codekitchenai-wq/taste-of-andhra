@@ -3,6 +3,7 @@ export type NotificationChannel = 'in_app' | 'email' | 'sms' | 'whatsapp'
 export interface AppNotification {
   id: string
   user_id: string
+  organization_id?: string | null
   title: string
   body: string
   channel: NotificationChannel

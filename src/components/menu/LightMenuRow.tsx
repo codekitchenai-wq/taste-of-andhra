@@ -38,6 +38,12 @@ export function LightMenuRow({ dish }: LightMenuRowProps) {
       return
     }
 
+    if (result.message.toLowerCase().includes('select at least')) {
+      toast.error('Customize this dish before adding it')
+      navigate(ROUTES.DISH_DETAILS(dish.slug))
+      return
+    }
+
     toast.error(result.message)
   }
 

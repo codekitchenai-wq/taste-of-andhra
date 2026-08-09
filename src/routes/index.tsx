@@ -74,6 +74,9 @@ const AdminBranchesPage = lazy(
 const AdminQrTablesPage = lazy(
   () => import('@/pages/admin/AdminQrTablesPage'),
 )
+const AdminPhoneOrderPage = lazy(
+  () => import('@/pages/admin/AdminPhoneOrderPage'),
+)
 
 const DeliveryLoginPage = lazy(
   () => import('@/pages/delivery/DeliveryLoginPage'),
@@ -169,6 +172,10 @@ export const router = createBrowserRouter([
           },
           { path: ROUTES.ADMIN.DISHES, element: <AdminDishesPage /> },
           { path: ROUTES.ADMIN.ORDERS, element: <AdminOrdersPage /> },
+          {
+            path: ROUTES.ADMIN.PHONE_ORDER,
+            element: <AdminPhoneOrderPage />,
+          },
           {
             path: ROUTES.ADMIN.CUSTOMERS,
             element: <AdminCustomersPage />,

@@ -1,14 +1,22 @@
 import type { OrderFullDetails } from '@/types/Order'
+import { OrderPaymentQr } from '@/components/orders/OrderPaymentQr'
 import { PAYMENT_METHOD } from '@/constants/PAYMENT_METHOD'
 import { PAYMENT_STATUS } from '@/constants/PAYMENT_STATUS'
 import { formatAddressLine } from '@/utils/mapAddress'
+import { formatGuestAddress } from '@/utils/mapOrder'
 import { formatPrice, formatDateTimeFull } from '@/utils/format'
 
 interface OrderDetailsPanelProps {
   order: OrderFullDetails
+  onOrderUpdated?: (order: OrderFullDetails) => void
 }
 
-export function OrderDetailsPanel({ order }: OrderDetailsPanelProps) {
+export function OrderDetailsPanel({
+  order,
+  onOrderUpdated,
+}: OrderDetailsPanelProps) {
+  const guestAddress = formatGuestAddress(order)
+
   return (
     <div className="space-y-6">
       <section className="rounded-[var(--radius-card)] bg-surface p-5 shadow-md">
@@ -21,8 +29,15 @@ export function OrderDetailsPanel({ order }: OrderDetailsPanelProps) {
             >
               <div>
                 <p className="font-medium text-text-primary">
-                  {item.dish?.name ?? 'Dish'}
+                  {item.dish_name_snapshot ?? item.dish?.name ?? 'Dish'}
                 </p>
+                {item.modifiers_snapshot.length > 0 && (
+                  <p className="text-xs text-text-secondary">
+                    {item.modifiers_snapshot
+                      .map((mod) => mod.modifier_name)
+                      .join(' · ')}
+                  </p>
+                )}
                 <p className="text-sm text-text-secondary">
                   {item.quantity} × {formatPrice(item.price)}
                 </p>
@@ -36,14 +51,35 @@ export function OrderDetailsPanel({ order }: OrderDetailsPanelProps) {
       </section>
 
       <section className="rounded-[var(--radius-card)] bg-surface p-5 shadow-md">
-        <h3 className="font-semibold text-text-primary">Delivery Address</h3>
-        {order.address ? (
+        <h3 className="font-semibold text-text-primary">
+          {order.fulfillment_type === 'pickup'
+            ? 'Pickup'
+            : 'Delivery Address'}
+        </h3>
+        {(order.guest_name || order.guest_phone) && (
+          <div className="mt-3 text-sm text-text-secondary">
+            <p className="font-medium text-text-primary">
+              {order.guest_name ?? 'Guest'}
+              {order.order_source === 'phone' ? ' · Phone order' : ''}
+            </p>
+            {order.guest_phone && <p className="mt-1">{order.guest_phone}</p>}
+          </div>
+        )}
+        {order.fulfillment_type === 'pickup' ? (
+          <p className="mt-3 text-sm text-text-secondary">
+            Customer will collect from the restaurant.
+          </p>
+        ) : order.address ? (
           <div className="mt-3 text-sm text-text-secondary">
             <p className="font-medium text-text-primary">
               {order.address.full_name}
             </p>
             <p className="mt-1">{formatAddressLine(order.address)}</p>
             <p className="mt-1">{order.address.phone}</p>
+          </div>
+        ) : guestAddress ? (
+          <div className="mt-3 text-sm text-text-secondary">
+            <p className="mt-1">{guestAddress}</p>
           </div>
         ) : (
           <p className="mt-3 text-sm text-text-secondary">
@@ -58,7 +94,7 @@ export function OrderDetailsPanel({ order }: OrderDetailsPanelProps) {
           <div className="flex justify-between gap-4">
             <dt className="text-text-secondary">Method</dt>
             <dd className="text-text-primary">
-              {PAYMENT_METHOD[order.payment_method]}
+              {PAYMENT_METHOD[order.payment_method] ?? order.payment_method}
             </dd>
           </div>
           <div className="flex justify-between gap-4">
@@ -77,6 +113,8 @@ export function OrderDetailsPanel({ order }: OrderDetailsPanelProps) {
           )}
         </dl>
       </section>
+
+      <OrderPaymentQr order={order} onMarkedPaid={onOrderUpdated} />
 
       <section className="rounded-[var(--radius-card)] bg-surface p-5 shadow-md">
         <h3 className="font-semibold text-text-primary">Order Summary</h3>

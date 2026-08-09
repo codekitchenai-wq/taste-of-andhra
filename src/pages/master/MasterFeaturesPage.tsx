@@ -25,6 +25,18 @@ const FEATURES = [
     enabled: true,
   },
   { key: 'loyalty', name: 'Loyalty', type: 'Add-on', enabled: false },
+  {
+    key: 'whatsapp_notifications',
+    name: 'WhatsApp notifications',
+    type: 'Add-on',
+    enabled: true,
+  },
+  {
+    key: 'whatsapp_ordering',
+    name: 'WhatsApp ordering',
+    type: 'Add-on',
+    enabled: false,
+  },
 ] as const
 
 export default function MasterFeaturesPage() {

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ImagePlus, X } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
+import { DishModifiersEditor } from '@/components/admin/DishModifiersEditor'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
@@ -301,6 +302,10 @@ export function DishFormModal({
             Available
           </label>
         </div>
+
+        {isEditing && dish && (
+          <DishModifiersEditor dishId={dish.id} />
+        )}
 
         <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
           <Button type="button" variant="secondary" onClick={onClose}>

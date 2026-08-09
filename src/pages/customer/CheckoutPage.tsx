@@ -75,6 +75,7 @@ export default function CheckoutPage() {
   const [onlineChannel, setOnlineChannel] =
     useState<OnlinePaymentChannel>('upi')
   const [specialInstructions, setSpecialInstructions] = useState('')
+  const [whatsappUpdatesOptIn, setWhatsappUpdatesOptIn] = useState(true)
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false)
   const [isPlacingOrder, setIsPlacingOrder] = useState(false)
   const [isPaymentOpen, setIsPaymentOpen] = useState(false)
@@ -237,6 +238,7 @@ export default function CheckoutPage() {
       deliveryQuoteId: deliveryQuote?.quoteId ?? null,
       loyaltyPointsToRedeem:
         loyaltyPointsToRedeem > 0 ? loyaltyPointsToRedeem : undefined,
+      whatsappUpdatesOptIn,
     })
 
     setIsPlacingOrder(false)
@@ -504,6 +506,26 @@ export default function CheckoutPage() {
               onChange={(event) => setSpecialInstructions(event.target.value)}
               rows={3}
             />
+          </section>
+
+          <section className="rounded-[var(--radius-card)] bg-surface p-5 shadow-md">
+            <label className="flex cursor-pointer items-start gap-3 text-sm text-text-primary">
+              <input
+                type="checkbox"
+                checked={whatsappUpdatesOptIn}
+                onChange={(event) =>
+                  setWhatsappUpdatesOptIn(event.target.checked)
+                }
+                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+              />
+              <span>
+                <span className="font-medium">Order updates on WhatsApp</span>
+                <span className="mt-1 block text-xs text-text-secondary">
+                  Get status messages on your profile phone number. Reply STOP
+                  anytime to unsubscribe from this restaurant.
+                </span>
+              </span>
+            </label>
           </section>
 
           <Link

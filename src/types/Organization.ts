@@ -32,6 +32,8 @@ export type FeatureKey =
   | 'party_inquiries'
   | 'delivery_pidge'
   | 'loyalty'
+  | 'whatsapp_notifications'
+  | 'whatsapp_ordering'
 
 export interface OrganizationBranding {
   logo_url?: string | null
