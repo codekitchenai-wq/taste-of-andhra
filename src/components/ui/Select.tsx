@@ -10,6 +10,7 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   error?: string
   options: SelectOption[]
   placeholder?: string
+  compact?: boolean
 }
 
 export function Select({
@@ -17,6 +18,7 @@ export function Select({
   error,
   options,
   placeholder,
+  compact = false,
   id,
   className,
   ...props
@@ -24,11 +26,14 @@ export function Select({
   const selectId = id ?? label?.toLowerCase().replace(/\s+/g, '-')
 
   return (
-    <div className="flex w-full flex-col gap-2">
+    <div className={cn('flex w-full flex-col', compact ? 'gap-0.5' : 'gap-2')}>
       {label && (
         <label
           htmlFor={selectId}
-          className="text-sm font-medium text-text-primary"
+          className={cn(
+            'font-medium text-text-primary',
+            compact ? 'text-xs' : 'text-sm',
+          )}
         >
           {label}
         </label>
@@ -36,7 +41,8 @@ export function Select({
       <select
         id={selectId}
         className={cn(
-          'h-12 w-full rounded-[var(--radius-input)] border border-gray-300 bg-surface px-4 text-sm text-text-primary transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20',
+          'w-full rounded-[var(--radius-input)] border border-gray-300 bg-surface text-sm text-text-primary transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20',
+          compact ? 'h-9 px-2.5' : 'h-12 px-4',
           error && 'border-error focus:border-error focus:ring-error/20',
           className,
         )}
@@ -56,7 +62,11 @@ export function Select({
         ))}
       </select>
       {error && (
-        <p id={`${selectId}-error`} className="text-sm text-error" role="alert">
+        <p
+          id={`${selectId}-error`}
+          className={cn('text-error', compact ? 'text-xs' : 'text-sm')}
+          role="alert"
+        >
           {error}
         </p>
       )}

@@ -489,57 +489,84 @@ export default function AdminPhoneOrderPage() {
   const needsGuestAddress = fulfillmentType === 'delivery' && !addressId
 
   return (
-    <div className="space-y-3">
-      <div className="grid gap-3 xl:grid-cols-[1.15fr_0.85fr]">
-        <section className="space-y-3 rounded-[var(--radius-card)] bg-surface p-3 shadow-md sm:p-4">
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-text-primary">Customer</h3>
+    <div className="space-y-2">
+      <section className="rounded-[var(--radius-card)] bg-surface p-2.5 shadow-md sm:p-3">
+        <div className="mb-1.5 flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <h3 className="text-sm font-semibold text-text-primary">
+              Customer
+            </h3>
             {customerDirty ? (
-              <span className="text-xs font-medium text-error">Unsaved</span>
+              <span className="text-[11px] font-medium text-error">
+                Unsaved
+              </span>
             ) : (
-              <span className="text-xs font-medium text-success">Saved</span>
+              <span className="text-[11px] font-medium text-success">
+                Saved
+              </span>
             )}
+            {matchedCustomer ? (
+              <span className="truncate text-[11px] text-text-secondary">
+                Linked · {matchedCustomer.full_name}
+              </span>
+            ) : null}
           </div>
+          <Button
+            type="button"
+            variant={customerDirty ? 'primary' : 'secondary'}
+            size="sm"
+            className="h-8 shrink-0 px-3"
+            disabled={isSavingCustomer || !customerDirty}
+            onClick={() => void handleSaveCustomer()}
+          >
+            {isSavingCustomer
+              ? 'Saving…'
+              : customerDirty
+                ? 'Save'
+                : 'Saved'}
+          </Button>
+        </div>
 
-          <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-            <Input
-              label="Mobile number *"
-              inputMode="numeric"
-              maxLength={10}
-              value={phone}
-              onChange={(event) => handlePhoneChange(event.target.value)}
-              placeholder="10-digit mobile"
-            />
-            <div className="flex items-end">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => void handleLookup()}
-                disabled={isLookingUp}
-              >
-                {isLookingUp ? 'Looking up…' : 'Look up'}
-              </Button>
+        <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-6">
+            <div className="col-span-2 lg:col-span-2">
+              <div className="flex gap-1.5">
+                <Input
+                  compact
+                  label="Mobile *"
+                  inputMode="numeric"
+                  maxLength={10}
+                  value={phone}
+                  onChange={(event) => handlePhoneChange(event.target.value)}
+                  placeholder="10-digit"
+                />
+                <div className="flex shrink-0 items-end">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="h-9 px-2.5"
+                    onClick={() => void handleLookup()}
+                    disabled={isLookingUp}
+                  >
+                    {isLookingUp ? '…' : 'Look up'}
+                  </Button>
+                </div>
+              </div>
             </div>
-          </div>
 
-          <Input
-            label="Customer name *"
-            value={customerName}
-            onChange={(event) => setCustomerName(event.target.value)}
-            placeholder="Name"
-          />
+            <div className="col-span-2 lg:col-span-2">
+              <Input
+                compact
+                label="Name *"
+                value={customerName}
+                onChange={(event) => setCustomerName(event.target.value)}
+                placeholder="Customer name"
+              />
+            </div>
 
-          {matchedCustomer && (
-            <p className="rounded-[var(--radius-input)] bg-success/10 px-2.5 py-1.5 text-xs text-text-primary">
-              Linked: {matchedCustomer.full_name}
-              {matchedCustomer.email ? ` · ${matchedCustomer.email}` : ''}
-            </p>
-          )}
-
-          <div className="grid gap-2 sm:grid-cols-2">
             <Select
-              label="Fulfillment"
+              compact
+              label="Type"
               value={fulfillmentType}
               onChange={(event) =>
                 setFulfillmentType(event.target.value as FulfillmentType)
@@ -549,27 +576,25 @@ export default function AdminPhoneOrderPage() {
                 { label: 'Pickup', value: 'pickup' },
               ]}
             />
+
             <Select
+              compact
               label="Branch"
               value={branchId}
               onChange={(event) => setBranchId(event.target.value)}
               options={[
-                { label: 'Select branch', value: '' },
+                { label: 'Select', value: '' },
                 ...branches.map((branch) => ({
                   label: branch.name,
                   value: branch.id,
                 })),
               ]}
             />
-          </div>
 
-          {fulfillmentType === 'delivery' && (
-            <div className="space-y-2 border-t border-black/5 pt-3">
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
-                Delivery address
-              </h4>
-              {addresses.length > 0 ? (
+            {fulfillmentType === 'delivery' && addresses.length > 0 ? (
+              <div className="col-span-2 lg:col-span-6">
                 <Select
+                  compact
                   label="Saved address"
                   value={addressId}
                   onChange={(event) => setAddressId(event.target.value)}
@@ -581,42 +606,23 @@ export default function AdminPhoneOrderPage() {
                     })),
                   ]}
                 />
-              ) : null}
+              </div>
+            ) : null}
 
-              {needsGuestAddress && (
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <div className="sm:col-span-2">
-                    <Input
-                      label="Address line 1 *"
-                      value={guestLine1}
-                      onChange={(event) => setGuestLine1(event.target.value)}
-                    />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <Input
-                      label="Address line 2"
-                      value={guestLine2}
-                      onChange={(event) => setGuestLine2(event.target.value)}
-                    />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <Input
-                      label="Landmark"
-                      value={guestLandmark}
-                      onChange={(event) => setGuestLandmark(event.target.value)}
-                    />
-                  </div>
+            {needsGuestAddress ? (
+              <>
+                <div className="col-span-2 lg:col-span-4">
                   <Input
-                    label="City"
-                    value={guestCity}
-                    onChange={(event) => setGuestCity(event.target.value)}
+                    compact
+                    label="Address line 1 *"
+                    value={guestLine1}
+                    onChange={(event) => setGuestLine1(event.target.value)}
+                    placeholder="House / street"
                   />
+                </div>
+                <div className="col-span-2 lg:col-span-2">
                   <Input
-                    label="State"
-                    value={guestState}
-                    onChange={(event) => setGuestState(event.target.value)}
-                  />
-                  <Input
+                    compact
                     label="Pincode *"
                     value={guestPincode}
                     onChange={(event) =>
@@ -626,63 +632,178 @@ export default function AdminPhoneOrderPage() {
                     }
                     inputMode="numeric"
                     maxLength={6}
+                    placeholder="560001"
                   />
                 </div>
-              )}
+                <div className="col-span-2 lg:col-span-3">
+                  <Input
+                    compact
+                    label="Address line 2"
+                    value={guestLine2}
+                    onChange={(event) => setGuestLine2(event.target.value)}
+                    placeholder="Area / locality"
+                  />
+                </div>
+                <div className="col-span-2 lg:col-span-3">
+                  <Input
+                    compact
+                    label="Landmark"
+                    value={guestLandmark}
+                    onChange={(event) => setGuestLandmark(event.target.value)}
+                    placeholder="Near…"
+                  />
+                </div>
+                <div className="col-span-1 lg:col-span-2">
+                  <Input
+                    compact
+                    label="City"
+                    value={guestCity}
+                    onChange={(event) => setGuestCity(event.target.value)}
+                  />
+                </div>
+                <div className="col-span-1 lg:col-span-2">
+                  <Input
+                    compact
+                    label="State"
+                    value={guestState}
+                    onChange={(event) => setGuestState(event.target.value)}
+                  />
+                </div>
+                <div className="col-span-2 lg:col-span-2">
+                  <Textarea
+                    compact
+                    label="Notes"
+                    value={notes}
+                    onChange={(event) => setNotes(event.target.value)}
+                    rows={1}
+                    placeholder="Spice / call on arrival…"
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="col-span-2 lg:col-span-6">
+                <Textarea
+                  compact
+                  label="Notes"
+                  value={notes}
+                  onChange={(event) => setNotes(event.target.value)}
+                  rows={1}
+                  placeholder="Spice level, call on arrival…"
+                />
+              </div>
+            )}
+          </div>
+      </section>
+
+      <div className="grid gap-2 xl:grid-cols-[1.35fr_0.65fr]">
+        <section className="rounded-[var(--radius-card)] bg-surface p-2.5 shadow-md sm:p-3">
+          <div className="mb-2 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+            <h3 className="text-sm font-semibold text-text-primary">Menu</h3>
+            <div className="relative max-w-md flex-1">
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-secondary"
+                aria-hidden="true"
+              />
+              <Input
+                compact
+                placeholder="Search dishes…"
+                value={dishSearch}
+                onChange={(event) => setDishSearch(event.target.value)}
+                className="pl-9"
+                aria-label="Search dishes"
+              />
             </div>
-          )}
+          </div>
 
-          <Textarea
-            label="Special instructions"
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            rows={2}
-            placeholder="Spice level, call on arrival…"
-          />
+          <ul className="grid max-h-[min(52vh,520px)] gap-1 overflow-y-auto sm:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
+            {filteredDishes.map((dish) => {
+              const qty = qtyByDishId.get(dish.id) ?? 0
+              const inCart = qty > 0
 
-          <Button
-            type="button"
-            variant={customerDirty ? 'primary' : 'secondary'}
-            size="sm"
-            className="w-full"
-            disabled={isSavingCustomer || !customerDirty}
-            onClick={() => void handleSaveCustomer()}
-          >
-            {isSavingCustomer
-              ? 'Saving…'
-              : customerDirty
-                ? 'Save customer details'
-                : 'Customer details saved'}
-          </Button>
+              return (
+                <li
+                  key={dish.id}
+                  className={cn(
+                    'flex items-center justify-between gap-2 rounded-[var(--radius-input)] border px-2 py-1.5',
+                    inCart ? 'border-primary/40 bg-primary/5' : 'border-black/8',
+                  )}
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-text-primary">
+                      {dish.name}
+                    </p>
+                    <p className="text-[11px] text-text-secondary">
+                      {dish.category_name} · {formatPrice(dish.price)}
+                    </p>
+                  </div>
+
+                  {inCart ? (
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button
+                        type="button"
+                        className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-white"
+                        onClick={() => updateQtyByDish(dish.id, -1)}
+                        aria-label={`Decrease ${dish.name}`}
+                      >
+                        <Minus className="h-3.5 w-3.5" />
+                      </button>
+                      <span className="min-w-6 text-center text-sm font-bold text-primary">
+                        {qty}
+                      </span>
+                      <button
+                        type="button"
+                        className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-white"
+                        onClick={() => updateQtyByDish(dish.id, 1)}
+                        aria-label={`Increase ${dish.name}`}
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      className="h-8 px-2.5"
+                      onClick={() => addDish(dish)}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Add
+                    </Button>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
         </section>
 
-        <section className="space-y-3 rounded-[var(--radius-card)] bg-surface p-3 shadow-md sm:p-4">
+        <section className="flex flex-col gap-2 rounded-[var(--radius-card)] bg-surface p-2.5 shadow-md sm:p-3 xl:sticky xl:top-3 xl:self-start">
           <h3 className="text-sm font-semibold text-text-primary">
             Order summary
           </h3>
           {items.length === 0 ? (
-            <p className="text-sm text-text-secondary">
-              Add dishes from the menu below.
+            <p className="text-xs text-text-secondary">
+              Add dishes from the menu.
             </p>
           ) : (
-            <ul className="divide-y divide-black/5">
+            <ul className="max-h-48 divide-y divide-black/5 overflow-y-auto">
               {items.map((item) => (
                 <li
                   key={item.key}
-                  className="flex items-center justify-between gap-2 py-2"
+                  className="flex items-center justify-between gap-2 py-1.5"
                 >
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-text-primary">
                       {item.name}
                     </p>
-                    <p className="text-xs text-text-secondary">
+                    <p className="text-[11px] text-text-secondary">
                       {formatPrice(item.unitPrice)} each
                     </p>
                   </div>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1">
                     <button
                       type="button"
-                      className="rounded-full border border-black/10 p-1"
+                      className="rounded-full border border-black/10 p-0.5"
                       onClick={() => updateQty(item.key, -1)}
                       aria-label="Decrease quantity"
                     >
@@ -693,7 +814,7 @@ export default function AdminPhoneOrderPage() {
                     </span>
                     <button
                       type="button"
-                      className="rounded-full border border-black/10 p-1"
+                      className="rounded-full border border-black/10 p-0.5"
                       onClick={() => updateQty(item.key, 1)}
                       aria-label="Increase quantity"
                     >
@@ -701,7 +822,7 @@ export default function AdminPhoneOrderPage() {
                     </button>
                     <button
                       type="button"
-                      className="rounded-full p-1 text-error"
+                      className="rounded-full p-0.5 text-error"
                       onClick={() =>
                         setItems((prev) =>
                           prev.filter((row) => row.key !== item.key),
@@ -717,7 +838,7 @@ export default function AdminPhoneOrderPage() {
             </ul>
           )}
 
-          <dl className="space-y-1 text-sm">
+          <dl className="mt-auto space-y-0.5 text-xs">
             <div className="flex justify-between text-text-secondary">
               <dt>Subtotal</dt>
               <dd>{formatPrice(totals.subtotal)}</dd>
@@ -734,30 +855,31 @@ export default function AdminPhoneOrderPage() {
                   : formatPrice(totals.deliveryCharge)}
               </dd>
             </div>
-            <div className="flex justify-between border-t border-black/5 pt-2 text-sm font-semibold text-text-primary">
+            <div className="flex justify-between border-t border-black/5 pt-1.5 text-sm font-semibold text-text-primary">
               <dt>Total</dt>
               <dd className="text-primary">{formatPrice(totals.total)}</dd>
             </div>
           </dl>
 
-          <p className="text-xs text-text-secondary">
+          <p className="text-[11px] text-text-secondary">
             Pay later (UPI QR after ready / delivery)
           </p>
 
           {customerDirty && (
-            <p className="rounded-[var(--radius-button)] bg-primary/10 px-2.5 py-1.5 text-xs text-text-primary">
+            <p className="rounded-[var(--radius-button)] bg-primary/10 px-2 py-1 text-[11px] text-text-primary">
               Save customer details before placing the order.
             </p>
           )}
 
           {!isStoreStatusLoading && storeStatus && !storeStatus.isOpen && (
-            <p className="rounded-[var(--radius-button)] bg-error/10 px-2.5 py-1.5 text-xs text-error">
+            <p className="rounded-[var(--radius-button)] bg-error/10 px-2 py-1 text-[11px] text-error">
               {storeStatus.reason}
             </p>
           )}
 
           <Button
             type="button"
+            size="sm"
             className="w-full"
             disabled={
               isSubmitting ||
@@ -777,85 +899,6 @@ export default function AdminPhoneOrderPage() {
           </Button>
         </section>
       </div>
-
-      <section className="rounded-[var(--radius-card)] bg-surface p-3 shadow-md sm:p-4">
-        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h3 className="text-sm font-semibold text-text-primary">Menu</h3>
-          <div className="relative max-w-md flex-1">
-            <Search
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary"
-              aria-hidden="true"
-            />
-            <Input
-              placeholder="Search dishes…"
-              value={dishSearch}
-              onChange={(event) => setDishSearch(event.target.value)}
-              className="h-9 pl-10"
-              aria-label="Search dishes"
-            />
-          </div>
-        </div>
-
-        <ul className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
-          {filteredDishes.map((dish) => {
-            const qty = qtyByDishId.get(dish.id) ?? 0
-            const inCart = qty > 0
-
-            return (
-              <li
-                key={dish.id}
-                className={cn(
-                  'flex items-center justify-between gap-2 rounded-[var(--radius-input)] border px-2.5 py-2',
-                  inCart ? 'border-primary/40 bg-primary/5' : 'border-black/8',
-                )}
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-text-primary">
-                    {dish.name}
-                  </p>
-                  <p className="text-xs text-text-secondary">
-                    {dish.category_name} · {formatPrice(dish.price)}
-                  </p>
-                </div>
-
-                {inCart ? (
-                  <div className="flex shrink-0 items-center gap-1">
-                    <button
-                      type="button"
-                      className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-white"
-                      onClick={() => updateQtyByDish(dish.id, -1)}
-                      aria-label={`Decrease ${dish.name}`}
-                    >
-                      <Minus className="h-3.5 w-3.5" />
-                    </button>
-                    <span className="min-w-6 text-center text-sm font-bold text-primary">
-                      {qty}
-                    </span>
-                    <button
-                      type="button"
-                      className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-white"
-                      onClick={() => updateQtyByDish(dish.id, 1)}
-                      aria-label={`Increase ${dish.name}`}
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ) : (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => addDish(dish)}
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    Add
-                  </Button>
-                )}
-              </li>
-            )
-          })}
-        </ul>
-      </section>
     </div>
   )
 }
