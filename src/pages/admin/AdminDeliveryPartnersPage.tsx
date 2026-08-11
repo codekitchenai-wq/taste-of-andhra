@@ -173,7 +173,7 @@ export default function AdminDeliveryPartnersPage() {
                     {partner.notes ?? '—'}
                   </td>
                   <td className="px-4 py-3">
-                    <Badge variant={partner.is_active ? 'success' : 'default'}>
+                    <Badge variant={partner.is_active ? 'veg' : 'unavailable'}>
                       {partner.is_active ? 'Active' : 'Inactive'}
                     </Badge>
                   </td>
