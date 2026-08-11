@@ -129,14 +129,7 @@ export default function AdminQrTablesPage() {
   }))
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-2xl font-bold">QR Tables</h2>
-        <p className="mt-1 text-sm text-text-secondary">
-          Generate table QR codes for scan-to-order menus.
-        </p>
-      </div>
-
+    <div className="space-y-6">
       <section className="rounded-[var(--radius-card)] bg-surface p-5 shadow-md">
         <h3 className="text-lg font-semibold text-text-primary">Create QR Table</h3>
         <form

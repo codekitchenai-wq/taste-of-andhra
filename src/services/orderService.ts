@@ -24,6 +24,7 @@ import {
   isMissingColumnError,
   withoutOrganizationId,
 } from '@/utils/supabaseSchema'
+import { getStoreOpenStatus } from '@/utils/storeHours'
 
 export interface CreateOrderInput {
   addressId: string
@@ -36,6 +37,23 @@ export interface CreateOrderInput {
   deliveryQuoteId?: string | null
   /** Customer opted in to WhatsApp order-status updates. */
   whatsappUpdatesOptIn?: boolean
+}
+
+async function assertStoreAcceptingOrders(): Promise<ServiceResponse<true>> {
+  const hoursResult = await settingsService.getStoreOperatingHours()
+  if (!hoursResult.success) {
+    return createErrorResponse(
+      'Unable to verify store timings. Please try again.',
+      hoursResult.error ?? hoursResult.message,
+    )
+  }
+
+  const status = getStoreOpenStatus(hoursResult.data)
+  if (!status.isOpen) {
+    return createErrorResponse(status.reason)
+  }
+
+  return createSuccessResponse(true)
 }
 
 interface ResolvedDeliveryQuote {
@@ -458,6 +476,11 @@ export async function createOrder(
     }
   }
 
+  const openResult = await assertStoreAcceptingOrders()
+  if (!openResult.success) {
+    return openResult
+  }
+
   const quote = await resolveDeliveryQuote(
     input.deliveryQuoteId,
     userId,
@@ -469,7 +492,10 @@ export async function createOrder(
     discount,
     quote.amount ?? undefined,
   )
-  const orderNumber = generateOrderNumber()
+  const sequenceResult = await settingsService.getOrderNumberSequence(branchId)
+  const orderNumber = generateOrderNumber(
+    sequenceResult.success ? sequenceResult.data : undefined,
+  )
 
   const etaResult = await settingsService.getDefaultEtaMinutes()
   const etaMinutes = etaResult.success ? etaResult.data : DEFAULT_ETA_MINUTES
@@ -697,10 +723,18 @@ export async function createPhoneOrder(
     }
   }
 
+  const openResult = await assertStoreAcceptingOrders()
+  if (!openResult.success) {
+    return openResult
+  }
+
   const etaResult = await settingsService.getDefaultEtaMinutes()
   const etaMinutes = etaResult.success ? etaResult.data : DEFAULT_ETA_MINUTES
   const estimatedDelivery = addMinutesToIso(new Date(), etaMinutes)
-  const orderNumber = generateOrderNumber()
+  const sequenceResult = await settingsService.getOrderNumberSequence(branchId)
+  const orderNumber = generateOrderNumber(
+    sequenceResult.success ? sequenceResult.data : undefined,
+  )
   const guest = input.guestAddress
 
   const orderPayload: Record<string, unknown> = {

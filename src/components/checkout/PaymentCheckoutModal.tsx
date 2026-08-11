@@ -8,6 +8,7 @@ import {
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
+import { OrderNumberDisplay } from '@/components/orders/OrderNumberDisplay'
 import {
   ONLINE_PAYMENT_CHANNELS,
   type OnlinePaymentChannel,
@@ -134,7 +135,9 @@ export function PaymentCheckoutModal({
     >
       <div className="space-y-5">
         <div className="rounded-[var(--radius-card)] bg-primary/5 p-4">
-          <p className="text-sm text-text-secondary">Order {orderNumber}</p>
+          <p className="text-sm text-text-secondary">
+            Order <OrderNumberDisplay value={orderNumber} />
+          </p>
           <p className="mt-1 text-2xl font-semibold text-primary">
             {formatPrice(amount)}
           </p>

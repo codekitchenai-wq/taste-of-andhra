@@ -9,6 +9,8 @@ interface CartSummaryProps {
   itemCount: number
   isUpdating: boolean
   onClearCart: () => void
+  storeClosedMessage?: string | null
+  isStoreStatusLoading?: boolean
 }
 
 export function CartSummary({
@@ -16,7 +18,11 @@ export function CartSummary({
   itemCount,
   isUpdating,
   onClearCart,
+  storeClosedMessage = null,
+  isStoreStatusLoading = false,
 }: CartSummaryProps) {
+  const checkoutBlocked = Boolean(storeClosedMessage) || isStoreStatusLoading
+
   return (
     <Card className="sticky top-24 space-y-4 p-6">
       <h2 className="text-lg font-semibold text-text-primary">Order Summary</h2>
@@ -32,11 +38,25 @@ export function CartSummary({
         </div>
       </dl>
 
-      <Link to={ROUTES.CHECKOUT} className="block">
-        <Button fullWidth disabled={itemCount === 0 || isUpdating}>
-          Proceed to Checkout
+      {storeClosedMessage && (
+        <p className="rounded-[var(--radius-button)] bg-error/10 px-3 py-2 text-sm text-error">
+          {storeClosedMessage}
+        </p>
+      )}
+
+      {checkoutBlocked ? (
+        <Button fullWidth disabled>
+          {isStoreStatusLoading
+            ? 'Checking store hours…'
+            : 'Store closed — cannot checkout'}
         </Button>
-      </Link>
+      ) : (
+        <Link to={ROUTES.CHECKOUT} className="block">
+          <Button fullWidth disabled={itemCount === 0 || isUpdating}>
+            Proceed to Checkout
+          </Button>
+        </Link>
+      )}
 
       <Button
         type="button"

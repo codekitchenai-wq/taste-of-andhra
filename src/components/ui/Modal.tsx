@@ -6,7 +6,7 @@ import { cn } from '@/utils/cn'
 interface ModalProps {
   isOpen: boolean
   onClose: () => void
-  title?: string
+  title?: ReactNode
   children: ReactNode
   className?: string
   /** Optional sticky footer (e.g. action buttons) always visible on mobile */
@@ -32,12 +32,19 @@ export function Modal({
       if (event.key === 'Escape') onClose()
     }
 
+    const scrollbarGap =
+      window.innerWidth - document.documentElement.clientWidth
+
     document.addEventListener('keydown', handleKeyDown)
     document.body.style.overflow = 'hidden'
+    if (scrollbarGap > 0) {
+      document.body.style.paddingRight = `${scrollbarGap}px`
+    }
 
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
       document.body.style.overflow = ''
+      document.body.style.paddingRight = ''
     }
   }, [isOpen, onClose])
 
@@ -63,28 +70,28 @@ export function Modal({
           className,
         )}
       >
-        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-black/5 px-4 py-4 sm:px-6">
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-black/5 px-3 py-3 sm:px-4">
           {title && (
-            <h2 id="modal-title" className="text-xl font-semibold">
+            <h2 id="modal-title" className="text-lg font-semibold leading-tight">
               {title}
             </h2>
           )}
           <button
             type="button"
             onClick={onClose}
-            className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-text-secondary transition-colors hover:bg-black/5 hover:text-text-primary"
+            className="ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-text-secondary transition-colors hover:bg-black/5 hover:text-text-primary"
             aria-label="Close"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 sm:px-4">
           {children}
         </div>
 
         {footer && (
-          <div className="shrink-0 border-t border-black/5 bg-surface px-4 py-4 sm:px-6">
+          <div className="shrink-0 border-t border-black/5 bg-surface px-3 py-3 sm:px-4">
             {footer}
           </div>
         )}

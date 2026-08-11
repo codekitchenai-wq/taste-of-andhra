@@ -27,13 +27,6 @@ export default function AdminPartyInquiriesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">Party Inquiries</h2>
-        <p className="mt-1 text-sm text-text-secondary">
-          Review and follow up on party order enquiries from customers.
-        </p>
-      </div>
-
       {isLoading && <LoadingState variant="inline" />}
 
       {!isLoading && error && (

@@ -3,6 +3,7 @@ import { Eye, Phone, User } from 'lucide-react'
 import { OrderStatusBadge } from '@/components/admin/OrderStatusBadge'
 import { OrderEtaBanner } from '@/components/orders/OrderEtaBanner'
 import { OrderEtaControls } from '@/components/orders/OrderEtaControls'
+import { OrderNumberDisplay } from '@/components/orders/OrderNumberDisplay'
 import { Button } from '@/components/ui/Button'
 import { PAYMENT_METHOD } from '@/constants/PAYMENT_METHOD'
 import type { AdminOrder } from '@/services/orderService'
@@ -132,8 +133,8 @@ export function KitchenOrderCard({
     >
       <div className="flex items-start justify-between gap-1.5">
         <div className="min-w-0">
-          <p className="truncate font-heading text-sm font-bold leading-tight text-text-primary">
-            {order.order_number}
+          <p className="truncate font-heading text-sm leading-tight text-text-primary">
+            <OrderNumberDisplay value={order.order_number} />
           </p>
           <p
             className={cn(
@@ -146,16 +147,15 @@ export function KitchenOrderCard({
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
           <OrderStatusBadge status={order.order_status} />
-          {onView && (
-            <button
-              type="button"
-              onClick={() => onView(order.id)}
-              className="flex h-7 w-7 items-center justify-center rounded-full text-text-secondary transition-colors hover:bg-primary/10 hover:text-primary"
-              aria-label={`View ${order.order_number}`}
-            >
-              <Eye className="h-3.5 w-3.5" />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => onView?.(order.id)}
+            disabled={!onView}
+            className="flex h-7 w-7 items-center justify-center rounded-full text-text-secondary transition-colors hover:bg-primary/10 hover:text-primary disabled:invisible"
+            aria-label={`View ${order.order_number}`}
+          >
+            <Eye className="h-3.5 w-3.5" />
+          </button>
         </div>
       </div>
 

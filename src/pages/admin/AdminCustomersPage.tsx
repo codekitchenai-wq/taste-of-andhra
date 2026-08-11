@@ -35,13 +35,6 @@ export default function AdminCustomersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">Customers</h2>
-        <p className="mt-1 text-sm text-text-secondary">
-          Search customers and manage account access.
-        </p>
-      </div>
-
       <div className="relative max-w-md">
         <Search
           className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary"

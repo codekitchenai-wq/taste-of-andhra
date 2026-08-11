@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Container } from '@/components/ui/Container'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { LoadingState } from '@/components/ui/LoadingState'
+import { OrderNumberDisplay } from '@/components/orders/OrderNumberDisplay'
 import { APP_NAME } from '@/constants/APP'
 import { ROUTES } from '@/constants/ROUTES'
 import * as gstInvoiceService from '@/services/gstInvoiceService'
@@ -117,7 +118,7 @@ export default function InvoicePage() {
                   Order Number
                 </p>
                 <p className="mt-1 font-semibold text-text-primary">
-                  {invoiceView.order.order_number}
+                  <OrderNumberDisplay value={invoiceView.order.order_number} />
                 </p>
               </div>
               <div>

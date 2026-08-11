@@ -113,14 +113,7 @@ export default function AdminDeliveryPartnersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Delivery Partners</h2>
-          <p className="mt-1 text-sm text-text-secondary">
-            Maintain a reusable list of delivery partners by branch. Active
-            partners for an order’s branch appear in the assignment dropdown.
-          </p>
-        </div>
+      <div className="flex justify-end">
         <Button onClick={openCreateModal} className="shrink-0">
           <Plus className="h-4 w-4" />
           Add Partner

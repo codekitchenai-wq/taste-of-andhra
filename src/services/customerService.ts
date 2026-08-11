@@ -179,3 +179,84 @@ export async function setCustomerActive(
 
   return createSuccessResponse(mapProfile(data))
 }
+
+export async function updateCustomerName(
+  customerId: string,
+  fullName: string,
+): Promise<ServiceResponse<Profile>> {
+  const name = fullName.trim()
+  if (!name) {
+    return createErrorResponse('Customer name is required.')
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ full_name: name })
+    .eq('id', customerId)
+    .eq('role', 'customer')
+    .select()
+    .single()
+
+  if (error) {
+    return createErrorResponse('Unable to update customer.', error.message)
+  }
+
+  return createSuccessResponse(mapProfile(data))
+}
+
+export interface StaffAddressInput {
+  fullName: string
+  phone: string
+  addressLine1: string
+  addressLine2?: string
+  landmark?: string
+  city: string
+  state: string
+  pincode: string
+}
+
+/** Admin / staff can attach an address to a known customer profile. */
+export async function addAddressForCustomer(
+  customerId: string,
+  input: StaffAddressInput,
+): Promise<ServiceResponse<Address>> {
+  if (!input.fullName.trim()) {
+    return createErrorResponse('Customer name is required.')
+  }
+  if (!input.addressLine1.trim()) {
+    return createErrorResponse('Address line 1 is required.')
+  }
+  if (!/^\d{6}$/.test(input.pincode.trim())) {
+    return createErrorResponse('Enter a valid 6-digit pincode.')
+  }
+  if (!input.city.trim()) {
+    return createErrorResponse('City is required.')
+  }
+  if (!input.state.trim()) {
+    return createErrorResponse('State is required.')
+  }
+
+  const { data, error } = await supabase
+    .from('addresses')
+    .insert({
+      user_id: customerId,
+      address_type: 'other',
+      full_name: input.fullName.trim(),
+      phone: input.phone.trim(),
+      address_line1: input.addressLine1.trim(),
+      address_line2: input.addressLine2?.trim() || null,
+      landmark: input.landmark?.trim() || null,
+      city: input.city.trim(),
+      state: input.state.trim(),
+      pincode: input.pincode.trim(),
+      is_default: false,
+    })
+    .select()
+    .single()
+
+  if (error) {
+    return createErrorResponse('Unable to save address.', error.message)
+  }
+
+  return createSuccessResponse(mapAddress(data))
+}

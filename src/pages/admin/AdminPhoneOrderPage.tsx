@@ -8,6 +8,7 @@ import { LoadingState } from '@/components/ui/LoadingState'
 import { Select } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
 import { ROUTES } from '@/constants/ROUTES'
+import { useStoreOpenStatus } from '@/hooks/useStoreOpenStatus'
 import * as branchService from '@/services/branchService'
 import * as customerService from '@/services/customerService'
 import * as dishService from '@/services/dishService'
@@ -20,6 +21,7 @@ import type { DishWithCategory } from '@/utils/mapDish'
 import { formatAddressLine } from '@/utils/mapAddress'
 import { calculateOrderTotals, defaultDeliveryCharge } from '@/utils/orderTotals'
 import { formatPrice } from '@/utils/format'
+import { cn } from '@/utils/cn'
 import { isValidPhone } from '@/utils/validation'
 
 interface DraftItem {
@@ -30,8 +32,29 @@ interface DraftItem {
   quantity: number
 }
 
+interface CustomerFormSnapshot {
+  phone: string
+  customerName: string
+  fulfillmentType: FulfillmentType
+  branchId: string
+  addressId: string
+  guestLine1: string
+  guestLine2: string
+  guestLandmark: string
+  guestCity: string
+  guestState: string
+  guestPincode: string
+  matchedCustomerId: string | null
+}
+
+function snapshotKey(snapshot: CustomerFormSnapshot): string {
+  return JSON.stringify(snapshot)
+}
+
 export default function AdminPhoneOrderPage() {
   const navigate = useNavigate()
+  const { status: storeStatus, isLoading: isStoreStatusLoading } =
+    useStoreOpenStatus()
   const [dishes, setDishes] = useState<DishWithCategory[]>([])
   const [branches, setBranches] = useState<Branch[]>([])
   const [isLoadingMenu, setIsLoadingMenu] = useState(true)
@@ -47,7 +70,9 @@ export default function AdminPhoneOrderPage() {
   const [notes, setNotes] = useState('')
   const [items, setItems] = useState<DraftItem[]>([])
   const [isLookingUp, setIsLookingUp] = useState(false)
+  const [isSavingCustomer, setIsSavingCustomer] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null)
 
   const [guestLine1, setGuestLine1] = useState('')
   const [guestLine2, setGuestLine2] = useState('')
@@ -56,7 +81,41 @@ export default function AdminPhoneOrderPage() {
   const [guestState, setGuestState] = useState('Karnataka')
   const [guestPincode, setGuestPincode] = useState('')
 
-  const clearCustomerDetails = () => {
+  const currentSnapshot = useMemo<CustomerFormSnapshot>(
+    () => ({
+      phone,
+      customerName: customerName.trim(),
+      fulfillmentType,
+      branchId,
+      addressId,
+      guestLine1: guestLine1.trim(),
+      guestLine2: guestLine2.trim(),
+      guestLandmark: guestLandmark.trim(),
+      guestCity: guestCity.trim(),
+      guestState: guestState.trim(),
+      guestPincode: guestPincode.trim(),
+      matchedCustomerId: matchedCustomer?.id ?? null,
+    }),
+    [
+      phone,
+      customerName,
+      fulfillmentType,
+      branchId,
+      addressId,
+      guestLine1,
+      guestLine2,
+      guestLandmark,
+      guestCity,
+      guestState,
+      guestPincode,
+      matchedCustomer?.id,
+    ],
+  )
+
+  const customerDirty =
+    savedSnapshot === null || snapshotKey(currentSnapshot) !== savedSnapshot
+
+  const clearCustomerDetails = (keepPhone = false) => {
     setMatchedCustomer(null)
     setCustomerName('')
     setAddresses([])
@@ -67,12 +126,18 @@ export default function AdminPhoneOrderPage() {
     setGuestCity('Bangalore')
     setGuestState('Karnataka')
     setGuestPincode('')
+    setNotes('')
+    setSavedSnapshot(null)
+    if (!keepPhone) {
+      // phone cleared by caller when needed
+    }
   }
 
   const handlePhoneChange = (value: string) => {
     const next = value.replace(/\D/g, '').slice(0, 10)
     if (next !== phone) {
-      clearCustomerDetails()
+      clearCustomerDetails(true)
+      setSavedSnapshot(null)
     }
     setPhone(next)
   }
@@ -121,6 +186,14 @@ export default function AdminPhoneOrderPage() {
     )
   }, [dishes, dishSearch])
 
+  const qtyByDishId = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const item of items) {
+      map.set(item.dishId, (map.get(item.dishId) ?? 0) + item.quantity)
+    }
+    return map
+  }, [items])
+
   const subtotal = items.reduce(
     (sum, item) => sum + item.unitPrice * item.quantity,
     0,
@@ -128,6 +201,25 @@ export default function AdminPhoneOrderPage() {
   const deliveryCharge =
     fulfillmentType === 'pickup' ? 0 : defaultDeliveryCharge(subtotal)
   const totals = calculateOrderTotals(subtotal, 0, deliveryCharge)
+
+  const validateCustomerForm = (): string | null => {
+    if (!isValidPhone(phone)) return 'Enter a valid 10-digit phone number.'
+    if (!customerName.trim()) return 'Customer name is required.'
+    if (fulfillmentType === 'delivery') {
+      if (addressId) return null
+      if (!guestLine1.trim()) return 'Address line 1 is required.'
+      if (!/^\d{6}$/.test(guestPincode.trim())) {
+        return 'Enter a valid 6-digit pincode.'
+      }
+      if (!guestCity.trim()) return 'City is required.'
+      if (!guestState.trim()) return 'State is required.'
+    }
+    return null
+  }
+
+  const markSaved = (snapshot: CustomerFormSnapshot) => {
+    setSavedSnapshot(snapshotKey(snapshot))
+  }
 
   const handleLookup = async () => {
     if (!isValidPhone(phone)) {
@@ -145,8 +237,9 @@ export default function AdminPhoneOrderPage() {
     }
 
     if (!result.data) {
-      clearCustomerDetails()
-      toast.success('No existing customer — enter name and address, then place the order.')
+      clearCustomerDetails(true)
+      setSavedSnapshot(null)
+      toast.success('New number — enter details and tap Save customer.')
       return
     }
 
@@ -158,20 +251,119 @@ export default function AdminPhoneOrderPage() {
     setGuestCity('Bangalore')
     setGuestState('Karnataka')
     setGuestPincode('')
+
+    let nextAddressId = ''
+    let nextAddresses: Address[] = []
     const addressResult = await customerService.getCustomerAddresses(
       result.data.id,
     )
     if (addressResult.success) {
-      setAddresses(addressResult.data)
+      nextAddresses = addressResult.data
       const preferred =
         addressResult.data.find((address) => address.is_default) ??
         addressResult.data[0]
-      setAddressId(preferred?.id ?? '')
-    } else {
-      setAddresses([])
-      setAddressId('')
+      nextAddressId = preferred?.id ?? ''
     }
-    toast.success(`Matched ${result.data.full_name}`)
+    setAddresses(nextAddresses)
+    setAddressId(nextAddressId)
+
+    const loaded: CustomerFormSnapshot = {
+      phone,
+      customerName: result.data.full_name.trim(),
+      fulfillmentType,
+      branchId,
+      addressId: nextAddressId,
+      guestLine1: '',
+      guestLine2: '',
+      guestLandmark: '',
+      guestCity: 'Bangalore',
+      guestState: 'Karnataka',
+      guestPincode: '',
+      matchedCustomerId: result.data.id,
+    }
+    markSaved(loaded)
+    toast.success(`Matched ${result.data.full_name} — ready to order`)
+  }
+
+  const handleSaveCustomer = async () => {
+    const validationError = validateCustomerForm()
+    if (validationError) {
+      toast.error(validationError)
+      return
+    }
+
+    setIsSavingCustomer(true)
+
+    if (matchedCustomer) {
+      if (customerName.trim() !== matchedCustomer.full_name) {
+        const updateResult = await customerService.updateCustomerName(
+          matchedCustomer.id,
+          customerName,
+        )
+        if (!updateResult.success) {
+          setIsSavingCustomer(false)
+          toast.error(updateResult.message)
+          return
+        }
+        setMatchedCustomer(updateResult.data)
+      }
+
+      if (fulfillmentType === 'delivery' && !addressId) {
+        const addressResult = await customerService.addAddressForCustomer(
+          matchedCustomer.id,
+          {
+            fullName: customerName,
+            phone,
+            addressLine1: guestLine1,
+            addressLine2: guestLine2,
+            landmark: guestLandmark,
+            city: guestCity,
+            state: guestState,
+            pincode: guestPincode,
+          },
+        )
+        if (!addressResult.success) {
+          setIsSavingCustomer(false)
+          toast.error(addressResult.message)
+          return
+        }
+
+        const refreshed = await customerService.getCustomerAddresses(
+          matchedCustomer.id,
+        )
+        if (refreshed.success) {
+          setAddresses(refreshed.data)
+        }
+        setAddressId(addressResult.data.id)
+        setGuestLine1('')
+        setGuestLine2('')
+        setGuestLandmark('')
+        setGuestPincode('')
+
+        const saved: CustomerFormSnapshot = {
+          ...currentSnapshot,
+          customerName: customerName.trim(),
+          addressId: addressResult.data.id,
+          guestLine1: '',
+          guestLine2: '',
+          guestLandmark: '',
+          guestPincode: '',
+          matchedCustomerId: matchedCustomer.id,
+        }
+        markSaved(saved)
+        setIsSavingCustomer(false)
+        toast.success('Customer details saved')
+        return
+      }
+    }
+
+    markSaved(currentSnapshot)
+    setIsSavingCustomer(false)
+    toast.success(
+      matchedCustomer
+        ? 'Customer details saved'
+        : 'Customer details saved — you can place the order',
+    )
   }
 
   const addDish = (dish: DishWithCategory) => {
@@ -198,6 +390,20 @@ export default function AdminPhoneOrderPage() {
     })
   }
 
+  const updateQtyByDish = (dishId: string, delta: number) => {
+    setItems((prev) => {
+      const existing = prev.find((item) => item.dishId === dishId)
+      if (!existing) return prev
+      return prev
+        .map((item) =>
+          item.dishId === dishId
+            ? { ...item, quantity: item.quantity + delta }
+            : item,
+        )
+        .filter((item) => item.quantity > 0)
+    })
+  }
+
   const updateQty = (key: string, delta: number) => {
     setItems((prev) =>
       prev
@@ -211,16 +417,24 @@ export default function AdminPhoneOrderPage() {
   }
 
   const handleSubmit = async () => {
-    if (!isValidPhone(phone)) {
-      toast.error('Enter a valid 10-digit phone number.')
+    if (customerDirty) {
+      toast.error('Save customer details before placing the order.')
       return
     }
-    if (!customerName.trim()) {
-      toast.error('Customer name is required.')
+
+    const validationError = validateCustomerForm()
+    if (validationError) {
+      toast.error(validationError)
       return
     }
     if (items.length === 0) {
       toast.error('Add at least one dish.')
+      return
+    }
+    if (!isStoreStatusLoading && storeStatus && !storeStatus.isOpen) {
+      toast.error(
+        `${storeStatus.reason} Update Store timings in Settings to accept orders now.`,
+      )
       return
     }
 
@@ -263,7 +477,7 @@ export default function AdminPhoneOrderPage() {
     }
 
     toast.success(
-      `Phone order ${result.data.order_number} placed — now on the kitchen board`,
+      `Phone / counter order ${result.data.order_number} placed — now on the kitchen board`,
     )
     navigate(ROUTES.ADMIN.ORDERS)
   }
@@ -272,22 +486,24 @@ export default function AdminPhoneOrderPage() {
     return <LoadingState />
   }
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">Phone Order</h2>
-        <p className="mt-1 text-sm text-text-secondary">
-          Create an order from a phone call. It goes straight to the kitchen
-          board (Confirmed); payment is collected later via UPI QR.
-        </p>
-      </div>
+  const needsGuestAddress = fulfillmentType === 'delivery' && !addressId
 
-      <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-        <section className="space-y-4 rounded-[var(--radius-card)] bg-surface p-5 shadow-md">
-          <h3 className="font-semibold text-text-primary">Customer</h3>
-          <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-3 xl:grid-cols-[1.15fr_0.85fr]">
+        <section className="space-y-3 rounded-[var(--radius-card)] bg-surface p-3 shadow-md sm:p-4">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold text-text-primary">Customer</h3>
+            {customerDirty ? (
+              <span className="text-xs font-medium text-error">Unsaved</span>
+            ) : (
+              <span className="text-xs font-medium text-success">Saved</span>
+            )}
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
             <Input
-              label="Mobile number"
+              label="Mobile number *"
               inputMode="numeric"
               maxLength={10}
               value={phone}
@@ -298,6 +514,7 @@ export default function AdminPhoneOrderPage() {
               <Button
                 type="button"
                 variant="secondary"
+                size="sm"
                 onClick={() => void handleLookup()}
                 disabled={isLookingUp}
               >
@@ -305,20 +522,22 @@ export default function AdminPhoneOrderPage() {
               </Button>
             </div>
           </div>
+
           <Input
-            label="Customer name"
+            label="Customer name *"
             value={customerName}
             onChange={(event) => setCustomerName(event.target.value)}
-            placeholder="Name as on the call"
+            placeholder="Name"
           />
+
           {matchedCustomer && (
-            <p className="rounded-[var(--radius-input)] bg-success/10 px-3 py-2 text-sm text-text-primary">
-              Linked to existing customer {matchedCustomer.full_name}
+            <p className="rounded-[var(--radius-input)] bg-success/10 px-2.5 py-1.5 text-xs text-text-primary">
+              Linked: {matchedCustomer.full_name}
               {matchedCustomer.email ? ` · ${matchedCustomer.email}` : ''}
             </p>
           )}
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-2 sm:grid-cols-2">
             <Select
               label="Fulfillment"
               value={fulfillmentType}
@@ -345,8 +564,8 @@ export default function AdminPhoneOrderPage() {
           </div>
 
           {fulfillmentType === 'delivery' && (
-            <div className="space-y-3 border-t border-black/5 pt-4">
-              <h4 className="text-sm font-semibold text-text-primary">
+            <div className="space-y-2 border-t border-black/5 pt-3">
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
                 Delivery address
               </h4>
               {addresses.length > 0 ? (
@@ -364,26 +583,29 @@ export default function AdminPhoneOrderPage() {
                 />
               ) : null}
 
-              {!addressId && (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Input
-                    label="Address line 1"
-                    value={guestLine1}
-                    onChange={(event) => setGuestLine1(event.target.value)}
-                    className="sm:col-span-2"
-                  />
-                  <Input
-                    label="Address line 2"
-                    value={guestLine2}
-                    onChange={(event) => setGuestLine2(event.target.value)}
-                    className="sm:col-span-2"
-                  />
-                  <Input
-                    label="Landmark"
-                    value={guestLandmark}
-                    onChange={(event) => setGuestLandmark(event.target.value)}
-                    className="sm:col-span-2"
-                  />
+              {needsGuestAddress && (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <Input
+                      label="Address line 1 *"
+                      value={guestLine1}
+                      onChange={(event) => setGuestLine1(event.target.value)}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Input
+                      label="Address line 2"
+                      value={guestLine2}
+                      onChange={(event) => setGuestLine2(event.target.value)}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Input
+                      label="Landmark"
+                      value={guestLandmark}
+                      onChange={(event) => setGuestLandmark(event.target.value)}
+                    />
+                  </div>
                   <Input
                     label="City"
                     value={guestCity}
@@ -395,10 +617,12 @@ export default function AdminPhoneOrderPage() {
                     onChange={(event) => setGuestState(event.target.value)}
                   />
                   <Input
-                    label="Pincode"
+                    label="Pincode *"
                     value={guestPincode}
                     onChange={(event) =>
-                      setGuestPincode(event.target.value.replace(/\D/g, '').slice(0, 6))
+                      setGuestPincode(
+                        event.target.value.replace(/\D/g, '').slice(0, 6),
+                      )
                     }
                     inputMode="numeric"
                     maxLength={6}
@@ -412,13 +636,30 @@ export default function AdminPhoneOrderPage() {
             label="Special instructions"
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
-            rows={3}
-            placeholder="Spice level, no onion, call on arrival…"
+            rows={2}
+            placeholder="Spice level, call on arrival…"
           />
+
+          <Button
+            type="button"
+            variant={customerDirty ? 'primary' : 'secondary'}
+            size="sm"
+            className="w-full"
+            disabled={isSavingCustomer || !customerDirty}
+            onClick={() => void handleSaveCustomer()}
+          >
+            {isSavingCustomer
+              ? 'Saving…'
+              : customerDirty
+                ? 'Save customer details'
+                : 'Customer details saved'}
+          </Button>
         </section>
 
-        <section className="space-y-4 rounded-[var(--radius-card)] bg-surface p-5 shadow-md">
-          <h3 className="font-semibold text-text-primary">Order summary</h3>
+        <section className="space-y-3 rounded-[var(--radius-card)] bg-surface p-3 shadow-md sm:p-4">
+          <h3 className="text-sm font-semibold text-text-primary">
+            Order summary
+          </h3>
           {items.length === 0 ? (
             <p className="text-sm text-text-secondary">
               Add dishes from the menu below.
@@ -428,17 +669,17 @@ export default function AdminPhoneOrderPage() {
               {items.map((item) => (
                 <li
                   key={item.key}
-                  className="flex items-center justify-between gap-3 py-3"
+                  className="flex items-center justify-between gap-2 py-2"
                 >
                   <div className="min-w-0">
-                    <p className="truncate font-medium text-text-primary">
+                    <p className="truncate text-sm font-medium text-text-primary">
                       {item.name}
                     </p>
                     <p className="text-xs text-text-secondary">
                       {formatPrice(item.unitPrice)} each
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <button
                       type="button"
                       className="rounded-full border border-black/10 p-1"
@@ -447,7 +688,7 @@ export default function AdminPhoneOrderPage() {
                     >
                       <Minus className="h-3.5 w-3.5" />
                     </button>
-                    <span className="w-6 text-center text-sm font-semibold">
+                    <span className="w-5 text-center text-sm font-semibold">
                       {item.quantity}
                     </span>
                     <button
@@ -493,30 +734,53 @@ export default function AdminPhoneOrderPage() {
                   : formatPrice(totals.deliveryCharge)}
               </dd>
             </div>
-            <div className="flex justify-between border-t border-black/5 pt-2 text-base font-semibold text-text-primary">
+            <div className="flex justify-between border-t border-black/5 pt-2 text-sm font-semibold text-text-primary">
               <dt>Total</dt>
               <dd className="text-primary">{formatPrice(totals.total)}</dd>
             </div>
           </dl>
 
           <p className="text-xs text-text-secondary">
-            Payment: Pay later (UPI QR after ready / delivery)
+            Pay later (UPI QR after ready / delivery)
           </p>
+
+          {customerDirty && (
+            <p className="rounded-[var(--radius-button)] bg-primary/10 px-2.5 py-1.5 text-xs text-text-primary">
+              Save customer details before placing the order.
+            </p>
+          )}
+
+          {!isStoreStatusLoading && storeStatus && !storeStatus.isOpen && (
+            <p className="rounded-[var(--radius-button)] bg-error/10 px-2.5 py-1.5 text-xs text-error">
+              {storeStatus.reason}
+            </p>
+          )}
 
           <Button
             type="button"
             className="w-full"
-            disabled={isSubmitting}
+            disabled={
+              isSubmitting ||
+              customerDirty ||
+              isStoreStatusLoading ||
+              Boolean(storeStatus && !storeStatus.isOpen)
+            }
             onClick={() => void handleSubmit()}
           >
-            {isSubmitting ? 'Placing order…' : 'Place phone order'}
+            {isSubmitting
+              ? 'Placing order…'
+              : storeStatus && !storeStatus.isOpen
+                ? 'Store closed'
+                : customerDirty
+                  ? 'Save customer first'
+                  : 'Place order'}
           </Button>
         </section>
       </div>
 
-      <section className="rounded-[var(--radius-card)] bg-surface p-5 shadow-md">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h3 className="font-semibold text-text-primary">Menu</h3>
+      <section className="rounded-[var(--radius-card)] bg-surface p-3 shadow-md sm:p-4">
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h3 className="text-sm font-semibold text-text-primary">Menu</h3>
           <div className="relative max-w-md flex-1">
             <Search
               className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary"
@@ -526,37 +790,70 @@ export default function AdminPhoneOrderPage() {
               placeholder="Search dishes…"
               value={dishSearch}
               onChange={(event) => setDishSearch(event.target.value)}
-              className="pl-10"
+              className="h-9 pl-10"
               aria-label="Search dishes"
             />
           </div>
         </div>
 
-        <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-          {filteredDishes.map((dish) => (
-            <li
-              key={dish.id}
-              className="flex items-center justify-between gap-3 rounded-[var(--radius-input)] border border-black/8 px-3 py-2"
-            >
-              <div className="min-w-0">
-                <p className="truncate font-medium text-text-primary">
-                  {dish.name}
-                </p>
-                <p className="text-xs text-text-secondary">
-                  {dish.category_name} · {formatPrice(dish.price)}
-                </p>
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                onClick={() => addDish(dish)}
+        <ul className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
+          {filteredDishes.map((dish) => {
+            const qty = qtyByDishId.get(dish.id) ?? 0
+            const inCart = qty > 0
+
+            return (
+              <li
+                key={dish.id}
+                className={cn(
+                  'flex items-center justify-between gap-2 rounded-[var(--radius-input)] border px-2.5 py-2',
+                  inCart ? 'border-primary/40 bg-primary/5' : 'border-black/8',
+                )}
               >
-                <Plus className="h-3.5 w-3.5" />
-                Add
-              </Button>
-            </li>
-          ))}
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-text-primary">
+                    {dish.name}
+                  </p>
+                  <p className="text-xs text-text-secondary">
+                    {dish.category_name} · {formatPrice(dish.price)}
+                  </p>
+                </div>
+
+                {inCart ? (
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      type="button"
+                      className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-white"
+                      onClick={() => updateQtyByDish(dish.id, -1)}
+                      aria-label={`Decrease ${dish.name}`}
+                    >
+                      <Minus className="h-3.5 w-3.5" />
+                    </button>
+                    <span className="min-w-6 text-center text-sm font-bold text-primary">
+                      {qty}
+                    </span>
+                    <button
+                      type="button"
+                      className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-white"
+                      onClick={() => updateQtyByDish(dish.id, 1)}
+                      aria-label={`Increase ${dish.name}`}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => addDish(dish)}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add
+                  </Button>
+                )}
+              </li>
+            )
+          })}
         </ul>
       </section>
     </div>

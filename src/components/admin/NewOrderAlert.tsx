@@ -1,6 +1,7 @@
 import { Bell, Volume2, VolumeX, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import type { AdminOrder } from '@/services/orderService'
+import { OrderNumberDisplay } from '@/components/orders/OrderNumberDisplay'
 import { formatPrice } from '@/utils/format'
 
 interface NewOrderAlertProps {
@@ -40,7 +41,12 @@ export function NewOrderAlert({
                 : `${orders.length} new orders received`}
             </p>
             <p className="text-sm text-white/90">
-              {latest.order_number} · {formatPrice(latest.total)}
+              <OrderNumberDisplay
+                value={latest.order_number}
+                prefixClassName="font-normal text-white/70"
+                sequenceClassName="font-bold text-white"
+              />{' '}
+              · {formatPrice(latest.total)}
               {orders.length > 1 ? ` · +${orders.length - 1} more` : ''}
             </p>
           </div>

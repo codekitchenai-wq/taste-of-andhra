@@ -11,15 +11,7 @@ export default function AdminReportsPage() {
   const { reports, isLoading, error, refetch } = useAdminReports()
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-2xl font-bold">Reports</h2>
-        <p className="mt-1 text-sm text-text-secondary">
-          Daily, weekly, and monthly sales with revenue and popular dish
-          insights.
-        </p>
-      </div>
-
+    <div className="space-y-6">
       {isLoading && <LoadingState variant="inline" />}
 
       {!isLoading && error && (

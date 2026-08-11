@@ -2,6 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Container } from '@/components/ui/Container'
+import { OrderNumberDisplay } from '@/components/orders/OrderNumberDisplay'
 import { ROUTES } from '@/constants/ROUTES'
 
 interface OrderSuccessState {
@@ -44,9 +45,10 @@ export default function OrderSuccessPage() {
 
         <p className="mt-6 rounded-[var(--radius-card)] bg-surface px-6 py-4 text-sm shadow-sm">
           Order number:{' '}
-          <span className="font-semibold text-text-primary">
-            {state.orderNumber}
-          </span>
+          <OrderNumberDisplay
+            value={state.orderNumber}
+            className="text-base"
+          />
         </p>
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">

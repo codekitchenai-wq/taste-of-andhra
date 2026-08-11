@@ -54,13 +54,7 @@ export default function AdminBranchesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Branches</h2>
-          <p className="mt-1 text-sm text-text-secondary">
-            Manage restaurant locations, contact details, and GST information.
-          </p>
-        </div>
+      <div className="flex justify-end">
         <Button onClick={openCreateModal} className="shrink-0">
           <Plus className="h-4 w-4" />
           Add Branch

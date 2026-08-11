@@ -10,6 +10,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { ROUTES } from '@/constants/ROUTES'
 import { useAuth } from '@/hooks/useAuth'
 import { useCart } from '@/hooks/useCart'
+import { useStoreOpenStatus } from '@/hooks/useStoreOpenStatus'
 
 export default function CartPage() {
   const navigate = useNavigate()
@@ -25,6 +26,8 @@ export default function CartPage() {
     clearCart,
     refreshCart,
   } = useCart()
+  const { status: storeStatus, isLoading: isStoreStatusLoading } =
+    useStoreOpenStatus()
 
   const handleUpdateQuantity = async (cartItemId: string, quantity: number) => {
     const result = await updateQuantity(cartItemId, quantity)
@@ -123,6 +126,12 @@ export default function CartPage() {
             itemCount={itemCount}
             isUpdating={isUpdating}
             onClearCart={() => void handleClearCart()}
+            isStoreStatusLoading={isStoreStatusLoading}
+            storeClosedMessage={
+              !isStoreStatusLoading && storeStatus && !storeStatus.isOpen
+                ? storeStatus.reason
+                : null
+            }
           />
         </div>
       )}

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { Select } from '@/components/ui/Select'
+import { OrderNumberDisplay } from '@/components/orders/OrderNumberDisplay'
 import type { AdminOrder } from '@/services/orderService'
 import * as deliveryService from '@/services/deliveryService'
 import * as deliveryPartnerService from '@/services/deliveryPartnerService'
@@ -150,11 +151,7 @@ export function AssignDeliveryModal({
       return
     }
 
-    toast.success(
-      order.order_status === 'ready'
-        ? 'Partner assigned — order is out for delivery'
-        : 'Partner assigned — order stays in kitchen until ready',
-    )
+      toast.success('Partner assigned — order is out for delivery')
     reset()
     onSuccess()
   }
@@ -174,10 +171,9 @@ export function AssignDeliveryModal({
     >
       {order && (
         <p className="mb-4 text-sm text-text-secondary">
-          Assign a partner for order {order.order_number}.
-          {order.order_status === 'ready'
-            ? ' This will mark the order out for delivery.'
-            : ' The order will stay in its current kitchen status until it is ready.'}
+          Assign a partner for order{' '}
+          <OrderNumberDisplay value={order.order_number} />.
+          This will mark the order out for delivery.
           {order.branch_id
             ? ' Only partners for this order’s branch are listed.'
             : ''}

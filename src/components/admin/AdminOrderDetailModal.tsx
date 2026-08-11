@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { OrderDetailsPanel } from '@/components/orders/OrderDetailsPanel'
 import { OrderEtaBanner } from '@/components/orders/OrderEtaBanner'
 import { OrderEtaControls } from '@/components/orders/OrderEtaControls'
-import { OrderTracking } from '@/components/orders/OrderTracking'
+import { OrderNumberDisplay } from '@/components/orders/OrderNumberDisplay'
 import { OrderStatusBadge } from '@/components/admin/OrderStatusBadge'
 import { Button } from '@/components/ui/Button'
 import { Loader } from '@/components/ui/Loader'
@@ -32,31 +32,47 @@ export function AdminOrderDetailModal({
   const [status, setStatus] = useState<OrderStatus>('pending')
   const [isUpdating, setIsUpdating] = useState(false)
   const [isPrinting, setIsPrinting] = useState(false)
+  const onCloseRef = useRef(onClose)
+  const requestIdRef = useRef(0)
+
+  useEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
 
   useEffect(() => {
     if (!orderId) {
       setOrder(null)
+      setIsLoading(false)
       return
     }
 
+    const requestId = ++requestIdRef.current
+    let cancelled = false
+
     const loadOrder = async () => {
+      // Keep previous content visible when switching orders; only show a loader
+      // overlay so the modal does not collapse and flicker.
       setIsLoading(true)
 
       const result = await orderService.getAdminOrderDetails(orderId)
+      if (cancelled || requestId !== requestIdRef.current) return
 
       if (result.success) {
         setOrder(result.data)
         setStatus(result.data.order_status)
       } else {
         toast.error(result.message)
-        onClose()
+        onCloseRef.current()
       }
 
       setIsLoading(false)
     }
 
     void loadOrder()
-  }, [orderId, onClose])
+    return () => {
+      cancelled = true
+    }
+  }, [orderId])
 
   const handleUpdateStatus = async () => {
     if (!order) return
@@ -156,90 +172,43 @@ export function AdminOrderDetailModal({
     <Modal
       isOpen={Boolean(orderId)}
       onClose={onClose}
-      title={order ? `Order ${order.order_number}` : 'Order Details'}
-      className="max-w-3xl"
-    >
-      {isLoading && (
-        <div className="flex justify-center py-12">
-          <Loader />
-        </div>
-      )}
-
-      {!isLoading && order && (
-        <div className="space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <OrderStatusBadge status={order.order_status} />
-              {order.order_source === 'phone' && (
-                <span className="rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
-                  Phone order
-                </span>
-              )}
-              {order.fulfillment_type === 'pickup' && (
-                <span className="rounded-md bg-background px-2 py-1 text-xs font-medium text-text-secondary">
-                  Pickup
-                </span>
-              )}
-            </div>
-            <Select
-              label="Update Status"
-              options={statusOptions}
-              value={status}
-              disabled={nextStatuses.length === 0}
-              onChange={(event) =>
-                setStatus(event.target.value as OrderStatus)
-              }
-            />
-          </div>
-
-          <OrderEtaBanner
-            estimatedDelivery={order.estimated_delivery}
-            orderStatus={order.order_status}
-          />
-
-          <OrderEtaControls
-            orderStatus={order.order_status}
-            isUpdating={isUpdating}
-            onBump={(minutes) => void handleBumpEta(minutes)}
-            onSetMinutesFromNow={(minutes) => void handleSetEtaMinutes(minutes)}
-          />
-
-          <div className="grid gap-6 md:grid-cols-2">
-            <section className="rounded-[var(--radius-card)] bg-background p-4">
-              <h3 className="font-semibold text-text-primary">Tracking</h3>
-              <div className="mt-4">
-                <OrderTracking status={order.order_status} />
-              </div>
-            </section>
-
-            <section className="max-h-80 overflow-y-auto">
-              <OrderDetailsPanel
-                order={order}
-                onOrderUpdated={(next) => {
-                  setOrder(next)
-                  onStatusUpdated()
-                }}
-              />
-            </section>
-          </div>
-
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
+      title={
+        order ? (
+          <span className="inline-flex items-baseline gap-1 text-base">
+            Order <OrderNumberDisplay value={order.order_number} />
+          </span>
+        ) : (
+          'Order Details'
+        )
+      }
+      className="max-w-lg sm:max-w-xl"
+      footer={
+        order ? (
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
             <Button
               type="button"
               variant="secondary"
-              disabled={isPrinting}
+              size="sm"
+              disabled={isPrinting || isLoading}
               onClick={() => void handlePrintTickets()}
             >
               {isPrinting ? 'Printing…' : 'Print Bill + KOT'}
             </Button>
-            <div className="flex flex-col-reverse gap-3 sm:flex-row">
-              <Button type="button" variant="secondary" onClick={onClose}>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={onClose}
+              >
                 Close
               </Button>
               <Button
                 type="button"
+                size="sm"
                 disabled={
                   isUpdating ||
+                  isLoading ||
                   status === order.order_status ||
                   nextStatuses.length === 0
                 }
@@ -249,8 +218,69 @@ export function AdminOrderDetailModal({
               </Button>
             </div>
           </div>
-        </div>
-      )}
+        ) : undefined
+      }
+    >
+      <div className="relative min-h-[12rem]">
+        {isLoading && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-surface/70">
+            <Loader />
+          </div>
+        )}
+
+        {order && (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <OrderStatusBadge status={order.order_status} />
+              {order.order_source === 'phone' && (
+                <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                  Phone / Counter
+                </span>
+              )}
+              {order.fulfillment_type === 'pickup' && (
+                <span className="rounded-md bg-background px-2 py-0.5 text-[11px] font-medium text-text-secondary">
+                  Pickup
+                </span>
+              )}
+            </div>
+
+            <Select
+              label="Update Status"
+              options={statusOptions}
+              value={status}
+              disabled={nextStatuses.length === 0 || isLoading}
+              onChange={(event) =>
+                setStatus(event.target.value as OrderStatus)
+              }
+            />
+
+            <OrderEtaBanner
+              estimatedDelivery={order.estimated_delivery}
+              orderStatus={order.order_status}
+              variant="badge"
+            />
+
+            <OrderEtaControls
+              compact
+              orderStatus={order.order_status}
+              isUpdating={isUpdating}
+              onBump={(minutes) => void handleBumpEta(minutes)}
+              onSetMinutesFromNow={(minutes) =>
+                void handleSetEtaMinutes(minutes)
+              }
+            />
+
+            <OrderDetailsPanel
+              order={order}
+              compact
+              onOrderUpdated={(next) => {
+                setOrder(next)
+                onStatusUpdated()
+              }}
+            />
+          </div>
+        )}
+      </div>
     </Modal>
   )
 }

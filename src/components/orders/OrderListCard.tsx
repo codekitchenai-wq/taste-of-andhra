@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
 import { OrderStatusBadge } from '@/components/admin/OrderStatusBadge'
 import { OrderEtaBanner } from '@/components/orders/OrderEtaBanner'
+import { OrderNumberDisplay } from '@/components/orders/OrderNumberDisplay'
 import { ROUTES } from '@/constants/ROUTES'
 import type { Order } from '@/types/Order'
 import { formatPrice, formatDateTime } from '@/utils/format'
@@ -20,7 +21,7 @@ export function OrderListCard({ order, itemCount }: OrderListCardProps) {
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="font-semibold text-text-primary group-hover:text-primary">
-            {order.order_number}
+            <OrderNumberDisplay value={order.order_number} />
           </p>
           <p className="mt-1 text-sm text-text-secondary">
             {formatDateTime(order.created_at)}

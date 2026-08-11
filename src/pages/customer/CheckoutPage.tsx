@@ -38,6 +38,7 @@ import { useCart } from '@/hooks/useCart'
 import { useDeliveryQuote } from '@/hooks/useDeliveryQuote'
 import { useDeliverySettings } from '@/hooks/useDeliverySettings'
 import { useSelectedBranch } from '@/hooks/useSelectedBranch'
+import { useStoreOpenStatus } from '@/hooks/useStoreOpenStatus'
 import * as deliverySettingsService from '@/services/deliverySettingsService'
 import * as loyaltyService from '@/services/loyaltyService'
 import * as orderService from '@/services/orderService'
@@ -68,6 +69,8 @@ export default function CheckoutPage() {
     useAddresses()
   const { branches, selectedBranch, setSelectedBranchId, isLoading: isBranchLoading } =
     useSelectedBranch()
+  const { status: storeStatus, isLoading: isStoreStatusLoading } =
+    useStoreOpenStatus()
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
     null,
   )
@@ -211,6 +214,11 @@ export default function CheckoutPage() {
 
     if (branches.length > 0 && !selectedBranch) {
       toast.error('Please select a branch')
+      return
+    }
+
+    if (!isStoreStatusLoading && storeStatus && !storeStatus.isOpen) {
+      toast.error(storeStatus.reason)
       return
     }
 
@@ -396,6 +404,16 @@ export default function CheckoutPage() {
                 </div>
               </div>
             )}
+
+            {!isStoreStatusLoading && storeStatus && !storeStatus.isOpen && (
+              <div
+                className="rounded-[var(--radius-card)] border border-error/30 bg-error/5 p-4 text-sm text-error"
+                role="alert"
+              >
+                <p className="font-medium text-text-primary">Store closed</p>
+                <p className="mt-1 text-text-secondary">{storeStatus.reason}</p>
+              </div>
+            )}
           </section>
 
           <section className="space-y-4">
@@ -551,6 +569,8 @@ export default function CheckoutPage() {
                 isPlacingOrder ||
                 isQuoteLoading ||
                 isBranchLoading ||
+                isStoreStatusLoading ||
+                Boolean(storeStatus && !storeStatus.isOpen) ||
                 isUnserviceable ||
                 !selectedAddressId ||
                 addresses.length === 0 ||
@@ -560,13 +580,15 @@ export default function CheckoutPage() {
             >
               {isPlacingOrder
                 ? 'Creating order...'
-                : isQuoteLoading || isBranchLoading
+                : isQuoteLoading || isBranchLoading || isStoreStatusLoading
                   ? 'Preparing checkout...'
-                  : isUnserviceable
-                    ? 'Not deliverable here'
-                    : paymentMethod === 'razorpay'
-                      ? 'Continue to Payment'
-                      : 'Place Order'}
+                  : storeStatus && !storeStatus.isOpen
+                    ? 'Store closed'
+                    : isUnserviceable
+                      ? 'Not deliverable here'
+                      : paymentMethod === 'razorpay'
+                        ? 'Continue to Payment'
+                        : 'Place Order'}
             </Button>
           }
         />

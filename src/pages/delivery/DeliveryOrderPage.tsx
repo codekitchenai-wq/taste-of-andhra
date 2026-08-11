@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { MapPin, Navigation } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { OrderStatusBadge } from '@/components/admin/OrderStatusBadge'
+import { OrderNumberDisplay } from '@/components/orders/OrderNumberDisplay'
 import { Button } from '@/components/ui/Button'
 import { Container } from '@/components/ui/Container'
 import { ErrorState } from '@/components/ui/ErrorState'
@@ -100,7 +101,7 @@ export default function DeliveryOrderPage() {
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-2xl font-bold md:text-3xl">
-                {delivery.order_number}
+                <OrderNumberDisplay value={delivery.order_number} />
               </h1>
               <p className="mt-2 text-sm text-text-secondary">
                 {delivery.customer_name}

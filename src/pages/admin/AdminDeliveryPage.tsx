@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { AssignDeliveryModal } from '@/components/admin/AssignDeliveryModal'
 import { DeliveryTable } from '@/components/admin/DeliveryTable'
+import { OrderNumberDisplay } from '@/components/orders/OrderNumberDisplay'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
@@ -74,14 +75,8 @@ export default function AdminDeliveryPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Delivery</h2>
-          <p className="mt-1 text-sm text-text-secondary">
-            Assign delivery partners and track active deliveries.
-          </p>
-        </div>
+    <div className="space-y-6">
+      <div className="flex justify-end">
         <Link
           to={ROUTES.ADMIN.SETTINGS}
           className="text-sm font-medium text-primary hover:text-primary-dark"
@@ -106,7 +101,7 @@ export default function AdminDeliveryPage() {
             {awaitingOrders.length === 0 ? (
               <EmptyState
                 title="No orders waiting"
-                description="Orders ready for delivery will appear here."
+                description="Only Ready orders without a partner appear here."
               />
             ) : (
               <div className="overflow-x-auto rounded-[var(--radius-card)] bg-surface shadow-md">
@@ -128,7 +123,7 @@ export default function AdminDeliveryPage() {
                         className="border-b border-black/5 last:border-b-0"
                       >
                         <td className="px-4 py-4 font-medium">
-                          {order.order_number}
+                          <OrderNumberDisplay value={order.order_number} />
                         </td>
                         <td className="px-4 py-4">{order.customer_name}</td>
                         <td className="px-4 py-4 text-text-secondary">

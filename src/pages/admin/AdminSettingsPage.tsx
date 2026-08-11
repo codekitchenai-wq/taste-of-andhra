@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { DeliverySettingsPanel } from '@/components/admin/DeliverySettingsPanel'
 import { PrinterSettingsPanel } from '@/components/admin/PrinterSettingsPanel'
+import { StoreTimingsPanel } from '@/components/admin/StoreTimingsPanel'
+import { OrderNumberSequencePanel } from '@/components/admin/OrderNumberSequencePanel'
 import { WhatsAppSettingsPanel } from '@/components/admin/WhatsAppSettingsPanel'
 import { ConfigBanner } from '@/components/ui/ConfigBanner'
 import { Button } from '@/components/ui/Button'
@@ -11,7 +13,6 @@ import {
   APP_NAME,
   APP_TAGLINE,
   CONTACT,
-  OPENING_HOURS,
 } from '@/constants/APP'
 import {
   DEFAULT_ETA_MINUTES,
@@ -98,17 +99,14 @@ export default function AdminSettingsPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-2xl font-bold">Settings</h2>
-        <p className="mt-1 text-sm text-text-secondary">
-          Restaurant configuration and platform status.
-        </p>
-      </div>
-
+    <div className="space-y-6">
       {!isSupabaseConfigured && <ConfigBanner />}
 
       <DeliverySettingsPanel />
+
+      <StoreTimingsPanel />
+
+      <OrderNumberSequencePanel />
 
       <section className="rounded-[var(--radius-card)] bg-surface p-6 shadow-md">
         <h3 className="text-lg font-semibold text-text-primary">
@@ -211,23 +209,12 @@ export default function AdminSettingsPage() {
             <dt className="text-sm text-text-secondary">Email</dt>
             <dd className="font-medium text-text-primary">{CONTACT.email}</dd>
           </div>
-          <div>
-            <dt className="text-sm text-text-secondary">Weekday Hours</dt>
-            <dd className="font-medium text-text-primary">
-              {OPENING_HOURS.weekdays}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-sm text-text-secondary">Weekend Hours</dt>
-            <dd className="font-medium text-text-primary">
-              {OPENING_HOURS.weekends}
-            </dd>
-          </div>
         </dl>
         <p className="mt-4 text-xs text-text-secondary">
-          To change restaurant details, update{' '}
-          <code className="rounded bg-background px-1">src/constants/APP.ts</code>{' '}
-          and redeploy.
+          Store open hours are managed in <strong>Store timings</strong> above.
+          Other restaurant details live in{' '}
+          <code className="rounded bg-background px-1">src/constants/APP.ts</code>
+          .
         </p>
       </section>
 

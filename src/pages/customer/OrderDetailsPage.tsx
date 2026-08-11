@@ -6,6 +6,7 @@ import { GoogleReviewPrompt } from '@/components/orders/GoogleReviewPrompt'
 import { LiveTrackingMap } from '@/components/orders/LiveTrackingMap'
 import { OrderDetailsPanel } from '@/components/orders/OrderDetailsPanel'
 import { OrderEtaBanner } from '@/components/orders/OrderEtaBanner'
+import { OrderNumberDisplay } from '@/components/orders/OrderNumberDisplay'
 import { OrderTracking } from '@/components/orders/OrderTracking'
 import { Button } from '@/components/ui/Button'
 import { Container } from '@/components/ui/Container'
@@ -56,7 +57,7 @@ export default function OrderDetailsPage() {
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-2xl font-bold md:text-3xl">
-                {order.order_number}
+                <OrderNumberDisplay value={order.order_number} />
               </h1>
               <p className="mt-2 text-sm text-text-secondary">
                 Track your order and view full details.

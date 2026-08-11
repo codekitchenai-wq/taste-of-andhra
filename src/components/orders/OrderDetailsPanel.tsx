@@ -5,30 +5,51 @@ import { PAYMENT_STATUS } from '@/constants/PAYMENT_STATUS'
 import { formatAddressLine } from '@/utils/mapAddress'
 import { formatGuestAddress } from '@/utils/mapOrder'
 import { formatPrice, formatDateTimeFull } from '@/utils/format'
+import { cn } from '@/utils/cn'
 
 interface OrderDetailsPanelProps {
   order: OrderFullDetails
   onOrderUpdated?: (order: OrderFullDetails) => void
+  /** Denser layout for admin modals */
+  compact?: boolean
 }
 
 export function OrderDetailsPanel({
   order,
   onOrderUpdated,
+  compact = false,
 }: OrderDetailsPanelProps) {
   const guestAddress = formatGuestAddress(order)
+  const sectionClass = cn(
+    'rounded-[var(--radius-card)] bg-surface shadow-md',
+    compact ? 'p-3' : 'p-5',
+  )
+  const stackClass = compact ? 'space-y-3' : 'space-y-6'
+  const headingClass = cn(
+    'font-semibold text-text-primary',
+    compact && 'text-sm',
+  )
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-[var(--radius-card)] bg-surface p-5 shadow-md">
-        <h3 className="font-semibold text-text-primary">Order Items</h3>
-        <ul className="mt-4 divide-y divide-black/5">
+    <div className={stackClass}>
+      <section className={sectionClass}>
+        <h3 className={headingClass}>Order Items</h3>
+        <ul className={cn('divide-y divide-black/5', compact ? 'mt-2' : 'mt-4')}>
           {order.items.map((item) => (
             <li
               key={item.id}
-              className="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0"
+              className={cn(
+                'flex items-start justify-between gap-4 first:pt-0 last:pb-0',
+                compact ? 'py-2' : 'py-3',
+              )}
             >
               <div>
-                <p className="font-medium text-text-primary">
+                <p
+                  className={cn(
+                    'font-medium text-text-primary',
+                    compact && 'text-sm',
+                  )}
+                >
                   {item.dish_name_snapshot ?? item.dish?.name ?? 'Dish'}
                 </p>
                 {item.modifiers_snapshot.length > 0 && (
@@ -42,7 +63,12 @@ export function OrderDetailsPanel({
                   {item.quantity} × {formatPrice(item.price)}
                 </p>
               </div>
-              <span className="font-medium text-text-primary">
+              <span
+                className={cn(
+                  'font-medium text-text-primary',
+                  compact && 'text-sm',
+                )}
+              >
                 {formatPrice(item.total)}
               </span>
             </li>
@@ -50,27 +76,40 @@ export function OrderDetailsPanel({
         </ul>
       </section>
 
-      <section className="rounded-[var(--radius-card)] bg-surface p-5 shadow-md">
-        <h3 className="font-semibold text-text-primary">
-          {order.fulfillment_type === 'pickup'
-            ? 'Pickup'
-            : 'Delivery Address'}
+      <section className={sectionClass}>
+        <h3 className={headingClass}>
+          {order.fulfillment_type === 'pickup' ? 'Pickup' : 'Delivery Address'}
         </h3>
         {(order.guest_name || order.guest_phone) && (
-          <div className="mt-3 text-sm text-text-secondary">
+          <div
+            className={cn(
+              'text-sm text-text-secondary',
+              compact ? 'mt-2' : 'mt-3',
+            )}
+          >
             <p className="font-medium text-text-primary">
               {order.guest_name ?? 'Guest'}
-              {order.order_source === 'phone' ? ' · Phone order' : ''}
+              {order.order_source === 'phone' ? ' · Phone / Counter' : ''}
             </p>
             {order.guest_phone && <p className="mt-1">{order.guest_phone}</p>}
           </div>
         )}
         {order.fulfillment_type === 'pickup' ? (
-          <p className="mt-3 text-sm text-text-secondary">
+          <p
+            className={cn(
+              'text-sm text-text-secondary',
+              compact ? 'mt-2' : 'mt-3',
+            )}
+          >
             Customer will collect from the restaurant.
           </p>
         ) : order.address ? (
-          <div className="mt-3 text-sm text-text-secondary">
+          <div
+            className={cn(
+              'text-sm text-text-secondary',
+              compact ? 'mt-2' : 'mt-3',
+            )}
+          >
             <p className="font-medium text-text-primary">
               {order.address.full_name}
             </p>
@@ -78,19 +117,29 @@ export function OrderDetailsPanel({
             <p className="mt-1">{order.address.phone}</p>
           </div>
         ) : guestAddress ? (
-          <div className="mt-3 text-sm text-text-secondary">
+          <div
+            className={cn(
+              'text-sm text-text-secondary',
+              compact ? 'mt-2' : 'mt-3',
+            )}
+          >
             <p className="mt-1">{guestAddress}</p>
           </div>
         ) : (
-          <p className="mt-3 text-sm text-text-secondary">
+          <p
+            className={cn(
+              'text-sm text-text-secondary',
+              compact ? 'mt-2' : 'mt-3',
+            )}
+          >
             Address not available.
           </p>
         )}
       </section>
 
-      <section className="rounded-[var(--radius-card)] bg-surface p-5 shadow-md">
-        <h3 className="font-semibold text-text-primary">Payment</h3>
-        <dl className="mt-3 space-y-2 text-sm">
+      <section className={sectionClass}>
+        <h3 className={headingClass}>Payment</h3>
+        <dl className={cn('space-y-2 text-sm', compact ? 'mt-2' : 'mt-3')}>
           <div className="flex justify-between gap-4">
             <dt className="text-text-secondary">Method</dt>
             <dd className="text-text-primary">
@@ -116,9 +165,9 @@ export function OrderDetailsPanel({
 
       <OrderPaymentQr order={order} onMarkedPaid={onOrderUpdated} />
 
-      <section className="rounded-[var(--radius-card)] bg-surface p-5 shadow-md">
-        <h3 className="font-semibold text-text-primary">Order Summary</h3>
-        <dl className="mt-3 space-y-2 text-sm">
+      <section className={sectionClass}>
+        <h3 className={headingClass}>Order Summary</h3>
+        <dl className={cn('space-y-2 text-sm', compact ? 'mt-2' : 'mt-3')}>
           <div className="flex justify-between gap-4 text-text-secondary">
             <dt>Subtotal</dt>
             <dd>{formatPrice(order.subtotal)}</dd>
@@ -141,18 +190,31 @@ export function OrderDetailsPanel({
               <dd>-{formatPrice(order.discount)}</dd>
             </div>
           )}
-          <div className="flex justify-between gap-4 border-t border-black/5 pt-3 text-base font-semibold text-text-primary">
+          <div
+            className={cn(
+              'flex justify-between gap-4 border-t border-black/5 font-semibold text-text-primary',
+              compact ? 'pt-2 text-sm' : 'pt-3 text-base',
+            )}
+          >
             <dt>Total</dt>
-            <dd className="text-primary">
-              {formatPrice(order.total)}
-            </dd>
+            <dd className="text-primary">{formatPrice(order.total)}</dd>
           </div>
         </dl>
-        <p className="mt-4 text-xs text-text-secondary">
+        <p
+          className={cn(
+            'text-xs text-text-secondary',
+            compact ? 'mt-2' : 'mt-4',
+          )}
+        >
           Placed on {formatDateTimeFull(new Date(order.created_at))}
         </p>
         {order.special_instructions && (
-          <p className="mt-3 rounded-[var(--radius-input)] bg-background p-3 text-sm text-text-secondary">
+          <p
+            className={cn(
+              'rounded-[var(--radius-input)] bg-background text-sm text-text-secondary',
+              compact ? 'mt-2 p-2' : 'mt-3 p-3',
+            )}
+          >
             <span className="font-medium text-text-primary">Note: </span>
             {order.special_instructions}
           </p>

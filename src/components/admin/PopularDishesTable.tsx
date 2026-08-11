@@ -3,19 +3,26 @@ import { formatPrice } from '@/utils/format'
 
 interface PopularDishesTableProps {
   dishes: PopularDishReport[]
+  /** Hide the built-in section heading when the parent already titles it. */
+  hideHeader?: boolean
 }
 
-export function PopularDishesTable({ dishes }: PopularDishesTableProps) {
+export function PopularDishesTable({
+  dishes,
+  hideHeader = false,
+}: PopularDishesTableProps) {
   return (
     <section className="overflow-x-auto rounded-[var(--radius-card)] bg-surface shadow-md">
-      <div className="border-b border-black/5 px-4 py-4 md:px-6">
-        <h3 className="text-lg font-semibold text-text-primary">
-          Popular Dishes
-        </h3>
-        <p className="mt-1 text-sm text-text-secondary">
-          Top-selling dishes by quantity and revenue.
-        </p>
-      </div>
+      {!hideHeader && (
+        <div className="border-b border-black/5 px-4 py-4 md:px-6">
+          <h3 className="text-lg font-semibold text-text-primary">
+            Popular Dishes
+          </h3>
+          <p className="mt-1 text-sm text-text-secondary">
+            Top-selling dishes by quantity and revenue.
+          </p>
+        </div>
+      )}
       <table className="w-full min-w-[640px] text-left text-sm">
         <thead className="border-b border-black/5 bg-background/60">
           <tr>

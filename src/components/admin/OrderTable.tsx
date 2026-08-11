@@ -4,6 +4,7 @@ import type { AdminOrder } from '@/services/orderService'
 import type { OrderStatus } from '@/types/enums'
 import { OrderStatusBadge } from '@/components/admin/OrderStatusBadge'
 import { OrderEtaBanner } from '@/components/orders/OrderEtaBanner'
+import { OrderNumberDisplay } from '@/components/orders/OrderNumberDisplay'
 import { PAYMENT_METHOD } from '@/constants/PAYMENT_METHOD'
 import { formatPrice, formatDateTime } from '@/utils/format'
 import { getAllowedNextStatuses } from '@/utils/orderStatusTransitions'
@@ -62,7 +63,7 @@ export function OrderTable({
                 )}
               >
                 <td className="px-4 py-4 font-medium text-text-primary">
-                  {order.order_number}
+                  <OrderNumberDisplay value={order.order_number} />
                 </td>
                 <td className="px-4 py-4">
                   <p className="font-medium text-text-primary">

@@ -260,7 +260,7 @@ export async function getOrdersAwaitingDelivery(): Promise<
   const { data, error } = await supabase
     .from('orders')
     .select('*, profiles(full_name, email)')
-    .in('order_status', ['confirmed', 'preparing', 'ready'])
+    .eq('order_status', 'ready')
     .order('created_at', { ascending: true })
 
   if (error) {
@@ -364,23 +364,15 @@ export async function assignDelivery(
   }
 
   const orderStatus = orderRow.order_status as OrderStatus
-  const assignableStatuses: OrderStatus[] = [
-    'confirmed',
-    'preparing',
-    'ready',
-  ]
 
-  if (!assignableStatuses.includes(orderStatus)) {
+  if (orderStatus !== 'ready') {
     return createErrorResponse(
-      'Delivery partners can only be assigned to confirmed, preparing, or ready orders.',
+      'Delivery partners can only be assigned when the order is ready.',
     )
   }
 
-  // Only dispatch (out for delivery) once the kitchen has marked the order ready.
-  const shouldDispatch = orderStatus === 'ready'
-  const deliveryStatus: OrderStatus = shouldDispatch
-    ? 'out_for_delivery'
-    : orderStatus
+  // Kitchen has marked ready — assign and dispatch as out for delivery.
+  const deliveryStatus: OrderStatus = 'out_for_delivery'
 
   const assignedAt = new Date().toISOString()
 
@@ -430,29 +422,27 @@ export async function assignDelivery(
     return createErrorResponse('Unable to assign delivery.', error.message)
   }
 
-  if (shouldDispatch) {
-    const { data: order, error: updateError } = await supabase
-      .from('orders')
-      .update({ order_status: 'out_for_delivery' })
-      .eq('id', input.orderId)
-      .select('id, user_id, order_number')
-      .single()
+  const { data: order, error: updateError } = await supabase
+    .from('orders')
+    .update({ order_status: 'out_for_delivery' })
+    .eq('id', input.orderId)
+    .select('id, user_id, order_number')
+    .single()
 
-    if (updateError) {
-      return createErrorResponse(
-        'Partner assigned, but unable to mark out for delivery.',
-        updateError.message,
-      )
-    }
+  if (updateError) {
+    return createErrorResponse(
+      'Partner assigned, but unable to mark out for delivery.',
+      updateError.message,
+    )
+  }
 
-    if (order) {
-      void notificationService.notifyOrderStatus(
-        order.user_id as string,
-        order.id as string,
-        order.order_number as string,
-        'out_for_delivery',
-      )
-    }
+  if (order) {
+    void notificationService.notifyOrderStatus(
+      order.user_id as string,
+      order.id as string,
+      order.order_number as string,
+      'out_for_delivery',
+    )
   }
 
   return createSuccessResponse(mapDelivery(data))

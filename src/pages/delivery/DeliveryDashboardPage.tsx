@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { MapPin, Package } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { OrderStatusBadge } from '@/components/admin/OrderStatusBadge'
+import { OrderNumberDisplay } from '@/components/orders/OrderNumberDisplay'
 import { Button } from '@/components/ui/Button'
 import { Container } from '@/components/ui/Container'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -93,7 +94,7 @@ export default function DeliveryDashboardPage() {
                     to={ROUTES.DELIVERY.ORDER(delivery.id)}
                     className="font-semibold text-primary hover:underline"
                   >
-                    {delivery.order_number}
+                    <OrderNumberDisplay value={delivery.order_number} />
                   </Link>
                   <p className="mt-1 text-sm text-text-secondary">
                     {delivery.customer_name}

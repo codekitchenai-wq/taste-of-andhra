@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { LayoutGrid, List, Volume2, VolumeX } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { AdminOrderDetailModal } from '@/components/admin/AdminOrderDetailModal'
@@ -63,6 +63,15 @@ export default function AdminOrdersPage() {
   )
 
   const { orders, isLoading, error, refetch } = useAdminOrders(filters)
+
+  const handleCloseOrderView = useCallback(() => {
+    setViewingOrderId(null)
+  }, [])
+
+  const handleOrderStatusUpdated = useCallback(() => {
+    void refetch({ silent: true })
+  }, [refetch])
+
   const {
     alertingOrders,
     isMuted,
@@ -201,58 +210,52 @@ export default function AdminOrdersPage() {
     !isLoading && !error && visibleOrders.length === 0
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <p className="text-sm text-text-secondary">
-          Kitchen board for accepting and progressing live orders.
-        </p>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={toggleMute}
+          aria-label={isMuted ? 'Unmute new order sound' : 'Mute new order sound'}
+        >
+          {isMuted ? (
+            <VolumeX className="h-4 w-4" />
+          ) : (
+            <Volume2 className="h-4 w-4" />
+          )}
+          {isMuted ? 'Unmute' : 'Mute'}
+        </Button>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
+        <div className="inline-flex rounded-[var(--radius-button)] border border-black/10 bg-surface p-1">
+          <button
             type="button"
-            variant="secondary"
-            size="sm"
-            onClick={toggleMute}
-            aria-label={isMuted ? 'Unmute new order sound' : 'Mute new order sound'}
-          >
-            {isMuted ? (
-              <VolumeX className="h-4 w-4" />
-            ) : (
-              <Volume2 className="h-4 w-4" />
+            onClick={() => setViewMode('board')}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-[calc(var(--radius-button)-2px)] px-3 py-1.5 text-sm font-medium transition-colors',
+              viewMode === 'board'
+                ? 'bg-primary text-white'
+                : 'text-text-secondary hover:bg-black/5',
             )}
-            {isMuted ? 'Unmute' : 'Mute'}
-          </Button>
-
-          <div className="inline-flex rounded-[var(--radius-button)] border border-black/10 bg-surface p-1">
-            <button
-              type="button"
-              onClick={() => setViewMode('board')}
-              className={cn(
-                'inline-flex items-center gap-1.5 rounded-[calc(var(--radius-button)-2px)] px-3 py-2 text-sm font-medium transition-colors',
-                viewMode === 'board'
-                  ? 'bg-primary text-white'
-                  : 'text-text-secondary hover:bg-black/5',
-              )}
-              aria-pressed={viewMode === 'board'}
-            >
-              <LayoutGrid className="h-4 w-4" />
-              Board
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('list')}
-              className={cn(
-                'inline-flex items-center gap-1.5 rounded-[calc(var(--radius-button)-2px)] px-3 py-2 text-sm font-medium transition-colors',
-                viewMode === 'list'
-                  ? 'bg-primary text-white'
-                  : 'text-text-secondary hover:bg-black/5',
-              )}
-              aria-pressed={viewMode === 'list'}
-            >
-              <List className="h-4 w-4" />
-              List
-            </button>
-          </div>
+            aria-pressed={viewMode === 'board'}
+          >
+            <LayoutGrid className="h-4 w-4" />
+            Board
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('list')}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-[calc(var(--radius-button)-2px)] px-3 py-1.5 text-sm font-medium transition-colors',
+              viewMode === 'list'
+                ? 'bg-primary text-white'
+                : 'text-text-secondary hover:bg-black/5',
+            )}
+            aria-pressed={viewMode === 'list'}
+          >
+            <List className="h-4 w-4" />
+            List
+          </button>
         </div>
       </div>
 
@@ -330,8 +333,8 @@ export default function AdminOrdersPage() {
 
       <AdminOrderDetailModal
         orderId={viewingOrderId}
-        onClose={() => setViewingOrderId(null)}
-        onStatusUpdated={() => void refetch({ silent: true })}
+        onClose={handleCloseOrderView}
+        onStatusUpdated={handleOrderStatusUpdated}
       />
 
       <AssignDeliveryModal

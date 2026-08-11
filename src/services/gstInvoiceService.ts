@@ -35,7 +35,7 @@ function mapInvoice(row: Record<string, unknown>): GstInvoice {
 }
 
 function generateInvoiceNumber(orderNumber: string): string {
-  return `INV-${orderNumber.replace(/^TOA-/, '')}`
+  return `INV-${orderNumber.replace(/^[A-Z0-9]+-/, '')}`
 }
 
 export async function getInvoiceByOrderId(

@@ -4,6 +4,7 @@ import type { DeliveryWithOrder } from '@/services/deliveryService'
 import type { OrderStatus } from '@/types/enums'
 import { OrderStatusBadge } from '@/components/admin/OrderStatusBadge'
 import { LiveTrackingMap } from '@/components/orders/LiveTrackingMap'
+import { OrderNumberDisplay } from '@/components/orders/OrderNumberDisplay'
 import { Button } from '@/components/ui/Button'
 import { formatDateTime, formatPrice } from '@/utils/format'
 import { getAllowedNextStatuses } from '@/utils/orderStatusTransitions'
@@ -75,7 +76,7 @@ export function DeliveryTable({
                   className="border-b border-black/5 last:border-b-0"
                 >
                   <td className="px-4 py-4 font-medium text-text-primary">
-                    {delivery.order_number}
+                    <OrderNumberDisplay value={delivery.order_number} />
                   </td>
                   <td className="px-4 py-4">
                     <p className="font-medium text-text-primary">
@@ -155,7 +156,7 @@ export function DeliveryTable({
         <section className="rounded-[var(--radius-card)] bg-surface p-4 shadow-md">
           <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
             <h4 className="text-sm font-semibold text-text-primary">
-              {trackedDelivery.order_number} ·{' '}
+              <OrderNumberDisplay value={trackedDelivery.order_number} /> ·{' '}
               {trackedDelivery.delivery_partner ?? 'Unassigned partner'}
             </h4>
             <p className="text-xs text-text-secondary">

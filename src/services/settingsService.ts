@@ -7,11 +7,31 @@ import { APP_NAME } from '@/constants/APP'
 import { DEFAULT_ETA_MINUTES } from '@/constants/ORDER'
 import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
 import { supabase } from '@/services/supabaseClient'
+import type { StoreOperatingHours } from '@/types/StoreHours'
+import type { OrderNumberSequenceSettings } from '@/types/OrderNumberSequence'
+import { DEFAULT_ORDER_NUMBER_SEQUENCE } from '@/types/OrderNumberSequence'
 import { isMissingColumnError } from '@/utils/supabaseSchema'
+import {
+  createDefaultStoreHours,
+  parseStoreOperatingHours,
+  validateStoreOperatingHours,
+} from '@/utils/storeHours'
+import {
+  normalizeOrderPrefix,
+  parseOrderNumberSequence,
+  validateOrderNumberSequence,
+} from '@/utils/orderNumber'
 
 const DEFAULT_ETA_KEY = 'default_eta_minutes'
 const UPI_VPA_KEY = 'upi_vpa'
 const UPI_PAYEE_NAME_KEY = 'upi_payee_name'
+const STORE_HOURS_KEY = 'store_operating_hours'
+const ORDER_NUMBER_SEQUENCE_KEY = 'order_number_sequence'
+
+function orderNumberSequenceKey(branchId?: string | null): string {
+  if (!branchId) return ORDER_NUMBER_SEQUENCE_KEY
+  return `${ORDER_NUMBER_SEQUENCE_KEY}__${branchId}`
+}
 
 export interface UpiSettings {
   vpa: string
@@ -223,4 +243,86 @@ export async function setUpiSettings(
   if (!nameResult.success) return nameResult
 
   return createSuccessResponse({ vpa, payeeName })
+}
+
+export async function getStoreOperatingHours(): Promise<
+  ServiceResponse<StoreOperatingHours>
+> {
+  const raw = await getSettingValue(STORE_HOURS_KEY)
+  const parsed = parseStoreOperatingHours(raw)
+  return createSuccessResponse(parsed ?? createDefaultStoreHours())
+}
+
+export async function setStoreOperatingHours(
+  hours: StoreOperatingHours,
+): Promise<ServiceResponse<StoreOperatingHours>> {
+  const validationError = validateStoreOperatingHours(hours)
+  if (validationError) {
+    return createErrorResponse(validationError)
+  }
+
+  const normalized: StoreOperatingHours = {
+    timezone: hours.timezone.trim() || createDefaultStoreHours().timezone,
+    schedule: hours.schedule,
+    overrides: [...hours.overrides].sort((a, b) =>
+      a.date.localeCompare(b.date),
+    ),
+  }
+
+  const result = await setSettingValue(
+    STORE_HOURS_KEY,
+    JSON.stringify(normalized),
+  )
+  if (!result.success) {
+    return createErrorResponse(
+      'Unable to save store timings.',
+      result.error ?? result.message,
+    )
+  }
+
+  return createSuccessResponse(normalized)
+}
+
+export async function getOrderNumberSequence(
+  branchId?: string | null,
+): Promise<ServiceResponse<OrderNumberSequenceSettings>> {
+  if (branchId) {
+    const branchRaw = await getSettingValue(orderNumberSequenceKey(branchId))
+    const branchParsed = parseOrderNumberSequence(branchRaw)
+    if (branchParsed) {
+      return createSuccessResponse(branchParsed)
+    }
+  }
+
+  const globalRaw = await getSettingValue(ORDER_NUMBER_SEQUENCE_KEY)
+  const globalParsed = parseOrderNumberSequence(globalRaw)
+  return createSuccessResponse(globalParsed ?? DEFAULT_ORDER_NUMBER_SEQUENCE)
+}
+
+export async function setOrderNumberSequence(
+  branchId: string | null,
+  settings: OrderNumberSequenceSettings,
+): Promise<ServiceResponse<OrderNumberSequenceSettings>> {
+  const normalized: OrderNumberSequenceSettings = {
+    prefix: normalizeOrderPrefix(settings.prefix),
+    includeDate: Boolean(settings.includeDate),
+  }
+
+  const validationError = validateOrderNumberSequence(normalized)
+  if (validationError) {
+    return createErrorResponse(validationError)
+  }
+
+  const result = await setSettingValue(
+    orderNumberSequenceKey(branchId),
+    JSON.stringify(normalized),
+  )
+  if (!result.success) {
+    return createErrorResponse(
+      'Unable to save order number sequence.',
+      result.error ?? result.message,
+    )
+  }
+
+  return createSuccessResponse(normalized)
 }
