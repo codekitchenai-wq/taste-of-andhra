@@ -1,21 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, LayoutGrid, List, Phone, Search, Volume2, VolumeX } from 'lucide-react'
+import { LayoutGrid, List, Volume2, VolumeX } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { Link } from 'react-router-dom'
 import { AdminOrderDetailModal } from '@/components/admin/AdminOrderDetailModal'
 import { AssignDeliveryModal } from '@/components/admin/AssignDeliveryModal'
 import { KitchenOrderBoard } from '@/components/admin/KitchenOrderBoard'
 import type { KitchenPrimaryAction } from '@/components/admin/KitchenOrderCard'
 import { NewOrderAlert } from '@/components/admin/NewOrderAlert'
+import {
+  OrderStatusFilterButtons,
+  type OrderViewFilter,
+} from '@/components/admin/OrderStatusFilterButtons'
 import { OrderTable } from '@/components/admin/OrderTable'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
-import { Input } from '@/components/ui/Input'
 import { LoadingState } from '@/components/ui/LoadingState'
-import { Select } from '@/components/ui/Select'
-import { ORDER_STATUS, ORDER_STATUS_LIST } from '@/constants/ORDER_STATUS'
-import { ROUTES } from '@/constants/ROUTES'
+import { ORDER_STATUS_LIST } from '@/constants/ORDER_STATUS'
 import { useAdminOrders } from '@/hooks/useAdminOrders'
 import { useAutoPrintOrders } from '@/hooks/useAutoPrintOrders'
 import { useNewOrderAlerts } from '@/hooks/useNewOrderAlerts'
@@ -37,9 +37,7 @@ const STATUS_BY_ACTION: Partial<Record<KitchenPrimaryAction, OrderStatus>> = {
 }
 
 export default function AdminOrdersPage() {
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<OrderStatus | ''>('')
-  const [delayedOnly, setDelayedOnly] = useState(false)
+  const [viewFilter, setViewFilter] = useState<OrderViewFilter>('all')
   const [viewMode, setViewMode] = useState<ViewMode>('board')
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null)
   const [viewingOrderId, setViewingOrderId] = useState<string | null>(null)
@@ -54,11 +52,14 @@ export default function AdminOrdersPage() {
 
   const filters = useMemo(
     () => ({
-      search: search.trim() || undefined,
       status:
-        viewMode === 'list' && statusFilter ? statusFilter : undefined,
+        viewMode === 'list' &&
+        viewFilter !== 'all' &&
+        viewFilter !== 'delayed'
+          ? viewFilter
+          : undefined,
     }),
-    [search, statusFilter, viewMode],
+    [viewFilter, viewMode],
   )
 
   const { orders, isLoading, error, refetch } = useAdminOrders(filters)
@@ -75,21 +76,37 @@ export default function AdminOrdersPage() {
     [orders, nowMs],
   )
 
+  const filterCounts = useMemo(() => {
+    const counts = {
+      all: orders.length,
+      delayed: delayedCount,
+    } as Record<OrderViewFilter, number>
+
+    for (const status of ORDER_STATUS_LIST) {
+      counts[status] = orders.filter(
+        (order) => order.order_status === status,
+      ).length
+    }
+
+    return counts
+  }, [orders, delayedCount])
+
   const boardOrders = useMemo(() => {
     let list = orders
-    if (statusFilter && viewMode === 'board') {
-      list = list.filter((order) => order.order_status === statusFilter)
-    }
-    if (delayedOnly) {
+    if (viewFilter === 'delayed') {
       list = list.filter((order) => isOrderDelayed(order, nowMs))
+    } else if (viewFilter !== 'all') {
+      list = list.filter((order) => order.order_status === viewFilter)
     }
     return list
-  }, [orders, statusFilter, viewMode, delayedOnly, nowMs])
+  }, [orders, viewFilter, nowMs])
 
   const listOrders = useMemo(() => {
-    if (!delayedOnly) return orders
-    return orders.filter((order) => isOrderDelayed(order, nowMs))
-  }, [orders, delayedOnly, nowMs])
+    if (viewFilter === 'delayed') {
+      return orders.filter((order) => isOrderDelayed(order, nowMs))
+    }
+    return orders
+  }, [orders, viewFilter, nowMs])
 
   const handleStatusChange = async (orderId: string, status: OrderStatus) => {
     setUpdatingOrderId(orderId)
@@ -179,47 +196,18 @@ export default function AdminOrdersPage() {
     void refetch({ silent: true })
   }
 
-  const statusOptions = [
-    { label: 'All statuses', value: '' },
-    ...ORDER_STATUS_LIST.map((status) => ({
-      label: ORDER_STATUS[status],
-      value: status,
-    })),
-  ]
-
   const visibleOrders = viewMode === 'board' ? boardOrders : listOrders
   const showEmpty =
     !isLoading && !error && visibleOrders.length === 0
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Orders</h2>
-          <p className="mt-1 text-sm text-text-secondary">
-            Kitchen board for accepting and progressing live orders.
-          </p>
-        </div>
+    <div className="space-y-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <p className="text-sm text-text-secondary">
+          Kitchen board for accepting and progressing live orders.
+        </p>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Link to={ROUTES.ADMIN.PHONE_ORDER}>
-            <Button type="button" size="sm">
-              <Phone className="h-4 w-4" />
-              Phone Order
-            </Button>
-          </Link>
-
-          <Button
-            type="button"
-            variant={delayedOnly ? 'danger' : 'secondary'}
-            size="sm"
-            onClick={() => setDelayedOnly((prev) => !prev)}
-            aria-pressed={delayedOnly}
-          >
-            <AlertTriangle className="h-4 w-4" />
-            Delayed{delayedCount > 0 ? ` (${delayedCount})` : ''}
-          </Button>
-
           <Button
             type="button"
             variant="secondary"
@@ -268,6 +256,12 @@ export default function AdminOrdersPage() {
         </div>
       </div>
 
+      <OrderStatusFilterButtons
+        activeFilter={viewFilter}
+        counts={filterCounts}
+        onChange={setViewFilter}
+      />
+
       <NewOrderAlert
         orders={alertingOrders}
         isMuted={isMuted}
@@ -276,35 +270,10 @@ export default function AdminOrdersPage() {
         onDismiss={dismissAlert}
         onViewAll={() => {
           setViewMode('board')
-          setStatusFilter('pending')
-          setDelayedOnly(false)
+          setViewFilter('pending')
           newOrdersRef.current?.scrollIntoView({ behavior: 'smooth' })
         }}
       />
-
-      <div className="flex flex-col gap-4 md:flex-row">
-        <div className="relative max-w-md flex-1">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary"
-            aria-hidden="true"
-          />
-          <Input
-            placeholder="Search by order number..."
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            className="pl-10"
-            aria-label="Search orders"
-          />
-        </div>
-        <Select
-          options={statusOptions}
-          value={statusFilter}
-          onChange={(event) =>
-            setStatusFilter(event.target.value as OrderStatus | '')
-          }
-          className="md:w-56"
-        />
-      </div>
 
       {isLoading && <LoadingState variant="inline" />}
 
@@ -314,11 +283,19 @@ export default function AdminOrdersPage() {
 
       {showEmpty && (
         <EmptyState
-          title={delayedOnly ? 'No delayed orders' : 'No orders found'}
+          title={
+            viewFilter === 'delayed'
+              ? 'No delayed orders'
+              : viewFilter === 'pending'
+                ? 'No new orders'
+                : 'No orders found'
+          }
           description={
-            delayedOnly
+            viewFilter === 'delayed'
               ? 'All active orders are within their delivery window.'
-              : 'Try adjusting your search or filters.'
+              : viewFilter === 'pending'
+                ? 'You are all caught up — no new orders waiting.'
+                : 'Try selecting a different status filter above.'
           }
         />
       )}

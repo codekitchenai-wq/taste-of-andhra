@@ -105,7 +105,7 @@ export default function BranchMenuPage() {
           <p className="mb-6 text-sm text-text-secondary">
             {dishes.length} {dishes.length === 1 ? 'dish' : 'dishes'} available
           </p>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {dishes.map((dish) => (
               <MenuDishCard
                 key={dish.id}

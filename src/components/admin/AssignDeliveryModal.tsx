@@ -37,6 +37,7 @@ export function AssignDeliveryModal({
 }: AssignDeliveryModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [partners, setPartners] = useState<PartnerOption[]>([])
+  const [isLoadingPartners, setIsLoadingPartners] = useState(false)
 
   const {
     register,
@@ -56,11 +57,16 @@ export function AssignDeliveryModal({
   const partnerSelection = watch('partnerSelection')
 
   useEffect(() => {
-    if (!order) return
+    if (!order) {
+      setPartners([])
+      return
+    }
 
     const loadPartners = async () => {
+      setIsLoadingPartners(true)
+
       const [rosterResult, profileResult] = await Promise.all([
-        deliveryPartnerService.getActiveDeliveryPartners(),
+        deliveryPartnerService.getActiveDeliveryPartners(order.branch_id),
         deliveryService.getDeliveryPartners(),
       ])
 
@@ -81,21 +87,26 @@ export function AssignDeliveryModal({
         }
       }
 
-      if (profileResult.success) {
+      // Only attach login profiles whose phone matches a branch roster partner.
+      // This avoids listing every delivery account across all branches.
+      if (profileResult.success && seenPhones.size > 0) {
         for (const partner of profileResult.data) {
           const digits = partner.phone?.replace(/\D/g, '').slice(-10) ?? ''
-          if (digits && seenPhones.has(digits)) continue
-          options.push({
-            key: `profile:${partner.id}`,
-            source: 'profile',
-            userId: partner.id,
-            full_name: partner.full_name,
-            phone: partner.phone,
-          })
+          if (!digits || !seenPhones.has(digits)) continue
+
+          const existing = options.find(
+            (item) =>
+              item.phone?.replace(/\D/g, '').slice(-10) === digits,
+          )
+          if (existing && !existing.userId) {
+            existing.userId = partner.id
+            continue
+          }
         }
       }
 
       setPartners(options)
+      setIsLoadingPartners(false)
     }
 
     void loadPartners()
@@ -167,6 +178,9 @@ export function AssignDeliveryModal({
           {order.order_status === 'ready'
             ? ' This will mark the order out for delivery.'
             : ' The order will stay in its current kitchen status until it is ready.'}
+          {order.branch_id
+            ? ' Only partners for this order’s branch are listed.'
+            : ''}
         </p>
       )}
       <form
@@ -176,10 +190,23 @@ export function AssignDeliveryModal({
       >
         <Select
           label="Select Partner (optional)"
-          placeholder="Choose from delivery partners"
+          placeholder={
+            isLoadingPartners
+              ? 'Loading partners...'
+              : partners.length === 0
+                ? 'No partners for this branch'
+                : 'Choose from delivery partners'
+          }
           options={partnerOptions}
+          disabled={isLoadingPartners || partners.length === 0}
           {...register('partnerSelection')}
         />
+        {partners.length === 0 && !isLoadingPartners ? (
+          <p className="text-xs text-text-secondary">
+            Add partners under Admin → Delivery Partners and assign them to this
+            branch.
+          </p>
+        ) : null}
         <Input
           label="Partner Name"
           error={errors.deliveryPartner?.message}

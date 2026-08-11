@@ -1,9 +1,11 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
+import { Select } from '@/components/ui/Select'
+import * as branchService from '@/services/branchService'
 import * as deliveryPartnerService from '@/services/deliveryPartnerService'
 import type { DeliveryPartner } from '@/types/DeliveryPartner'
 
@@ -12,6 +14,7 @@ interface DeliveryPartnerFormValues {
   phone: string
   notes: string
   isActive: boolean
+  branchId: string
 }
 
 interface DeliveryPartnerFormModalProps {
@@ -28,6 +31,9 @@ export function DeliveryPartnerFormModal({
   onSuccess,
 }: DeliveryPartnerFormModalProps) {
   const isEditing = Boolean(partner)
+  const [branchOptions, setBranchOptions] = useState<
+    { label: string; value: string }[]
+  >([])
 
   const {
     register,
@@ -40,8 +46,30 @@ export function DeliveryPartnerFormModal({
       phone: '',
       notes: '',
       isActive: true,
+      branchId: '',
     },
   })
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    const loadBranches = async () => {
+      const result = await branchService.getActiveBranches()
+      if (!result.success) {
+        setBranchOptions([])
+        return
+      }
+
+      setBranchOptions(
+        result.data.map((branch) => ({
+          label: branch.is_default ? `${branch.name} (default)` : branch.name,
+          value: branch.id,
+        })),
+      )
+    }
+
+    void loadBranches()
+  }, [isOpen])
 
   useEffect(() => {
     if (!isOpen) return
@@ -51,6 +79,7 @@ export function DeliveryPartnerFormModal({
       phone: partner?.phone ?? '',
       notes: partner?.notes ?? '',
       isActive: partner?.is_active ?? true,
+      branchId: partner?.branch_id ?? '',
     })
   }, [isOpen, partner, reset])
 
@@ -60,6 +89,7 @@ export function DeliveryPartnerFormModal({
       phone: values.phone,
       notes: values.notes || undefined,
       isActive: values.isActive,
+      branchId: values.branchId || null,
     }
 
     const result = isEditing
@@ -101,6 +131,15 @@ export function DeliveryPartnerFormModal({
               message: 'Enter a valid 10-digit phone number',
             },
           })}
+        />
+        <Select
+          label="Branch"
+          options={[
+            { label: 'All branches (shared)', value: '' },
+            ...branchOptions,
+          ]}
+          error={errors.branchId?.message}
+          {...register('branchId')}
         />
         <Input
           label="Notes (optional)"

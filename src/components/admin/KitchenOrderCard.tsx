@@ -50,16 +50,16 @@ function getNextAction(
     case 'confirmed':
       return {
         action: 'start_preparing',
-        label: 'Start Preparing',
+        label: 'Start Prep',
         variant: 'primary',
       }
     case 'preparing':
-      return { action: 'mark_ready', label: 'Mark Ready', variant: 'success' }
+      return { action: 'mark_ready', label: 'Ready', variant: 'success' }
     case 'ready':
       if (fulfillmentType === 'pickup') {
         return {
           action: 'mark_delivered',
-          label: 'Mark Picked Up',
+          label: 'Picked Up',
           variant: 'success',
         }
       }
@@ -72,13 +72,13 @@ function getNextAction(
       }
       return {
         action: 'assign_delivery',
-        label: 'Assign Delivery',
+        label: 'Assign',
         variant: 'primary',
       }
     case 'out_for_delivery':
       return {
         action: 'mark_delivered',
-        label: 'Mark Delivered',
+        label: 'Delivered',
         variant: 'success',
       }
     default:
@@ -122,49 +122,59 @@ export function KitchenOrderCard({
   return (
     <article
       className={cn(
-        'flex flex-col gap-3 rounded-[var(--radius-card)] border bg-surface p-4 shadow-sm',
+        'flex flex-col gap-1.5 rounded-[var(--radius-card)] border bg-surface p-2.5 shadow-sm',
         delayed
-          ? 'border-error/40 ring-2 ring-error/20'
+          ? 'border-error/40 ring-1 ring-error/20'
           : isNew
-            ? 'border-[#FC8019] ring-2 ring-[#FC8019]/25'
+            ? 'border-[#FC8019] ring-1 ring-[#FC8019]/25'
             : 'border-black/8',
       )}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="font-heading text-lg font-bold text-text-primary">
+      <div className="flex items-start justify-between gap-1.5">
+        <div className="min-w-0">
+          <p className="truncate font-heading text-sm font-bold leading-tight text-text-primary">
             {order.order_number}
           </p>
           <p
             className={cn(
-              'mt-0.5 text-sm font-semibold',
+              'text-xs font-semibold leading-tight',
               isNew ? 'text-[#FC8019]' : 'text-text-secondary',
             )}
           >
             {formatElapsed(order.created_at, nowMs)}
           </p>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-0.5">
           <OrderStatusBadge status={order.order_status} />
           {onView && (
             <button
               type="button"
               onClick={() => onView(order.id)}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-text-secondary transition-colors hover:bg-primary/10 hover:text-primary"
+              className="flex h-7 w-7 items-center justify-center rounded-full text-text-secondary transition-colors hover:bg-primary/10 hover:text-primary"
               aria-label={`View ${order.order_number}`}
             >
-              <Eye className="h-4 w-4" />
+              <Eye className="h-3.5 w-3.5" />
             </button>
           )}
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-1">
         <OrderEtaBanner
           estimatedDelivery={order.estimated_delivery}
           orderStatus={order.order_status}
           variant="badge"
         />
+        {order.order_source === 'phone' && (
+          <span className="rounded bg-primary/10 px-1 py-0.5 text-[10px] font-medium text-primary">
+            Phone
+          </span>
+        )}
+        {order.fulfillment_type === 'pickup' && (
+          <span className="rounded bg-background px-1 py-0.5 text-[10px] font-medium text-text-secondary">
+            Pickup
+          </span>
+        )}
       </div>
 
       {canEditEta && (
@@ -177,69 +187,58 @@ export function KitchenOrderCard({
         />
       )}
 
-      <p className="line-clamp-3 text-sm leading-relaxed text-text-primary">
+      <p className="line-clamp-2 text-xs leading-snug text-text-primary">
         {itemsSummary}
       </p>
 
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
         <span className="font-bold text-text-primary">
           {formatPrice(order.total)}
         </span>
         <span className="text-text-secondary">
           {PAYMENT_METHOD[order.payment_method]}
         </span>
-        {order.order_source === 'phone' && (
-          <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
-            Phone
-          </span>
-        )}
-        {order.fulfillment_type === 'pickup' && (
-          <span className="rounded-md bg-background px-1.5 py-0.5 text-xs font-medium text-text-secondary">
-            Pickup
-          </span>
-        )}
       </div>
 
-      <div className="space-y-1 text-sm text-text-secondary">
-        <p className="flex items-center gap-1.5">
-          <User className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <div className="space-y-0.5 text-xs text-text-secondary">
+        <p className="flex min-w-0 items-center gap-1">
+          <User className="h-3 w-3 shrink-0" aria-hidden="true" />
           <span className="truncate text-text-primary">{order.customer_name}</span>
+          {order.customer_phone ? (
+            <>
+              <span className="text-text-secondary/50">·</span>
+              <Phone className="h-3 w-3 shrink-0" aria-hidden="true" />
+              <span className="truncate">{order.customer_phone}</span>
+            </>
+          ) : null}
         </p>
-        {order.customer_phone && (
-          <p className="flex items-center gap-1.5">
-            <Phone className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            {order.customer_phone}
-          </p>
-        )}
         {order.delivery_partner &&
           (order.order_status === 'confirmed' ||
             order.order_status === 'preparing' ||
             order.order_status === 'ready' ||
             order.order_status === 'out_for_delivery') && (
-          <p className="rounded-md bg-background px-2 py-1.5 text-xs">
+          <p className="truncate rounded bg-background px-1.5 py-0.5 text-[10px]">
             Rider:{' '}
             <span className="font-medium text-text-primary">
               {order.delivery_partner}
             </span>
             {order.partner_phone ? ` · ${order.partner_phone}` : ''}
-            {order.order_status !== 'out_for_delivery' &&
-              ' · Assigned (waiting until ready)'}
           </p>
         )}
         {order.special_instructions && (
-          <p className="rounded-md bg-warning/15 px-2 py-1.5 text-xs text-text-primary">
+          <p className="line-clamp-1 rounded bg-warning/15 px-1.5 py-0.5 text-[10px] text-text-primary">
             Note: {order.special_instructions}
           </p>
         )}
       </div>
 
       {isNew && onAccept && onReject ? (
-        <div className="mt-auto grid grid-cols-2 gap-2 pt-1">
+        <div className="mt-auto grid grid-cols-2 gap-1.5 pt-0.5">
           <Button
             type="button"
             variant="danger"
-            size="lg"
-            className="min-h-12"
+            size="sm"
+            className="min-h-8"
             disabled={isUpdating}
             onClick={() => onReject(order)}
           >
@@ -248,8 +247,8 @@ export function KitchenOrderCard({
           <Button
             type="button"
             variant="success"
-            size="lg"
-            className="min-h-12"
+            size="sm"
+            className="min-h-8"
             disabled={isUpdating}
             onClick={() => onAccept(order)}
           >
@@ -257,13 +256,13 @@ export function KitchenOrderCard({
           </Button>
         </div>
       ) : next && onPrimaryAction ? (
-        <div className="mt-auto pt-1">
+        <div className="mt-auto pt-0.5">
           <Button
             type="button"
             variant={next.variant}
-            size="lg"
+            size="sm"
             fullWidth
-            className="min-h-12"
+            className="min-h-8"
             disabled={isUpdating}
             onClick={() => onPrimaryAction(order, next.action)}
           >

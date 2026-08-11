@@ -165,18 +165,18 @@ export function KitchenOrderBoard({
     orders.every((order) => order.order_status === 'delivered')
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {delayed.length > 0 && !cancelledOnly && !deliveredOnly && (
-        <section className="space-y-3">
-          <div className="flex items-center gap-3">
-            <h3 className="font-heading text-xl font-bold text-error">
+        <section className="space-y-2">
+          <div className="flex items-center gap-2">
+            <h3 className="font-heading text-base font-bold text-error">
               Delayed
             </h3>
-            <span className="inline-flex min-w-7 items-center justify-center rounded-full bg-error px-2 py-0.5 text-sm font-bold text-white">
+            <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-error px-1.5 py-0.5 text-xs font-bold text-white">
               {delayed.length}
             </span>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
             {delayed.map((order) => (
               <KitchenOrderCard
                 key={`delayed-${order.id}`}
@@ -195,14 +195,14 @@ export function KitchenOrderBoard({
       )}
 
       {!cancelledOnly && !deliveredOnly && (
-        <section className="space-y-3">
-          <div className="flex items-center gap-3">
-            <h3 className="font-heading text-xl font-bold text-text-primary">
+        <section className="space-y-2">
+          <div className="flex items-center gap-2">
+            <h3 className="font-heading text-base font-bold text-text-primary">
               New Orders
             </h3>
             <span
               className={cn(
-                'inline-flex min-w-7 items-center justify-center rounded-full px-2 py-0.5 text-sm font-bold text-white',
+                'inline-flex min-w-6 items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-bold text-white',
                 pending.length > 0
                   ? 'animate-pulse bg-[#FC8019]'
                   : 'bg-text-secondary/40',
@@ -213,11 +213,11 @@ export function KitchenOrderBoard({
           </div>
 
           {pending.length === 0 ? (
-            <div className="rounded-[var(--radius-card)] border border-dashed border-black/15 bg-surface/60 px-4 py-8 text-center text-sm text-text-secondary">
+            <div className="rounded-[var(--radius-card)] border border-dashed border-black/15 bg-surface/60 px-3 py-4 text-center text-xs text-text-secondary">
               No new orders waiting — you&apos;re all caught up.
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
               {pending.map((order) => (
                 <KitchenOrderCard
                   key={order.id}
@@ -237,34 +237,34 @@ export function KitchenOrderBoard({
       )}
 
       {hasStageOrders && (
-        <section className="space-y-3">
-          <h3 className="font-heading text-xl font-bold text-text-primary">
+        <section className="space-y-2">
+          <h3 className="font-heading text-base font-bold text-text-primary">
             Kitchen Board
           </h3>
-          <div className="flex gap-3 overflow-x-auto pb-2">
+          <div className="flex gap-2 overflow-x-auto pb-1">
             {STAGE_COLUMNS.map((column) => {
               const columnOrders = byColumn[column.id]
               return (
                 <div
                   key={column.id}
-                  className="flex w-[min(100%,280px)] shrink-0 flex-col rounded-[var(--radius-card)] bg-background/80"
+                  className="flex w-[min(100%,240px)] shrink-0 flex-col rounded-[var(--radius-card)] bg-background/80"
                 >
                   <div
                     className={cn(
-                      'flex items-center justify-between rounded-t-[var(--radius-card)] px-3 py-2.5',
+                      'flex items-center justify-between rounded-t-[var(--radius-card)] px-2.5 py-1.5',
                       column.headerClass,
                     )}
                   >
-                    <h4 className="text-sm font-bold uppercase tracking-wide">
+                    <h4 className="text-xs font-bold uppercase tracking-wide">
                       {column.title}
                     </h4>
-                    <span className="rounded-full bg-surface/80 px-2 py-0.5 text-xs font-bold">
+                    <span className="rounded-full bg-surface/80 px-1.5 py-0.5 text-[10px] font-bold">
                       {columnOrders.length}
                     </span>
                   </div>
-                  <div className="flex max-h-[min(70vh,720px)] flex-col gap-3 overflow-y-auto p-2">
+                  <div className="flex max-h-[min(75vh,780px)] flex-col gap-2 overflow-y-auto p-1.5">
                     {columnOrders.length === 0 ? (
-                      <p className="px-2 py-6 text-center text-xs text-text-secondary">
+                      <p className="px-2 py-4 text-center text-[10px] text-text-secondary">
                         Empty
                       </p>
                     ) : (
@@ -289,27 +289,27 @@ export function KitchenOrderBoard({
       )}
 
       {delivered.length > 0 && (
-        <section className="space-y-3">
+        <section className="space-y-2">
           {deliveredOnly ? (
-            <h3 className="font-heading text-lg font-bold text-text-primary">
+            <h3 className="font-heading text-sm font-bold text-text-primary">
               Delivered ({delivered.length})
             </h3>
           ) : (
             <button
               type="button"
               onClick={() => setShowDelivered((prev) => !prev)}
-              className="flex w-full items-center justify-between rounded-[var(--radius-card)] bg-surface px-4 py-3 text-left shadow-sm"
+              className="flex w-full items-center justify-between rounded-[var(--radius-card)] bg-surface px-3 py-2 text-left shadow-sm"
             >
-              <span className="font-heading text-lg font-bold text-text-primary">
+              <span className="font-heading text-sm font-bold text-text-primary">
                 Delivered
               </span>
-              <span className="text-sm text-text-secondary">
+              <span className="text-xs text-text-secondary">
                 {delivered.length} · {showDelivered ? 'Hide' : 'Show'}
               </span>
             </button>
           )}
           {(showDelivered || deliveredOnly) && (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
               {delivered.slice(0, 12).map((order) => (
                 <KitchenOrderCard
                   key={order.id}
@@ -323,11 +323,11 @@ export function KitchenOrderBoard({
       )}
 
       {cancelledOnly && (
-        <section className="space-y-3">
-          <h3 className="font-heading text-lg font-bold text-text-secondary">
+        <section className="space-y-2">
+          <h3 className="font-heading text-sm font-bold text-text-secondary">
             Cancelled ({cancelled.length})
           </h3>
-          <div className="grid gap-4 opacity-80 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          <div className="grid gap-2 opacity-80 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
             {cancelled.slice(0, 24).map((order) => (
               <KitchenOrderCard
                 key={order.id}

@@ -10,7 +10,7 @@ export function MenuSearchBar({ value, onChange }: MenuSearchBarProps) {
   return (
     <div className="relative">
       <Search
-        className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-text-secondary"
+        className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary"
         aria-hidden="true"
       />
       <Input
@@ -18,17 +18,17 @@ export function MenuSearchBar({ value, onChange }: MenuSearchBarProps) {
         placeholder="Search dishes..."
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="h-12 pl-12 pr-12 text-base"
+        className="h-10 pl-9 pr-10 text-sm"
         aria-label="Search dishes"
       />
       {value && (
         <button
           type="button"
           onClick={() => onChange('')}
-          className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-text-secondary transition-colors hover:bg-black/5 hover:text-text-primary"
+          className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-text-secondary transition-colors hover:bg-black/5 hover:text-text-primary"
           aria-label="Clear search"
         >
-          <X className="h-4 w-4" />
+          <X className="h-3.5 w-3.5" />
         </button>
       )}
     </div>

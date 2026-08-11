@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Clock, Flame, Star } from 'lucide-react'
+import { Clock, Flame, Minus, Plus, ShoppingCart, Star } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -11,16 +12,24 @@ import { useCart } from '@/hooks/useCart'
 import type { Dish } from '@/types/Dish'
 import { LazyImage } from '@/components/ui/LazyImage'
 import { formatPrice } from '@/utils/format'
+import { cn } from '@/utils/cn'
 
 interface MenuDishCardProps {
   dish: Dish
   categoryName?: string
 }
 
+const DESC_COLLAPSE_LEN = 72
+
 export function MenuDishCard({ dish, categoryName }: MenuDishCardProps) {
   const navigate = useNavigate()
   const { isAuthenticated } = useAuth()
   const { addItem, isUpdating } = useCart()
+  const [quantity, setQuantity] = useState(1)
+  const [descExpanded, setDescExpanded] = useState(false)
+
+  const description = dish.description?.trim() ?? ''
+  const canExpandDesc = description.length > DESC_COLLAPSE_LEN
 
   const handleAddToCart = async () => {
     if (!isAuthenticated) {
@@ -29,10 +38,15 @@ export function MenuDishCard({ dish, categoryName }: MenuDishCardProps) {
       return
     }
 
-    const result = await addItem(dish.id)
+    const result = await addItem(dish.id, quantity)
 
     if (result.success) {
-      toast.success(`${dish.name} added to cart`)
+      toast.success(
+        quantity > 1
+          ? `${quantity}× ${dish.name} added to cart`
+          : `${dish.name} added to cart`,
+      )
+      setQuantity(1)
       return
     }
 
@@ -46,85 +60,149 @@ export function MenuDishCard({ dish, categoryName }: MenuDishCardProps) {
   }
 
   return (
-    <article className="group flex h-full flex-col overflow-hidden rounded-[var(--radius-card)] bg-surface shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
+    <article className="group flex h-full flex-col overflow-hidden rounded-[var(--radius-card)] border border-black/5 bg-surface shadow-sm transition-shadow hover:shadow-md">
       <Link to={ROUTES.DISH_DETAILS(dish.slug)} className="block">
-        <div className="relative aspect-[4/3] overflow-hidden bg-background">
+        {/* ~160–180px image height reads well for food grids at 5-up */}
+        <div className="relative aspect-[4/3] overflow-hidden bg-background sm:aspect-[5/4]">
           <LazyImage
             src={dish.image_url ?? undefined}
             alt={dish.name}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
-          <div className="absolute left-3 top-3 flex flex-wrap gap-2">
-            <Badge variant={dish.is_veg ? 'veg' : 'nonVeg'}>
+          <div className="absolute left-2 top-2 flex flex-wrap gap-1">
+            <Badge variant={dish.is_veg ? 'veg' : 'nonVeg'} className="text-[10px]">
               {dish.is_veg ? 'Veg' : 'Non-Veg'}
             </Badge>
-            {dish.is_featured && <Badge variant="featured">Featured</Badge>}
+            {dish.is_featured && (
+              <Badge variant="featured" className="text-[10px]">
+                Featured
+              </Badge>
+            )}
           </div>
           <FavoriteButton
             dishId={dish.id}
-            className="absolute right-3 top-3"
+            className="absolute right-2 top-2"
             size="sm"
           />
         </div>
       </Link>
 
-      <div className="flex flex-1 flex-col p-5">
+      <div className="flex flex-1 flex-col gap-1.5 p-2.5 sm:p-3">
         {categoryName && (
-          <p className="text-xs font-medium uppercase tracking-wide text-primary">
+          <p className="truncate text-[10px] font-medium uppercase tracking-wide text-primary">
             {categoryName}
           </p>
         )}
 
-        <div className="mt-1 flex items-start justify-between gap-2">
-          <Link to={ROUTES.DISH_DETAILS(dish.slug)}>
-            <h3 className="font-semibold text-text-primary transition-colors group-hover:text-primary">
+        <div className="flex items-start justify-between gap-1.5">
+          <Link to={ROUTES.DISH_DETAILS(dish.slug)} className="min-w-0">
+            <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-text-primary transition-colors group-hover:text-primary">
               {dish.name}
             </h3>
           </Link>
-          <span className="shrink-0 font-semibold text-primary">
+          <span className="shrink-0 text-sm font-bold text-primary">
             {formatPrice(dish.price)}
           </span>
         </div>
 
-        {dish.description && (
-          <p className="mt-2 line-clamp-2 text-sm text-text-secondary">
-            {dish.description}
-          </p>
-        )}
+        {description ? (
+          <div>
+            <p
+              className={cn(
+                'text-xs leading-snug text-text-secondary',
+                !descExpanded && 'line-clamp-2',
+              )}
+            >
+              {description}
+            </p>
+            {canExpandDesc && (
+              <button
+                type="button"
+                onClick={() => setDescExpanded((open) => !open)}
+                className="mt-0.5 text-[11px] font-medium text-primary hover:underline"
+              >
+                {descExpanded ? 'Show less' : 'More'}
+              </button>
+            )}
+          </div>
+        ) : null}
 
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-text-secondary">
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-text-secondary">
           {dish.rating != null && (
-            <span className="inline-flex items-center gap-1">
+            <span className="inline-flex items-center gap-0.5">
               <Star
-                className="h-4 w-4 fill-accent text-accent"
+                className="h-3 w-3 fill-accent text-accent"
                 aria-hidden="true"
               />
               {dish.rating.toFixed(1)}
             </span>
           )}
           {dish.preparation_time != null && (
-            <span className="inline-flex items-center gap-1">
-              <Clock className="h-4 w-4" aria-hidden="true" />
-              {dish.preparation_time} min
+            <span className="inline-flex items-center gap-0.5">
+              <Clock className="h-3 w-3" aria-hidden="true" />
+              {dish.preparation_time}m
             </span>
           )}
           {dish.spice_level && (
-            <span className="inline-flex items-center gap-1">
-              <Flame className="h-4 w-4 text-error" aria-hidden="true" />
+            <span className="inline-flex items-center gap-0.5">
+              <Flame className="h-3 w-3 text-error" aria-hidden="true" />
               {SPICE_LEVEL[dish.spice_level]}
             </span>
           )}
         </div>
 
-        <div className="mt-auto pt-4">
-          <Button
-            type="button"
-            fullWidth
-            disabled={isUpdating}
-            onClick={() => void handleAddToCart()}
-          >
-            Add to Cart
-          </Button>
+        <div className="mt-auto space-y-1.5 pt-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-medium text-text-secondary">
+              Qty
+            </span>
+            <div className="inline-flex items-center rounded-[var(--radius-button)] border border-black/10">
+              <button
+                type="button"
+                disabled={quantity <= 1 || isUpdating}
+                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                className="flex h-8 w-8 items-center justify-center text-text-secondary transition-colors hover:bg-black/5 disabled:opacity-40"
+                aria-label={`Decrease quantity of ${dish.name}`}
+              >
+                <Minus className="h-3.5 w-3.5" />
+              </button>
+              <span className="min-w-7 text-center text-sm font-semibold tabular-nums">
+                {quantity}
+              </span>
+              <button
+                type="button"
+                disabled={isUpdating || quantity >= 20}
+                onClick={() => setQuantity((q) => Math.min(20, q + 1))}
+                className="flex h-8 w-8 items-center justify-center text-text-secondary transition-colors hover:bg-black/5 disabled:opacity-40"
+                aria-label={`Increase quantity of ${dish.name}`}
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-[1fr_auto] gap-1.5">
+            <Button
+              type="button"
+              size="sm"
+              className="min-h-8"
+              disabled={isUpdating}
+              onClick={() => void handleAddToCart()}
+            >
+              Add
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              className="min-h-8 px-2.5"
+              onClick={() => navigate(ROUTES.CART)}
+              aria-label="Go to cart"
+              title="Go to cart"
+            >
+              <ShoppingCart className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
       </div>
     </article>

@@ -3,12 +3,10 @@ import { Link } from 'react-router-dom'
 import { Zap } from 'lucide-react'
 import { MenuDishCard } from '@/components/menu/MenuDishCard'
 import { MenuFilters } from '@/components/menu/MenuFilters'
-import { MenuSearchBar } from '@/components/menu/MenuSearchBar'
 import { Container } from '@/components/ui/Container'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { LoadingState } from '@/components/ui/LoadingState'
-import { PageHeader } from '@/components/ui/PageHeader'
 import { ROUTES } from '@/constants/ROUTES'
 import {
   DEFAULT_MENU_FILTERS,
@@ -18,7 +16,6 @@ import { usePublicCategories } from '@/hooks/usePublicCategories'
 
 export default function MenuPage() {
   const [filters, setFilters] = useState(DEFAULT_MENU_FILTERS)
-  const [filtersOpen, setFiltersOpen] = useState(false)
   const { categories } = usePublicCategories()
   const { dishes, isLoading, error, refetch } = useMenuDishes(filters)
 
@@ -43,45 +40,35 @@ export default function MenuPage() {
     filters.sortBy !== 'default'
 
   return (
-    <Container as="div" className="py-8 md:py-12">
-      <PageHeader
-        title="Our Menu"
-        description="Explore authentic Andhra dishes — filter by category, diet, spice level, and more."
-      />
-
-      <div className="mb-6">
+    <Container as="div" className="py-3 md:py-4">
+      <header className="mb-2 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-baseline gap-2">
+          <h1 className="font-heading text-xl font-bold md:text-2xl">Our Menu</h1>
+          {!isLoading && !error && dishes.length > 0 ? (
+            <span className="text-xs text-text-secondary">
+              {dishes.length} {dishes.length === 1 ? 'dish' : 'dishes'}
+            </span>
+          ) : null}
+        </div>
         <Link
           to={ROUTES.LIGHT_MENU}
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-primary transition-colors hover:text-primary-dark"
+          className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary transition-colors hover:text-primary-dark"
         >
-          <Zap className="h-4 w-4" aria-hidden="true" />
-          Prefer a lighter, text-only menu?
+          <Zap className="h-3.5 w-3.5" aria-hidden="true" />
+          Light menu
         </Link>
-      </div>
+      </header>
 
-      <div className="sticky top-[72px] z-40 -mx-4 mb-6 border-b border-black/5 bg-background/95 px-4 py-4 backdrop-blur md:static md:mx-0 md:mb-8 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
-        <MenuSearchBar
-          value={filters.search}
-          onChange={(search) => updateFilters({ search })}
+      <div className="sticky top-[72px] z-40 -mx-4 mb-3 border-b border-black/5 bg-background/95 px-4 py-2 backdrop-blur md:static md:mx-0 md:mb-3 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
+        <MenuFilters
+          filters={filters}
+          categories={categories}
+          onChange={updateFilters}
+          onClear={clearFilters}
         />
       </div>
 
-      <MenuFilters
-        filters={filters}
-        categories={categories}
-        isOpen={filtersOpen}
-        onToggle={() => setFiltersOpen((open) => !open)}
-        onChange={updateFilters}
-        onClear={clearFilters}
-      />
-
-      <div className="mt-8">
-        {!isLoading && !error && dishes.length > 0 && (
-          <p className="mb-6 text-sm text-text-secondary">
-            {dishes.length} {dishes.length === 1 ? 'dish' : 'dishes'} found
-          </p>
-        )}
-
+      <div>
         {isLoading && <LoadingState variant="grid" />}
 
         {!isLoading && error && (
@@ -102,7 +89,7 @@ export default function MenuPage() {
         )}
 
         {!isLoading && !error && dishes.length > 0 && (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {dishes.map((dish) => (
               <MenuDishCard
                 key={dish.id}

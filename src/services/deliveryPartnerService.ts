@@ -16,6 +16,7 @@ function mapDeliveryPartner(row: Record<string, unknown>): DeliveryPartner {
   return {
     id: row.id as string,
     organization_id: (row.organization_id as string) ?? '',
+    branch_id: (row.branch_id as string | null) ?? null,
     full_name: row.full_name as string,
     phone: row.phone as string,
     is_active: Boolean(row.is_active),
@@ -41,14 +42,21 @@ export async function getDeliveryPartners(): Promise<
   return createSuccessResponse((data ?? []).map(mapDeliveryPartner))
 }
 
-export async function getActiveDeliveryPartners(): Promise<
-  ServiceResponse<DeliveryPartner[]>
-> {
-  const { data, error } = await supabase
+export async function getActiveDeliveryPartners(
+  branchId?: string | null,
+): Promise<ServiceResponse<DeliveryPartner[]>> {
+  let query = supabase
     .from('delivery_partners')
     .select('*')
     .eq('is_active', true)
     .order('full_name', { ascending: true })
+
+  if (branchId) {
+    // Partners assigned to this branch, plus shared partners (null branch).
+    query = query.or(`branch_id.eq.${branchId},branch_id.is.null`)
+  }
+
+  const { data, error } = await query
 
   if (error) {
     return createErrorResponse('Unable to load delivery partners.', error.message)
@@ -76,6 +84,7 @@ export async function createDeliveryPartner(
     'delivery_partners',
     {
       organization_id: DEFAULT_ORGANIZATION_ID,
+      branch_id: input.branchId ?? null,
       full_name: name,
       phone,
       notes: input.notes?.trim() || null,
@@ -117,6 +126,7 @@ export async function updateDeliveryPartner(
 
   if (input.notes !== undefined) updates.notes = input.notes.trim() || null
   if (input.isActive !== undefined) updates.is_active = input.isActive
+  if (input.branchId !== undefined) updates.branch_id = input.branchId
 
   const { data, error } = await supabase
     .from('delivery_partners')
