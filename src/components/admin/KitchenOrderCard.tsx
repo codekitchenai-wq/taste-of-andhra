@@ -11,6 +11,7 @@ import type { OrderStatus } from '@/types/enums'
 import { cn } from '@/utils/cn'
 import { formatPrice } from '@/utils/format'
 import { isOrderDelayed, isTerminalOrderStatus } from '@/utils/orderEta'
+import { ORDER_STATUS_SURFACE_STYLES } from '@/utils/orderStatusStyles'
 
 function formatElapsed(iso: string, nowMs: number): string {
   const seconds = Math.max(0, Math.floor((nowMs - new Date(iso).getTime()) / 1000))
@@ -123,12 +124,10 @@ export function KitchenOrderCard({
   return (
     <article
       className={cn(
-        'flex flex-col gap-1.5 rounded-[var(--radius-card)] border bg-surface p-2.5 shadow-sm',
+        'flex flex-col gap-1.5 rounded-[var(--radius-card)] border p-2.5 shadow-sm',
         delayed
-          ? 'border-error/40 ring-1 ring-error/20'
-          : isNew
-            ? 'border-[#FC8019] ring-1 ring-[#FC8019]/25'
-            : 'border-black/8',
+          ? 'border-error/40 bg-error/5 ring-1 ring-error/20'
+          : ORDER_STATUS_SURFACE_STYLES[order.order_status],
       )}
     >
       <div className="flex items-start justify-between gap-1.5">
@@ -139,7 +138,7 @@ export function KitchenOrderCard({
           <p
             className={cn(
               'text-xs font-semibold leading-tight',
-              isNew ? 'text-[#FC8019]' : 'text-text-secondary',
+              isNew ? 'text-[#1C1917]' : 'text-text-secondary',
             )}
           >
             {formatElapsed(order.created_at, nowMs)}

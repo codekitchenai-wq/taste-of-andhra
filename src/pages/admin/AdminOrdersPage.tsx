@@ -23,9 +23,20 @@ import * as orderService from '@/services/orderService'
 import type { AdminOrder } from '@/services/orderService'
 import type { OrderStatus } from '@/types/enums'
 import { cn } from '@/utils/cn'
+import {
+  createDashboardRange,
+  endOfLocalDayIso,
+  startOfLocalDayIso,
+  type DashboardRangePreset,
+} from '@/utils/dateRange'
 import { isOrderDelayed } from '@/utils/orderEta'
+import { isActiveOrderStatus } from '@/utils/orderStatusStyles'
 
 type ViewMode = 'board' | 'list'
+type OrdersDatePreset = Extract<
+  DashboardRangePreset,
+  'today' | 'yesterday' | 'last7'
+>
 
 const STATUS_BY_ACTION: Partial<Record<KitchenPrimaryAction, OrderStatus>> = {
   accept: 'confirmed',
@@ -36,8 +47,15 @@ const STATUS_BY_ACTION: Partial<Record<KitchenPrimaryAction, OrderStatus>> = {
   mark_delivered: 'delivered',
 }
 
+const DATE_PRESETS: { id: OrdersDatePreset; label: string }[] = [
+  { id: 'today', label: 'Today' },
+  { id: 'yesterday', label: 'Yesterday' },
+  { id: 'last7', label: 'Last week' },
+]
+
 export default function AdminOrdersPage() {
-  const [viewFilter, setViewFilter] = useState<OrderViewFilter>('all')
+  const [viewFilter, setViewFilter] = useState<OrderViewFilter>('active')
+  const [datePreset, setDatePreset] = useState<OrdersDatePreset>('today')
   const [viewMode, setViewMode] = useState<ViewMode>('board')
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null)
   const [viewingOrderId, setViewingOrderId] = useState<string | null>(null)
@@ -50,16 +68,17 @@ export default function AdminOrdersPage() {
     return () => window.clearInterval(id)
   }, [])
 
+  const dateRange = useMemo(
+    () => createDashboardRange(datePreset),
+    [datePreset],
+  )
+
   const filters = useMemo(
     () => ({
-      status:
-        viewMode === 'list' &&
-        viewFilter !== 'all' &&
-        viewFilter !== 'delayed'
-          ? viewFilter
-          : undefined,
+      createdFrom: startOfLocalDayIso(dateRange.fromDate),
+      createdTo: endOfLocalDayIso(dateRange.toDate),
     }),
-    [viewFilter, viewMode],
+    [dateRange.fromDate, dateRange.toDate],
   )
 
   const { orders, isLoading, error, refetch } = useAdminOrders(filters)
@@ -87,6 +106,8 @@ export default function AdminOrdersPage() {
 
   const filterCounts = useMemo(() => {
     const counts = {
+      active: orders.filter((order) => isActiveOrderStatus(order.order_status))
+        .length,
       all: orders.length,
       delayed: delayedCount,
     } as Record<OrderViewFilter, number>
@@ -104,6 +125,8 @@ export default function AdminOrdersPage() {
     let list = orders
     if (viewFilter === 'delayed') {
       list = list.filter((order) => isOrderDelayed(order, nowMs))
+    } else if (viewFilter === 'active') {
+      list = list.filter((order) => isActiveOrderStatus(order.order_status))
     } else if (viewFilter !== 'all') {
       list = list.filter((order) => order.order_status === viewFilter)
     }
@@ -113,6 +136,12 @@ export default function AdminOrdersPage() {
   const listOrders = useMemo(() => {
     if (viewFilter === 'delayed') {
       return orders.filter((order) => isOrderDelayed(order, nowMs))
+    }
+    if (viewFilter === 'active') {
+      return orders.filter((order) => isActiveOrderStatus(order.order_status))
+    }
+    if (viewFilter !== 'all') {
+      return orders.filter((order) => order.order_status === viewFilter)
     }
     return orders
   }, [orders, viewFilter, nowMs])
@@ -211,53 +240,86 @@ export default function AdminOrdersPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={toggleMute}
-          aria-label={isMuted ? 'Unmute new order sound' : 'Mute new order sound'}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div
+          className="inline-flex flex-wrap rounded-[var(--radius-button)] border border-black/10 bg-surface p-1"
+          role="group"
+          aria-label="Order date range"
         >
-          {isMuted ? (
-            <VolumeX className="h-4 w-4" />
-          ) : (
-            <Volume2 className="h-4 w-4" />
-          )}
-          {isMuted ? 'Unmute' : 'Mute'}
-        </Button>
+          {DATE_PRESETS.map((preset) => (
+            <button
+              key={preset.id}
+              type="button"
+              onClick={() => setDatePreset(preset.id)}
+              className={cn(
+                'rounded-[calc(var(--radius-button)-2px)] px-3 py-1.5 text-sm font-medium transition-colors',
+                datePreset === preset.id
+                  ? 'bg-primary text-white'
+                  : 'text-text-secondary hover:bg-black/5',
+              )}
+              aria-pressed={datePreset === preset.id}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
 
-        <div className="inline-flex rounded-[var(--radius-button)] border border-black/10 bg-surface p-1">
-          <button
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button
             type="button"
-            onClick={() => setViewMode('board')}
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-[calc(var(--radius-button)-2px)] px-3 py-1.5 text-sm font-medium transition-colors',
-              viewMode === 'board'
-                ? 'bg-primary text-white'
-                : 'text-text-secondary hover:bg-black/5',
-            )}
-            aria-pressed={viewMode === 'board'}
+            variant="secondary"
+            size="sm"
+            onClick={toggleMute}
+            aria-label={
+              isMuted ? 'Unmute new order sound' : 'Mute new order sound'
+            }
           >
-            <LayoutGrid className="h-4 w-4" />
-            Board
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode('list')}
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-[calc(var(--radius-button)-2px)] px-3 py-1.5 text-sm font-medium transition-colors',
-              viewMode === 'list'
-                ? 'bg-primary text-white'
-                : 'text-text-secondary hover:bg-black/5',
+            {isMuted ? (
+              <VolumeX className="h-4 w-4" />
+            ) : (
+              <Volume2 className="h-4 w-4" />
             )}
-            aria-pressed={viewMode === 'list'}
-          >
-            <List className="h-4 w-4" />
-            List
-          </button>
+            {isMuted ? 'Unmute' : 'Mute'}
+          </Button>
+
+          <div className="inline-flex rounded-[var(--radius-button)] border border-black/10 bg-surface p-1">
+            <button
+              type="button"
+              onClick={() => setViewMode('board')}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-[calc(var(--radius-button)-2px)] px-3 py-1.5 text-sm font-medium transition-colors',
+                viewMode === 'board'
+                  ? 'bg-primary text-white'
+                  : 'text-text-secondary hover:bg-black/5',
+              )}
+              aria-pressed={viewMode === 'board'}
+            >
+              <LayoutGrid className="h-4 w-4" />
+              Board
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-[calc(var(--radius-button)-2px)] px-3 py-1.5 text-sm font-medium transition-colors',
+                viewMode === 'list'
+                  ? 'bg-primary text-white'
+                  : 'text-text-secondary hover:bg-black/5',
+              )}
+              aria-pressed={viewMode === 'list'}
+            >
+              <List className="h-4 w-4" />
+              List
+            </button>
+          </div>
         </div>
       </div>
+
+      <p className="text-xs text-text-secondary">
+        Showing{' '}
+        <span className="font-medium text-text-primary">{dateRange.label}</span>
+        {viewFilter === 'active' ? ' · active orders only' : null}
+      </p>
 
       <OrderStatusFilterButtons
         activeFilter={viewFilter}
@@ -273,6 +335,7 @@ export default function AdminOrdersPage() {
         onDismiss={dismissAlert}
         onViewAll={() => {
           setViewMode('board')
+          setDatePreset('today')
           setViewFilter('pending')
           newOrdersRef.current?.scrollIntoView({ behavior: 'smooth' })
         }}
@@ -291,14 +354,18 @@ export default function AdminOrdersPage() {
               ? 'No delayed orders'
               : viewFilter === 'pending'
                 ? 'No new orders'
-                : 'No orders found'
+                : viewFilter === 'active'
+                  ? 'No active orders'
+                  : 'No orders found'
           }
           description={
             viewFilter === 'delayed'
               ? 'All active orders are within their delivery window.'
               : viewFilter === 'pending'
                 ? 'You are all caught up — no new orders waiting.'
-                : 'Try selecting a different status filter above.'
+                : viewFilter === 'active'
+                  ? `No open orders for ${dateRange.label.toLowerCase()}. Delivered and cancelled are hidden here.`
+                  : `Nothing in ${dateRange.label.toLowerCase()} for this filter. Try another day range or status.`
           }
         />
       )}

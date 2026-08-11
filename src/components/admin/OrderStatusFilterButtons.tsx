@@ -1,27 +1,36 @@
-import { AlertTriangle, Clock } from 'lucide-react'
-import { Button } from '@/components/ui/Button'
+import { AlertTriangle, Clock, Radio } from 'lucide-react'
 import { ORDER_STATUS } from '@/constants/ORDER_STATUS'
 import type { OrderStatus } from '@/types/enums'
 import { cn } from '@/utils/cn'
+import { ORDER_STATUS_FILTER_ACTIVE_STYLES } from '@/utils/orderStatusStyles'
 
-export type OrderViewFilter = 'all' | 'delayed' | OrderStatus
+export type OrderViewFilter = 'active' | 'all' | 'delayed' | OrderStatus
 
 interface FilterButtonConfig {
   id: OrderViewFilter
   label: string
-  activeVariant?: 'primary' | 'danger'
   icon?: typeof Clock
   highlightWhenCount?: boolean
+  /** Custom active styles when selected (non-status filters). */
+  activeClassName?: string
+  idleHighlightClassName?: string
 }
 
 const FILTER_BUTTONS: FilterButtonConfig[] = [
-  { id: 'all', label: 'All Orders' },
+  {
+    id: 'active',
+    label: 'Active orders',
+    icon: Radio,
+    activeClassName:
+      'border-transparent bg-primary text-white hover:bg-primary-dark',
+  },
   {
     id: 'pending',
     label: 'New Orders',
-    activeVariant: 'primary',
     icon: Clock,
     highlightWhenCount: true,
+    idleHighlightClassName:
+      'border-[#1C1917] text-[#1C1917] hover:bg-[#1C1917]/5',
   },
   { id: 'confirmed', label: ORDER_STATUS.confirmed },
   { id: 'preparing', label: ORDER_STATUS.preparing },
@@ -30,18 +39,37 @@ const FILTER_BUTTONS: FilterButtonConfig[] = [
   {
     id: 'delayed',
     label: 'Delayed',
-    activeVariant: 'danger',
     icon: AlertTriangle,
     highlightWhenCount: true,
+    activeClassName: 'border-transparent bg-error text-white hover:bg-error/90',
+    idleHighlightClassName: 'border-error text-error hover:bg-error/5',
   },
   { id: 'delivered', label: ORDER_STATUS.delivered },
   { id: 'cancelled', label: ORDER_STATUS.cancelled },
+  {
+    id: 'all',
+    label: 'All in range',
+    activeClassName:
+      'border-transparent bg-text-primary text-white hover:bg-text-primary/90',
+  },
 ]
 
 interface OrderStatusFilterButtonsProps {
   activeFilter: OrderViewFilter
   counts: Record<OrderViewFilter, number>
   onChange: (filter: OrderViewFilter) => void
+}
+
+function isOrderStatus(id: OrderViewFilter): id is OrderStatus {
+  return (
+    id === 'pending' ||
+    id === 'confirmed' ||
+    id === 'preparing' ||
+    id === 'ready' ||
+    id === 'out_for_delivery' ||
+    id === 'delivered' ||
+    id === 'cancelled'
+  )
 }
 
 export function OrderStatusFilterButtons({
@@ -59,34 +87,33 @@ export function OrderStatusFilterButtons({
         const count = counts[filter.id] ?? 0
         const isActive = activeFilter === filter.id
         const Icon = filter.icon
-        const activeVariant = filter.activeVariant ?? 'primary'
 
         return (
-          <Button
+          <button
             key={filter.id}
             type="button"
             role="tab"
             aria-selected={isActive}
-            size="sm"
-            variant={isActive ? activeVariant : 'secondary'}
             onClick={() => onChange(filter.id)}
             className={cn(
-              filter.highlightWhenCount &&
-                count > 0 &&
-                !isActive &&
-                filter.id === 'pending' &&
-                'border-[#FC8019] text-[#FC8019] hover:bg-[#FC8019]/5',
-              filter.highlightWhenCount &&
-                count > 0 &&
-                !isActive &&
-                filter.id === 'delayed' &&
-                'border-error text-error hover:bg-error/5',
+              'inline-flex h-9 items-center gap-1.5 rounded-[var(--radius-button)] border-2 px-3 text-sm font-medium transition-colors',
+              isActive
+                ? isOrderStatus(filter.id)
+                  ? ORDER_STATUS_FILTER_ACTIVE_STYLES[filter.id]
+                  : (filter.activeClassName ??
+                    'border-transparent bg-primary text-white')
+                : cn(
+                    'border-black/10 bg-surface text-text-primary hover:bg-black/5',
+                    filter.highlightWhenCount &&
+                      count > 0 &&
+                      filter.idleHighlightClassName,
+                  ),
             )}
           >
             {Icon ? <Icon className="h-4 w-4" aria-hidden="true" /> : null}
             {filter.label}
             {count > 0 ? ` (${count})` : ''}
-          </Button>
+          </button>
         )
       })}
     </div>

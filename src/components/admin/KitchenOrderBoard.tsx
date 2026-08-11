@@ -7,6 +7,7 @@ import type { AdminOrder } from '@/services/orderService'
 import type { OrderStatus } from '@/types/enums'
 import { cn } from '@/utils/cn'
 import { isOrderDelayed } from '@/utils/orderEta'
+import { ORDER_STATUS_HEADER_STYLES } from '@/utils/orderStatusStyles'
 
 type BoardColumnId =
   | 'confirmed'
@@ -26,25 +27,25 @@ const STAGE_COLUMNS: ColumnConfig[] = [
     id: 'confirmed',
     title: 'Confirmed',
     statuses: ['confirmed'],
-    headerClass: 'bg-secondary/15 text-secondary',
+    headerClass: ORDER_STATUS_HEADER_STYLES.confirmed,
   },
   {
     id: 'preparing',
     title: 'Preparing',
     statuses: ['preparing'],
-    headerClass: 'bg-primary/10 text-primary',
+    headerClass: ORDER_STATUS_HEADER_STYLES.preparing,
   },
   {
     id: 'ready',
     title: 'Ready',
     statuses: ['ready'],
-    headerClass: 'bg-success/15 text-success',
+    headerClass: ORDER_STATUS_HEADER_STYLES.ready,
   },
   {
     id: 'out_for_delivery',
     title: 'Out for Delivery',
     statuses: ['out_for_delivery'],
-    headerClass: 'bg-accent/25 text-text-primary',
+    headerClass: ORDER_STATUS_HEADER_STYLES.out_for_delivery,
   },
 ]
 
@@ -204,7 +205,7 @@ export function KitchenOrderBoard({
               className={cn(
                 'inline-flex min-w-6 items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-bold text-white',
                 pending.length > 0
-                  ? 'animate-pulse bg-[#FC8019]'
+                  ? 'animate-pulse bg-[#1C1917]'
                   : 'bg-text-secondary/40',
               )}
             >
@@ -258,7 +259,7 @@ export function KitchenOrderBoard({
                     <h4 className="text-xs font-bold uppercase tracking-wide">
                       {column.title}
                     </h4>
-                    <span className="rounded-full bg-surface/80 px-1.5 py-0.5 text-[10px] font-bold">
+                    <span className="rounded-full bg-white/90 px-1.5 py-0.5 text-[10px] font-bold text-text-primary">
                       {columnOrders.length}
                     </span>
                   </div>

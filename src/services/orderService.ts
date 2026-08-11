@@ -198,6 +198,10 @@ export interface AdminOrder extends Order {
 
 export interface AdminOrderFilters {
   status?: OrderStatus
+  /** Inclusive ISO lower bound for `created_at`. */
+  createdFrom?: string
+  /** Inclusive ISO upper bound for `created_at`. */
+  createdTo?: string
   search?: string
   limit?: number
 }
@@ -913,6 +917,14 @@ export async function getAllOrders(
 
     if (filters?.status) {
       query = query.eq('order_status', filters.status)
+    }
+
+    if (filters?.createdFrom) {
+      query = query.gte('created_at', filters.createdFrom)
+    }
+
+    if (filters?.createdTo) {
+      query = query.lte('created_at', filters.createdTo)
     }
 
     if (filters?.search?.trim()) {

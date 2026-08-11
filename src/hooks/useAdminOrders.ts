@@ -33,7 +33,14 @@ export function useAdminOrders(filters?: AdminOrderFilters) {
 
   useEffect(() => {
     void refetch()
-  }, [refetch, filters?.status, filters?.search, filters?.limit])
+  }, [
+    refetch,
+    filters?.status,
+    filters?.search,
+    filters?.limit,
+    filters?.createdFrom,
+    filters?.createdTo,
+  ])
 
   useEffect(() => {
     const unsubscribe = orderService.subscribeToOrders(() => {
