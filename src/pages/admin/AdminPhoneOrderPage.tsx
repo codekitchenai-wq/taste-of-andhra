@@ -73,6 +73,8 @@ export default function AdminPhoneOrderPage() {
   const [isSavingCustomer, setIsSavingCustomer] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null)
+  /** True after Look up for the current mobile — required before save/place. */
+  const [phoneVerified, setPhoneVerified] = useState(false)
 
   const [guestLine1, setGuestLine1] = useState('')
   const [guestLine2, setGuestLine2] = useState('')
@@ -115,6 +117,12 @@ export default function AdminPhoneOrderPage() {
   const customerDirty =
     savedSnapshot === null || snapshotKey(currentSnapshot) !== savedSnapshot
 
+  const hasSavedNumber =
+    phoneVerified &&
+    !customerDirty &&
+    isValidPhone(phone) &&
+    Boolean(customerName.trim())
+
   const clearCustomerDetails = (keepPhone = false) => {
     setMatchedCustomer(null)
     setCustomerName('')
@@ -128,6 +136,7 @@ export default function AdminPhoneOrderPage() {
     setGuestPincode('')
     setNotes('')
     setSavedSnapshot(null)
+    setPhoneVerified(false)
     if (!keepPhone) {
       // phone cleared by caller when needed
     }
@@ -138,6 +147,7 @@ export default function AdminPhoneOrderPage() {
     if (next !== phone) {
       clearCustomerDetails(true)
       setSavedSnapshot(null)
+      setPhoneVerified(false)
     }
     setPhone(next)
   }
@@ -228,7 +238,7 @@ export default function AdminPhoneOrderPage() {
     }
 
     setIsLookingUp(true)
-    const result = await customerService.findCustomerByPhone(phone)
+    const result = await customerService.lookupCustomerForPhoneOrder(phone)
     setIsLookingUp(false)
 
     if (!result.success) {
@@ -239,53 +249,79 @@ export default function AdminPhoneOrderPage() {
     if (!result.data) {
       clearCustomerDetails(true)
       setSavedSnapshot(null)
-      toast.success('New number — enter details and tap Save customer.')
+      setPhoneVerified(true)
+      toast.success('New number — enter details and tap Save.')
       return
     }
 
-    setMatchedCustomer(result.data)
-    setCustomerName(result.data.full_name)
-    setGuestLine1('')
-    setGuestLine2('')
-    setGuestLandmark('')
-    setGuestCity('Bangalore')
-    setGuestState('Karnataka')
-    setGuestPincode('')
+    const lookup = result.data
+    setPhoneVerified(true)
+    setMatchedCustomer(lookup.profile)
+    setCustomerName(lookup.customerName)
 
     let nextAddressId = ''
-    let nextAddresses: Address[] = []
-    const addressResult = await customerService.getCustomerAddresses(
-      result.data.id,
-    )
-    if (addressResult.success) {
-      nextAddresses = addressResult.data
+    let nextAddresses = lookup.addresses
+    if (nextAddresses.length > 0) {
       const preferred =
-        addressResult.data.find((address) => address.is_default) ??
-        addressResult.data[0]
+        nextAddresses.find((address) => address.is_default) ??
+        nextAddresses[0]
       nextAddressId = preferred?.id ?? ''
     }
     setAddresses(nextAddresses)
     setAddressId(nextAddressId)
 
+    if (lookup.guestAddress && !nextAddressId) {
+      setGuestLine1(lookup.guestAddress.line1)
+      setGuestLine2(lookup.guestAddress.line2)
+      setGuestLandmark(lookup.guestAddress.landmark)
+      setGuestCity(lookup.guestAddress.city)
+      setGuestState(lookup.guestAddress.state)
+      setGuestPincode(lookup.guestAddress.pincode)
+    } else {
+      setGuestLine1('')
+      setGuestLine2('')
+      setGuestLandmark('')
+      setGuestCity('Bangalore')
+      setGuestState('Karnataka')
+      setGuestPincode('')
+    }
+
     const loaded: CustomerFormSnapshot = {
       phone,
-      customerName: result.data.full_name.trim(),
+      customerName: lookup.customerName.trim(),
       fulfillmentType,
       branchId,
       addressId: nextAddressId,
-      guestLine1: '',
-      guestLine2: '',
-      guestLandmark: '',
-      guestCity: 'Bangalore',
-      guestState: 'Karnataka',
-      guestPincode: '',
-      matchedCustomerId: result.data.id,
+      guestLine1: nextAddressId ? '' : lookup.guestAddress?.line1.trim() ?? '',
+      guestLine2: nextAddressId ? '' : lookup.guestAddress?.line2.trim() ?? '',
+      guestLandmark: nextAddressId
+        ? ''
+        : lookup.guestAddress?.landmark.trim() ?? '',
+      guestCity: nextAddressId
+        ? 'Bangalore'
+        : lookup.guestAddress?.city.trim() ?? 'Bangalore',
+      guestState: nextAddressId
+        ? 'Karnataka'
+        : lookup.guestAddress?.state.trim() ?? 'Karnataka',
+      guestPincode: nextAddressId ? '' : lookup.guestAddress?.pincode.trim() ?? '',
+      matchedCustomerId: lookup.profile?.id ?? null,
     }
     markSaved(loaded)
-    toast.success(`Matched ${result.data.full_name} — ready to order`)
+
+    if (lookup.source === 'profile' || lookup.source === 'address') {
+      toast.success(`Matched ${lookup.customerName} — ready to order`)
+      return
+    }
+
+    toast.success(`Found ${lookup.customerName} from a previous order — ready to order`)
   }
 
   const handleSaveCustomer = async () => {
+    if (!phoneVerified) {
+      toast.error('Look up the mobile number before saving.')
+      return
+    }
+
     const validationError = validateCustomerForm()
     if (validationError) {
       toast.error(validationError)
@@ -417,8 +453,17 @@ export default function AdminPhoneOrderPage() {
   }
 
   const handleSubmit = async () => {
-    if (customerDirty) {
-      toast.error('Save customer details before placing the order.')
+    if (!phoneVerified || !isValidPhone(phone)) {
+      toast.error(
+        'Look up and save a valid mobile number before placing the order.',
+      )
+      return
+    }
+
+    if (customerDirty || !hasSavedNumber) {
+      toast.error(
+        'Save customer details for this mobile number before placing the order.',
+      )
       return
     }
 
@@ -516,14 +561,18 @@ export default function AdminPhoneOrderPage() {
             variant={customerDirty ? 'primary' : 'secondary'}
             size="sm"
             className="h-8 shrink-0 px-3"
-            disabled={isSavingCustomer || !customerDirty}
+            disabled={
+              isSavingCustomer || !customerDirty || !phoneVerified
+            }
             onClick={() => void handleSaveCustomer()}
           >
             {isSavingCustomer
               ? 'Saving…'
-              : customerDirty
-                ? 'Save'
-                : 'Saved'}
+              : !phoneVerified
+                ? 'Look up first'
+                : customerDirty
+                  ? 'Save'
+                  : 'Saved'}
           </Button>
         </div>
 
@@ -865,11 +914,17 @@ export default function AdminPhoneOrderPage() {
             Pay later (UPI QR after ready / delivery)
           </p>
 
-          {customerDirty && (
+          {!phoneVerified ? (
             <p className="rounded-[var(--radius-button)] bg-primary/10 px-2 py-1 text-[11px] text-text-primary">
-              Save customer details before placing the order.
+              Look up a mobile number, then save details before placing the
+              order.
             </p>
-          )}
+          ) : !hasSavedNumber ? (
+            <p className="rounded-[var(--radius-button)] bg-primary/10 px-2 py-1 text-[11px] text-text-primary">
+              Save customer details for this mobile number before placing the
+              order.
+            </p>
+          ) : null}
 
           {!isStoreStatusLoading && storeStatus && !storeStatus.isOpen && (
             <p className="rounded-[var(--radius-button)] bg-error/10 px-2 py-1 text-[11px] text-error">
@@ -883,7 +938,7 @@ export default function AdminPhoneOrderPage() {
             className="w-full"
             disabled={
               isSubmitting ||
-              customerDirty ||
+              !hasSavedNumber ||
               isStoreStatusLoading ||
               Boolean(storeStatus && !storeStatus.isOpen)
             }
@@ -893,9 +948,11 @@ export default function AdminPhoneOrderPage() {
               ? 'Placing order…'
               : storeStatus && !storeStatus.isOpen
                 ? 'Store closed'
-                : customerDirty
-                  ? 'Save customer first'
-                  : 'Place order'}
+                : !phoneVerified
+                  ? 'Look up mobile first'
+                  : !hasSavedNumber
+                    ? 'Save number first'
+                    : 'Place order'}
           </Button>
         </section>
       </div>

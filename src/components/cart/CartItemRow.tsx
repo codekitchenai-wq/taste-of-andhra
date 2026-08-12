@@ -29,7 +29,7 @@ export function CartItemRow({
     .filter(Boolean)
 
   return (
-    <article className="flex gap-4 rounded-[var(--radius-card)] bg-surface p-4 shadow-sm sm:items-center sm:p-5">
+    <article className="flex min-w-0 gap-4 rounded-[var(--radius-card)] bg-surface p-4 shadow-sm sm:items-center sm:p-5">
       <Link
         to={ROUTES.DISH_DETAILS(dish.slug)}
         className="shrink-0 overflow-hidden rounded-[var(--radius-input)]"

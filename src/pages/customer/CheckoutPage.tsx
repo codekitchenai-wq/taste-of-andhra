@@ -80,6 +80,7 @@ export default function CheckoutPage() {
   const [specialInstructions, setSpecialInstructions] = useState('')
   const [whatsappUpdatesOptIn, setWhatsappUpdatesOptIn] = useState(true)
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false)
+  const [hasPromptedForAddress, setHasPromptedForAddress] = useState(false)
   const [isPlacingOrder, setIsPlacingOrder] = useState(false)
   const [isPaymentOpen, setIsPaymentOpen] = useState(false)
   const [pendingOrder, setPendingOrder] = useState<{
@@ -120,6 +121,14 @@ export default function CheckoutPage() {
       addresses.find((address) => address.is_default) ?? addresses[0]
     setSelectedAddressId(defaultAddress?.id ?? null)
   }, [addresses, selectedAddressId])
+
+  useEffect(() => {
+    if (isAddressesLoading || hasPromptedForAddress) return
+    if (addresses.length > 0) return
+
+    setIsAddressModalOpen(true)
+    setHasPromptedForAddress(true)
+  }, [addresses.length, hasPromptedForAddress, isAddressesLoading])
 
   useEffect(() => {
     void loyaltyService.getOrCreateAccount().then((result) => {
@@ -187,6 +196,60 @@ export default function CheckoutPage() {
       selectedAddress &&
       (selectedAddress.latitude === null || selectedAddress.longitude === null),
   )
+
+  const needsAddress = addresses.length === 0 || !selectedAddressId
+
+  const checkoutBlockReason = useMemo(() => {
+    if (isPlacingOrder) return 'placing'
+    if (isStoreStatusLoading || isQuoteLoading || isBranchLoading) {
+      return 'loading'
+    }
+    if (storeStatus && !storeStatus.isOpen) return 'closed'
+    if (needsAddress) return 'address'
+    if (branches.length > 0 && !selectedBranch) return 'branch'
+    if (isUnserviceable) return 'unserviceable'
+    return null
+  }, [
+    isPlacingOrder,
+    isStoreStatusLoading,
+    isQuoteLoading,
+    isBranchLoading,
+    storeStatus,
+    needsAddress,
+    branches.length,
+    selectedBranch,
+    isUnserviceable,
+  ])
+
+  const checkoutButtonLabel = useMemo(() => {
+    switch (checkoutBlockReason) {
+      case 'placing':
+        return 'Creating order...'
+      case 'loading':
+        return 'Preparing checkout...'
+      case 'closed':
+        return 'Store closed'
+      case 'address':
+        return 'Add delivery address'
+      case 'branch':
+        return 'Select a branch'
+      case 'unserviceable':
+        return 'Not deliverable here'
+      default:
+        return paymentMethod === 'razorpay'
+          ? 'Continue to Payment'
+          : 'Place Order'
+    }
+  }, [checkoutBlockReason, paymentMethod])
+
+  const handleCheckoutClick = () => {
+    if (checkoutBlockReason === 'address') {
+      setIsAddressModalOpen(true)
+      return
+    }
+
+    void handlePlaceOrder()
+  }
 
   const finishCheckout = async (orderId: string, orderNumber: string) => {
     setIsCompletingCheckout(true)
@@ -365,9 +428,20 @@ export default function CheckoutPage() {
             )}
 
             {addresses.length === 0 ? (
-              <p className="text-sm text-text-secondary">
-                Add a delivery address to continue.
-              </p>
+              <div className="rounded-[var(--radius-card)] border border-dashed border-primary/30 bg-primary/5 p-4">
+                <p className="text-sm text-text-primary">
+                  Add a delivery address to continue to payment.
+                </p>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="mt-3"
+                  onClick={() => setIsAddressModalOpen(true)}
+                >
+                  <Plus className="mr-1 h-4 w-4" aria-hidden="true" />
+                  Add delivery address
+                </Button>
+              </div>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
                 {addresses.map((address) => (
@@ -554,51 +628,45 @@ export default function CheckoutPage() {
           </Link>
         </div>
 
-        <CheckoutOrderSummary
-          items={cart.items}
-          totals={totals}
-          itemCount={itemCount}
-          deliveryQuote={deliveryQuote}
-          isDeliveryQuoteLoading={isQuoteLoading}
-          action={
-            <Button
-              type="button"
-              fullWidth
-              size="lg"
-              disabled={
-                isPlacingOrder ||
-                isQuoteLoading ||
-                isBranchLoading ||
-                isStoreStatusLoading ||
-                Boolean(storeStatus && !storeStatus.isOpen) ||
-                isUnserviceable ||
-                !selectedAddressId ||
-                addresses.length === 0 ||
-                (branches.length > 0 && !selectedBranch)
-              }
-              onClick={() => void handlePlaceOrder()}
-            >
-              {isPlacingOrder
-                ? 'Creating order...'
-                : isQuoteLoading || isBranchLoading || isStoreStatusLoading
-                  ? 'Preparing checkout...'
-                  : storeStatus && !storeStatus.isOpen
-                    ? 'Store closed'
-                    : isUnserviceable
-                      ? 'Not deliverable here'
-                      : paymentMethod === 'razorpay'
-                        ? 'Continue to Payment'
-                        : 'Place Order'}
-            </Button>
-          }
-        />
+        <div className="lg:sticky lg:top-[88px] lg:self-start">
+          <CheckoutOrderSummary
+            items={cart.items}
+            totals={totals}
+            itemCount={itemCount}
+            deliveryQuote={deliveryQuote}
+            isDeliveryQuoteLoading={isQuoteLoading}
+            action={
+              <>
+                {checkoutBlockReason === 'address' && (
+                  <p className="mb-2 text-xs text-text-secondary">
+                    A delivery address is required before you can pay.
+                  </p>
+                )}
+
+                <Button
+                  type="button"
+                  fullWidth
+                  size="lg"
+                  disabled={
+                    checkoutBlockReason !== null &&
+                    checkoutBlockReason !== 'address'
+                  }
+                  onClick={handleCheckoutClick}
+                >
+                  {checkoutButtonLabel}
+                </Button>
+              </>
+            }
+          />
+        </div>
       </div>
 
       <AddressFormModal
         isOpen={isAddressModalOpen}
         onClose={() => setIsAddressModalOpen(false)}
-        onSuccess={() => {
+        onSuccess={(addressId) => {
           setIsAddressModalOpen(false)
+          setSelectedAddressId(addressId)
           void refetch()
         }}
       />

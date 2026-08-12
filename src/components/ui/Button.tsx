@@ -1,3 +1,4 @@
+import { forwardRef } from 'react'
 import { cn } from '@/utils/cn'
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'success' | 'ghost'
@@ -28,30 +29,36 @@ const sizeStyles: Record<ButtonSize, string> = {
   lg: 'h-12 px-8 text-base',
 }
 
-export function Button({
-  variant = 'primary',
-  size = 'md',
-  fullWidth = false,
-  className,
-  type = 'button',
-  disabled,
-  children,
-  ...props
-}: ButtonProps) {
-  return (
-    <button
-      type={type}
-      disabled={disabled}
-      className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-[var(--radius-button)] font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
-        variantStyles[variant],
-        sizeStyles[size],
-        fullWidth && 'w-full',
-        className,
-      )}
-      {...props}
-    >
-      {children}
-    </button>
-  )
-}
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  function Button(
+    {
+      variant = 'primary',
+      size = 'md',
+      fullWidth = false,
+      className,
+      type = 'button',
+      disabled,
+      children,
+      ...props
+    },
+    ref,
+  ) {
+    return (
+      <button
+        ref={ref}
+        type={type}
+        disabled={disabled}
+        className={cn(
+          'inline-flex items-center justify-center gap-2 rounded-[var(--radius-button)] font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
+          variantStyles[variant],
+          sizeStyles[size],
+          fullWidth && 'w-full',
+          className,
+        )}
+        {...props}
+      >
+        {children}
+      </button>
+    )
+  },
+)

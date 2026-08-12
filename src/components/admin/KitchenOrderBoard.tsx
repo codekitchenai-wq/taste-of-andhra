@@ -256,10 +256,10 @@ export function KitchenOrderBoard({
                       column.headerClass,
                     )}
                   >
-                    <h4 className="text-xs font-bold uppercase tracking-wide">
+                    <h4 className="text-xs font-bold uppercase tracking-wide text-white">
                       {column.title}
                     </h4>
-                    <span className="rounded-full bg-white/90 px-1.5 py-0.5 text-[10px] font-bold text-text-primary">
+                    <span className="rounded-full bg-white px-1.5 py-0.5 text-[10px] font-bold text-text-primary shadow-sm">
                       {columnOrders.length}
                     </span>
                   </div>

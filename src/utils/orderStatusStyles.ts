@@ -40,13 +40,13 @@ export const ORDER_STATUS_SURFACE_STYLES: Record<OrderStatus, string> = {
 }
 
 export const ORDER_STATUS_HEADER_STYLES: Record<OrderStatus, string> = {
-  pending: 'bg-[#1C1917] text-white',
-  confirmed: 'bg-[#44403C] text-white',
-  preparing: 'bg-[#9A3412] text-white',
-  ready: 'bg-[#0F766E] text-white',
-  out_for_delivery: 'bg-[#1D4ED8] text-white',
-  delivered: 'bg-[#15803D] text-white',
-  cancelled: 'bg-[#EA580C] text-white',
+  pending: 'bg-[#1C1917] text-white shadow-sm',
+  confirmed: 'bg-[#57534E] text-white shadow-sm',
+  preparing: 'bg-[#C2410C] text-white shadow-sm',
+  ready: 'bg-[#0D9488] text-white shadow-sm',
+  out_for_delivery: 'bg-[#2563EB] text-white shadow-sm',
+  delivered: 'bg-[#16A34A] text-white shadow-sm',
+  cancelled: 'bg-[#F97316] text-white shadow-sm',
 }
 
 export const ORDER_STATUS_FILTER_ACTIVE_STYLES: Record<OrderStatus, string> = {
