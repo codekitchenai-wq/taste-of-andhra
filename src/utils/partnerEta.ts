@@ -78,17 +78,15 @@ export function getPartnerEtaDisplay(input: PartnerEtaInput): PartnerEtaDisplay 
     return empty
   }
 
-  if (
-    !hasCoordinate(input.partnerLat) ||
-    !hasCoordinate(input.partnerLng)
-  ) {
+  const partnerLat = input.partnerLat
+  const partnerLng = input.partnerLng
+  if (!hasCoordinate(partnerLat) || !hasCoordinate(partnerLng)) {
     return empty
   }
 
-  const hasDropoff =
-    hasCoordinate(input.dropoffLat) && hasCoordinate(input.dropoffLng)
-
-  if (!hasDropoff) {
+  const dropoffLat = input.dropoffLat
+  const dropoffLng = input.dropoffLng
+  if (!hasCoordinate(dropoffLat) || !hasCoordinate(dropoffLng)) {
     return {
       ...empty,
       hasFix: true,
@@ -98,17 +96,12 @@ export function getPartnerEtaDisplay(input: PartnerEtaInput): PartnerEtaDisplay 
     }
   }
 
-  const distanceKm = haversineKm(
-    input.partnerLat,
-    input.partnerLng,
-    input.dropoffLat,
-    input.dropoffLng,
-  )
+  const distanceKm = haversineKm(partnerLat, partnerLng, dropoffLat, dropoffLng)
   const distanceM = distanceInMeters(
-    input.partnerLat,
-    input.partnerLng,
-    input.dropoffLat,
-    input.dropoffLng,
+    partnerLat,
+    partnerLng,
+    dropoffLat,
+    dropoffLng,
   )
   const isArriving = distanceM <= ARRIVED_THRESHOLD_M
   const minutes = isArriving ? 0 : estimateTravelMinutes(distanceKm)
