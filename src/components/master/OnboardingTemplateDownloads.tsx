@@ -9,21 +9,11 @@ import {
 interface OnboardingTemplateDownloadsProps {
   setupValues?: RestaurantSetupValues
   restaurantName?: string
-  setupFile?: File | null
-  menuFile?: File | null
-  onSetupFileChange?: (file: File | null) => void
-  onMenuFileChange?: (file: File | null) => void
-  showUploads?: boolean
 }
 
 export function OnboardingTemplateDownloads({
   setupValues,
   restaurantName,
-  setupFile = null,
-  menuFile = null,
-  onSetupFileChange,
-  onMenuFileChange,
-  showUploads = false,
 }: OnboardingTemplateDownloadsProps) {
   const setupFileName = `${
     restaurantName?.trim().replace(/\s+/g, '-').toLowerCase() || 'restaurant'
@@ -35,8 +25,8 @@ export function OnboardingTemplateDownloads({
         <h2 className="text-lg font-semibold">Excel templates for the owner</h2>
         <p className="mt-1 text-sm text-text-secondary">
           Download these two files and send them on WhatsApp. They open in
-          Excel or Google Sheets. When the owner sends them back, attach the
-          filled files below.
+          Excel or Google Sheets. Attach filled files at the bottom of this
+          page, or later on Additional details.
         </p>
       </div>
       <ul className="space-y-2 text-sm">
@@ -78,47 +68,6 @@ export function OnboardingTemplateDownloads({
           Download menu template (Excel)
         </Button>
       </div>
-      {showUploads && (
-        <div className="space-y-3 border-t border-primary/20 pt-4">
-          <h3 className="text-sm font-semibold">Upload filled sheets</h3>
-          <p className="text-sm text-text-secondary">
-            Attach the CSV files the owner returned (Excel: File → Save As →
-            CSV). They are applied when you create the restaurant.
-          </p>
-          <label className="block text-sm">
-            <span className="font-medium">Restaurant setup file</span>
-            <input
-              type="file"
-              accept=".csv,text/csv"
-              className="mt-1 block w-full text-sm"
-              onChange={(event) =>
-                onSetupFileChange?.(event.target.files?.[0] ?? null)
-              }
-            />
-            {setupFile && (
-              <span className="mt-1 block text-xs text-text-secondary">
-                Selected: {setupFile.name}
-              </span>
-            )}
-          </label>
-          <label className="block text-sm">
-            <span className="font-medium">Menu file</span>
-            <input
-              type="file"
-              accept=".csv,text/csv"
-              className="mt-1 block w-full text-sm"
-              onChange={(event) =>
-                onMenuFileChange?.(event.target.files?.[0] ?? null)
-              }
-            />
-            {menuFile && (
-              <span className="mt-1 block text-xs text-text-secondary">
-                Selected: {menuFile.name}
-              </span>
-            )}
-          </label>
-        </div>
-      )}
     </section>
   )
 }

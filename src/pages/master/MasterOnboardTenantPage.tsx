@@ -1,10 +1,9 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { MenuCsvImport } from '@/components/master/MenuCsvImport'
 import { OnboardingPack } from '@/components/master/OnboardingPack'
 import { OnboardingTemplateDownloads } from '@/components/master/OnboardingTemplateDownloads'
-import { RestaurantSetupImport } from '@/components/master/RestaurantSetupImport'
+import { OnboardingTemplateUploads } from '@/components/master/OnboardingTemplateUploads'
 import { TenantHomepageFields } from '@/components/master/TenantHomepageFields'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -135,7 +134,7 @@ export default function MasterOnboardTenantPage() {
             {created.billingMode === 'paid'
               ? `on a paid ${created.billingCycle} plan`
               : `on a ${created.periodDays}-day trial`}
-            . Share the setup + menu sheets, then upload what they send back.
+            . Sheets are optional — add them later if you skipped them.
           </p>
           {created.homepage.homepageUrl ? (
             <p className="mt-2 text-sm">
@@ -180,19 +179,12 @@ export default function MasterOnboardTenantPage() {
             city: created.city,
           }}
         />
-        <RestaurantSetupImport
-          organizationId={created.organizationId}
-          restaurantSlug={created.slug}
-        />
-        <MenuCsvImport organizationId={created.organizationId} />
         <div className="flex flex-wrap gap-3 text-sm">
           <Link
             to={ROUTES.MASTER.tenant(created.organizationId)}
             className="text-primary hover:underline"
           >
-            {created.homepage.homepageUrl
-              ? 'Change homepage · import menu'
-              : 'Add or change homepage · import menu'}
+            Add additional details later (templates, homepage)
           </Link>
           <Link
             to={ROUTES.MASTER.featuresForOrg(created.organizationId)}
@@ -213,8 +205,8 @@ export default function MasterOnboardTenantPage() {
       <div>
         <h1 className="font-heading text-3xl font-bold">Onboard restaurant</h1>
         <p className="mt-2 max-w-2xl text-sm text-text-secondary">
-          Download the sheets, send them to the owner, attach the filled files
-          below, then create the restaurant.
+          Create the restaurant now. Setup and menu sheets are optional — attach
+          them at the bottom, or add them later on Additional details.
         </p>
       </div>
 
@@ -226,11 +218,6 @@ export default function MasterOnboardTenantPage() {
           publicEmail: ownerEmail,
           city,
         }}
-        showUploads
-        setupFile={setupFile}
-        menuFile={menuFile}
-        onSetupFileChange={setSetupFile}
-        onMenuFileChange={setMenuFile}
       />
 
       <form className="space-y-8" onSubmit={(event) => void onSubmit(event)}>
@@ -370,6 +357,13 @@ export default function MasterOnboardTenantPage() {
             ))}
           </ul>
         </section>
+
+        <OnboardingTemplateUploads
+          setupFile={setupFile}
+          menuFile={menuFile}
+          onSetupFileChange={setSetupFile}
+          onMenuFileChange={setMenuFile}
+        />
 
         <Button type="submit" disabled={busy}>
           {busy

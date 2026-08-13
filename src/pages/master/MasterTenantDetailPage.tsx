@@ -84,9 +84,14 @@ export default function MasterTenantDetailPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="font-heading text-3xl font-bold">{org.name}</h1>
+        <h1 className="font-heading text-3xl font-bold">Additional details</h1>
+        <p className="mt-1 text-lg font-medium">{org.name}</p>
         <p className="mt-1 font-mono text-sm text-text-secondary">
           {org.slug} · {org.status}
+        </p>
+        <p className="mt-2 max-w-2xl text-sm text-text-secondary">
+          Add anything skipped at create: setup sheet, menu sheet, and public
+          homepage.
         </p>
         {org.homepage.homepageUrl ? (
           <p className="mt-2 text-sm">
@@ -107,6 +112,19 @@ export default function MasterTenantDetailPage() {
         )}
       </div>
 
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Templates</h2>
+        <p className="text-sm text-text-secondary">
+          Upload the filled setup and menu sheets if they were not added when
+          the restaurant was created.
+        </p>
+      </section>
+      <RestaurantSetupImport
+        organizationId={org.id}
+        restaurantSlug={org.slug}
+      />
+      <MenuCsvImport organizationId={org.id} />
+
       <form
         className="space-y-4 rounded-[var(--radius-card)] border border-black/10 bg-surface p-5"
         onSubmit={(event) => void onSaveHomepage(event)}
@@ -116,7 +134,7 @@ export default function MasterTenantDetailPage() {
           draft={homepageDraft}
           onChange={setHomepageDraft}
           radioName="tenant-homepage-mode"
-          heading="Change public homepage"
+          heading="Public homepage"
         />
         <Button type="submit" disabled={savingHomepage}>
           {savingHomepage ? 'Saving…' : 'Update homepage'}
@@ -133,19 +151,6 @@ export default function MasterTenantDetailPage() {
           publicEmail: org.email,
         }}
       />
-
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Upload filled templates</h2>
-        <p className="text-sm text-text-secondary">
-          If the owner already sent the Excel/CSV files, upload them here.
-        </p>
-      </section>
-      <RestaurantSetupImport
-        organizationId={org.id}
-        restaurantSlug={org.slug}
-      />
-
-      <MenuCsvImport organizationId={org.id} />
 
       <div className="flex flex-wrap gap-3 text-sm">
         <Link
