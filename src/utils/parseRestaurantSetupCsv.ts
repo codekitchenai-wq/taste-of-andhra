@@ -340,7 +340,7 @@ function parseBooleanCell(value: string): boolean | undefined {
   return undefined
 }
 
-function parseNumberCell(value: string): number | null | undefined {
+function parseNumberCell(value: string): number | undefined {
   const trimmed = value.trim()
   if (!trimmed) return undefined
   const cleaned = trimmed.replace(/^(rs\.?|inr)/i, '').replace(/[₹,\s]/g, '')
