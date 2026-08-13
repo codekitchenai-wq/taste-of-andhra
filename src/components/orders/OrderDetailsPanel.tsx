@@ -172,10 +172,12 @@ export function OrderDetailsPanel({
             <dt>Subtotal</dt>
             <dd>{formatPrice(order.subtotal)}</dd>
           </div>
-          <div className="flex justify-between gap-4 text-text-secondary">
-            <dt>Tax</dt>
-            <dd>{formatPrice(order.tax)}</dd>
-          </div>
+          {order.tax > 0 && (
+            <div className="flex justify-between gap-4 text-text-secondary">
+              <dt>GST</dt>
+              <dd>{formatPrice(order.tax)}</dd>
+            </div>
+          )}
           <div className="flex justify-between gap-4 text-text-secondary">
             <dt>Delivery</dt>
             <dd>

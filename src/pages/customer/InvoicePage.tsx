@@ -7,6 +7,7 @@ import { ErrorState } from '@/components/ui/ErrorState'
 import { LoadingState } from '@/components/ui/LoadingState'
 import { OrderNumberDisplay } from '@/components/orders/OrderNumberDisplay'
 import { APP_NAME } from '@/constants/APP'
+import { GST_INVOICES_DISABLED_MESSAGE } from '@/constants/GST'
 import { ROUTES } from '@/constants/ROUTES'
 import * as gstInvoiceService from '@/services/gstInvoiceService'
 import type { InvoiceViewModel } from '@/services/gstInvoiceService'
@@ -76,7 +77,19 @@ export default function InvoicePage() {
       {isLoading && <LoadingState variant="inline" />}
 
       {!isLoading && error && (
-        <ErrorState message={error} onRetry={() => void refetch()} />
+        <ErrorState
+          title={
+            error === GST_INVOICES_DISABLED_MESSAGE
+              ? 'GST invoices are not available'
+              : undefined
+          }
+          message={error}
+          onRetry={
+            error === GST_INVOICES_DISABLED_MESSAGE
+              ? undefined
+              : () => void refetch()
+          }
+        />
       )}
 
       {!isLoading && !error && invoiceView && (

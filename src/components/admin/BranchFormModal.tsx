@@ -168,10 +168,14 @@ export function BranchFormModal({
           />
         </div>
         <Input
-          label="GSTIN"
+          label="GSTIN (optional)"
           error={errors.gstin?.message}
           {...register('gstin')}
         />
+        <p className="-mt-2 text-xs text-text-secondary">
+          Used on invoices when GST is enabled in Settings. Leave blank if this
+          branch is not GST-registered.
+        </p>
         <div className="flex flex-wrap gap-6">
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" {...register('isActive')} />

@@ -71,10 +71,12 @@ export function CheckoutOrderSummary({
           <dt>Items ({itemCount})</dt>
           <dd>{formatPrice(totals.subtotal)}</dd>
         </div>
-        <div className="flex items-center justify-between text-text-secondary">
-          <dt>Tax (5%)</dt>
-          <dd>{formatPrice(totals.tax)}</dd>
-        </div>
+        {totals.tax > 0 && (
+          <div className="flex items-center justify-between text-text-secondary">
+            <dt>GST (5%)</dt>
+            <dd>{formatPrice(totals.tax)}</dd>
+          </div>
+        )}
         <div className="flex items-center justify-between text-text-secondary">
           <dt>Delivery</dt>
           <dd aria-live="polite">

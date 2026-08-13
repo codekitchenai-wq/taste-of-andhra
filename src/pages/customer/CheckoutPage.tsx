@@ -38,6 +38,7 @@ import { useCart } from '@/hooks/useCart'
 import { useDeliveryQuote } from '@/hooks/useDeliveryQuote'
 import { useDeliverySettings } from '@/hooks/useDeliverySettings'
 import { useSelectedBranch } from '@/hooks/useSelectedBranch'
+import { useGstSettings } from '@/hooks/useGstSettings'
 import { useStoreOpenStatus } from '@/hooks/useStoreOpenStatus'
 import * as deliverySettingsService from '@/services/deliverySettingsService'
 import * as loyaltyService from '@/services/loyaltyService'
@@ -49,6 +50,7 @@ import {
 import type { LoyaltyAccount } from '@/types/Loyalty'
 import type { PaymentMethod } from '@/types/enums'
 import type { Offer } from '@/types/Offer'
+import { effectiveOrderTaxRate } from '@/utils/gstSettings'
 import { calculateOrderTotals } from '@/utils/orderTotals'
 import { cn } from '@/utils/cn'
 import { formatPrice } from '@/utils/format'
@@ -71,6 +73,7 @@ export default function CheckoutPage() {
     useSelectedBranch()
   const { status: storeStatus, isLoading: isStoreStatusLoading } =
     useStoreOpenStatus()
+  const { settings: gstSettings } = useGstSettings()
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
     null,
   )
@@ -186,8 +189,9 @@ export default function CheckoutPage() {
         cart?.subtotal ?? 0,
         discountAmount,
         deliveryQuote?.isServiceable ? deliveryQuote.amount : undefined,
+        effectiveOrderTaxRate(gstSettings.enabled),
       ),
-    [cart?.subtotal, discountAmount, deliveryQuote],
+    [cart?.subtotal, discountAmount, deliveryQuote, gstSettings.enabled],
   )
 
   const isUnserviceable = deliveryQuote?.isServiceable === false

@@ -14,6 +14,7 @@ import { ErrorState } from '@/components/ui/ErrorState'
 import { LoadingState } from '@/components/ui/LoadingState'
 import { CANCELLABLE_ORDER_STATUSES } from '@/constants/ORDER_STATUS'
 import { ROUTES } from '@/constants/ROUTES'
+import { useGstSettings } from '@/hooks/useGstSettings'
 import { useOrderDetails } from '@/hooks/useOrderDetails'
 import * as orderService from '@/services/orderService'
 
@@ -21,6 +22,7 @@ export default function OrderDetailsPage() {
   const { orderId } = useParams<{ orderId: string }>()
   const navigate = useNavigate()
   const { order, isLoading, error, refetch } = useOrderDetails(orderId)
+  const { settings: gstSettings } = useGstSettings()
 
   const canCancel =
     order && CANCELLABLE_ORDER_STATUSES.includes(order.order_status)
@@ -109,13 +111,15 @@ export default function OrderDetailsPage() {
                 <GoogleReviewPrompt />
               </div>
             )}
-            <Link
-              to={ROUTES.ORDER_INVOICE(order.id)}
-              className="mt-6 flex items-center justify-center gap-2 rounded-[var(--radius-button)] border-2 border-primary bg-surface px-4 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-primary/5"
-            >
-              <FileText className="h-4 w-4" />
-              View GST Invoice
-            </Link>
+            {gstSettings.enabled && (
+              <Link
+                to={ROUTES.ORDER_INVOICE(order.id)}
+                className="mt-6 flex items-center justify-center gap-2 rounded-[var(--radius-button)] border-2 border-primary bg-surface px-4 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-primary/5"
+              >
+                <FileText className="h-4 w-4" />
+                View GST Invoice
+              </Link>
+            )}
             {canCancel && (
               <Button
                 type="button"

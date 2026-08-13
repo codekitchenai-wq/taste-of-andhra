@@ -66,4 +66,11 @@ describe('calculateOrderTotals', () => {
 
     expect(result.total).toBe(0)
   })
+
+  it('skips GST when tax rate is 0', () => {
+    const result = calculateOrderTotals(300, 0, 49, 0)
+
+    expect(result.tax).toBe(0)
+    expect(result.total).toBe(349)
+  })
 })

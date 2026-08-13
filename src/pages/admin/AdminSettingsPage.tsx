@@ -4,6 +4,7 @@ import { DeliverySettingsPanel } from '@/components/admin/DeliverySettingsPanel'
 import { PrinterSettingsPanel } from '@/components/admin/PrinterSettingsPanel'
 import { StoreTimingsPanel } from '@/components/admin/StoreTimingsPanel'
 import { OrderNumberSequencePanel } from '@/components/admin/OrderNumberSequencePanel'
+import { GstSettingsPanel } from '@/components/admin/GstSettingsPanel'
 import { WhatsAppSettingsPanel } from '@/components/admin/WhatsAppSettingsPanel'
 import { ConfigBanner } from '@/components/ui/ConfigBanner'
 import { Button } from '@/components/ui/Button'
@@ -107,6 +108,8 @@ export default function AdminSettingsPage() {
       <StoreTimingsPanel />
 
       <OrderNumberSequencePanel />
+
+      <GstSettingsPanel />
 
       <section className="rounded-[var(--radius-card)] bg-surface p-6 shadow-md">
         <h3 className="text-lg font-semibold text-text-primary">
@@ -224,7 +227,7 @@ export default function AdminSettingsPage() {
         </h3>
         <dl className="mt-4 grid gap-4 sm:grid-cols-3">
           <div>
-            <dt className="text-sm text-text-secondary">Tax Rate</dt>
+            <dt className="text-sm text-text-secondary">GST rate (when enabled)</dt>
             <dd className="font-medium text-text-primary">
               {(ORDER_TAX_RATE * 100).toFixed(0)}%
             </dd>
@@ -243,9 +246,8 @@ export default function AdminSettingsPage() {
           </div>
         </dl>
         <p className="mt-4 text-xs text-text-secondary">
-          Live delivery fees, distance rates, and free-delivery thresholds are
-          edited in <strong>Delivery &amp; Service Areas</strong> at the top of
-          this page. The values above are app defaults only.
+          GST on new orders is controlled in <strong>GST</strong> above. Live
+          delivery fees are edited in <strong>Delivery &amp; Service Areas</strong>.
         </p>
       </section>
 

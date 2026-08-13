@@ -1,9 +1,9 @@
 import {
-  DEFAULT_GSTIN,
-  GST_CGST_RATE,
-  GST_SGST_RATE,
-} from '@/constants/LOYALTY'
+  GST_INVOICES_DISABLED_MESSAGE,
+  GST_INVOICES_GSTIN_REQUIRED_MESSAGE,
+} from '@/constants/GST'
 import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
+import * as settingsService from '@/services/settingsService'
 import {
   createErrorResponse,
   createSuccessResponse,
@@ -15,6 +15,10 @@ import type { Branch } from '@/types/Branch'
 import * as branchService from '@/services/branchService'
 import { supabase } from '@/services/supabaseClient'
 import { insertWithOrgFallback } from '@/utils/insertWithOrgFallback'
+import {
+  calculateGstInvoiceAmounts,
+  generateGstInvoiceNumber,
+} from '@/utils/gstInvoice'
 
 function mapInvoice(row: Record<string, unknown>): GstInvoice {
   return {
@@ -34,8 +38,14 @@ function mapInvoice(row: Record<string, unknown>): GstInvoice {
   }
 }
 
-function generateInvoiceNumber(orderNumber: string): string {
-  return `INV-${orderNumber.replace(/^[A-Z0-9]+-/, '')}`
+function isRpcMissingError(message: string): boolean {
+  const normalized = message.toLowerCase()
+  return (
+    normalized.includes('could not find the function') ||
+    (normalized.includes('ensure_gst_invoice') &&
+      (normalized.includes('does not exist') ||
+        normalized.includes('schema cache')))
+  )
 }
 
 export async function getInvoiceByOrderId(
@@ -54,43 +64,80 @@ export async function getInvoiceByOrderId(
   return createSuccessResponse(data ? mapInvoice(data) : null)
 }
 
+async function ensureInvoiceViaRpc(
+  orderId: string,
+): Promise<ServiceResponse<GstInvoice> | null> {
+  const { data, error } = await supabase.rpc('ensure_gst_invoice', {
+    p_order_id: orderId,
+  })
+
+  if (error) {
+    if (isRpcMissingError(error.message)) return null
+    return createErrorResponse('Unable to create GST invoice.', error.message)
+  }
+
+  if (!data || typeof data !== 'object') {
+    return createErrorResponse('Unable to create GST invoice.')
+  }
+
+  return createSuccessResponse(mapInvoice(data as Record<string, unknown>))
+}
+
+async function resolveInvoiceBranch(
+  order: OrderFullDetails,
+): Promise<ServiceResponse<Branch>> {
+  if (order.branch_id) {
+    const branchResult = await branchService.getBranchById(order.branch_id)
+    if (branchResult.success) return branchResult
+  }
+
+  return branchService.getDefaultBranch()
+}
+
 export async function ensureInvoiceForOrder(
   order: OrderFullDetails,
 ): Promise<ServiceResponse<GstInvoice>> {
   const existing = await getInvoiceByOrderId(order.id)
-  if (!existing.success) return existing
-  if (existing.data) {
+  if (existing.success && existing.data) {
     return createSuccessResponse(existing.data)
   }
 
-  let branch: Branch | null = null
-  if (order.branch_id) {
-    const branchResult = await branchService.getBranchById(order.branch_id)
-    if (branchResult.success) branch = branchResult.data
-  }
-  if (!branch) {
-    const defaultResult = await branchService.getDefaultBranch()
-    if (!defaultResult.success) return defaultResult
-    branch = defaultResult.data
+  const gstSettings = await settingsService.getGstSettings()
+  if (!gstSettings.success || !gstSettings.data.enabled) {
+    return createErrorResponse(GST_INVOICES_DISABLED_MESSAGE)
   }
 
-  const taxable = order.subtotal - order.discount
-  const cgst = Math.round(taxable * GST_CGST_RATE * 100) / 100
-  const sgst = Math.round(taxable * GST_SGST_RATE * 100) / 100
-  const invoiceTotal =
-    Math.round((taxable + cgst + sgst + order.delivery_charge) * 100) / 100
+  const rpcResult = await ensureInvoiceViaRpc(order.id)
+  if (rpcResult) return rpcResult
+
+  if (!existing.success) return existing
+
+  const branchResult = await resolveInvoiceBranch(order)
+  if (!branchResult.success) return branchResult
+  const branch = branchResult.data
+  const gstin =
+    branch.gstin?.trim() || gstSettings.data.gstin.trim() || ''
+  if (!gstin) {
+    return createErrorResponse(GST_INVOICES_GSTIN_REQUIRED_MESSAGE)
+  }
+
+  const amounts = calculateGstInvoiceAmounts({
+    subtotal: order.subtotal,
+    discount: order.discount,
+    delivery_charge: order.delivery_charge,
+  })
 
   const { data, error } = await insertWithOrgFallback(supabase, 'gst_invoices', {
-    organization_id: DEFAULT_ORGANIZATION_ID,
+    organization_id: order.organization_id || DEFAULT_ORGANIZATION_ID,
     order_id: order.id,
     branch_id: branch.id,
-    invoice_number: generateInvoiceNumber(order.order_number),
-    gstin: branch.gstin ?? DEFAULT_GSTIN,
-    taxable_amount: taxable,
-    cgst,
-    sgst,
-    igst: 0,
-    total: invoiceTotal,
+    invoice_number: generateGstInvoiceNumber(order.order_number),
+    gstin,
+    taxable_amount: amounts.taxable_amount,
+    cgst: amounts.cgst,
+    sgst: amounts.sgst,
+    igst: amounts.igst,
+    total: amounts.total,
   })
 
   if (error) {

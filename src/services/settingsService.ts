@@ -21,6 +21,12 @@ import {
   parseOrderNumberSequence,
   validateOrderNumberSequence,
 } from '@/utils/orderNumber'
+import { GST_SETTINGS_KEY, type GstSettings } from '@/constants/GST'
+import {
+  isValidGstin,
+  normalizeGstin,
+  parseGstSettings,
+} from '@/utils/gstSettings'
 
 const DEFAULT_ETA_KEY = 'default_eta_minutes'
 const UPI_VPA_KEY = 'upi_vpa'
@@ -321,6 +327,47 @@ export async function setOrderNumberSequence(
     return createErrorResponse(
       'Unable to save order number sequence.',
       result.error ?? result.message,
+    )
+  }
+
+  return createSuccessResponse(normalized)
+}
+
+export async function getGstSettings(): Promise<ServiceResponse<GstSettings>> {
+  const raw = await getSettingValue(GST_SETTINGS_KEY)
+  return createSuccessResponse(parseGstSettings(raw))
+}
+
+export async function setGstSettings(
+  settings: GstSettings,
+): Promise<ServiceResponse<GstSettings>> {
+  const gstin = settings.gstin ? normalizeGstin(settings.gstin) : ''
+
+  if (gstin && !isValidGstin(gstin)) {
+    return createErrorResponse(
+      'Enter a valid 15-character GSTIN, or leave it blank.',
+    )
+  }
+
+  if (settings.enabled && !gstin) {
+    return createErrorResponse(
+      'Add your GSTIN to enable GST invoices, or turn GST off.',
+    )
+  }
+
+  const normalized: GstSettings = {
+    enabled: Boolean(settings.enabled),
+    gstin,
+  }
+
+  const saveResult = await setSettingValue(
+    GST_SETTINGS_KEY,
+    JSON.stringify(normalized),
+  )
+  if (!saveResult.success) {
+    return createErrorResponse(
+      'Unable to save GST settings.',
+      saveResult.error ?? saveResult.message,
     )
   }
 

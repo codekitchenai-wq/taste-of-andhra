@@ -8,6 +8,7 @@ import { LoadingState } from '@/components/ui/LoadingState'
 import { Select } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
 import { ROUTES } from '@/constants/ROUTES'
+import { useGstSettings } from '@/hooks/useGstSettings'
 import { useStoreOpenStatus } from '@/hooks/useStoreOpenStatus'
 import * as branchService from '@/services/branchService'
 import * as customerService from '@/services/customerService'
@@ -19,6 +20,7 @@ import type { FulfillmentType } from '@/types/enums'
 import type { Profile } from '@/types/Profile'
 import type { DishWithCategory } from '@/utils/mapDish'
 import { formatAddressLine } from '@/utils/mapAddress'
+import { effectiveOrderTaxRate } from '@/utils/gstSettings'
 import { calculateOrderTotals, defaultDeliveryCharge } from '@/utils/orderTotals'
 import { formatPrice } from '@/utils/format'
 import { cn } from '@/utils/cn'
@@ -55,6 +57,7 @@ export default function AdminPhoneOrderPage() {
   const navigate = useNavigate()
   const { status: storeStatus, isLoading: isStoreStatusLoading } =
     useStoreOpenStatus()
+  const { settings: gstSettings } = useGstSettings()
   const [dishes, setDishes] = useState<DishWithCategory[]>([])
   const [branches, setBranches] = useState<Branch[]>([])
   const [isLoadingMenu, setIsLoadingMenu] = useState(true)
@@ -210,7 +213,12 @@ export default function AdminPhoneOrderPage() {
   )
   const deliveryCharge =
     fulfillmentType === 'pickup' ? 0 : defaultDeliveryCharge(subtotal)
-  const totals = calculateOrderTotals(subtotal, 0, deliveryCharge)
+  const totals = calculateOrderTotals(
+    subtotal,
+    0,
+    deliveryCharge,
+    effectiveOrderTaxRate(gstSettings.enabled),
+  )
 
   const validateCustomerForm = (): string | null => {
     if (!isValidPhone(phone)) return 'Enter a valid 10-digit phone number.'
@@ -892,10 +900,12 @@ export default function AdminPhoneOrderPage() {
               <dt>Subtotal</dt>
               <dd>{formatPrice(totals.subtotal)}</dd>
             </div>
-            <div className="flex justify-between text-text-secondary">
-              <dt>Tax</dt>
-              <dd>{formatPrice(totals.tax)}</dd>
-            </div>
+            {totals.tax > 0 && (
+              <div className="flex justify-between text-text-secondary">
+                <dt>GST</dt>
+                <dd>{formatPrice(totals.tax)}</dd>
+              </div>
+            )}
             <div className="flex justify-between text-text-secondary">
               <dt>Delivery</dt>
               <dd>

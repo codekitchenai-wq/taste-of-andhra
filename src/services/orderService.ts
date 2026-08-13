@@ -25,6 +25,7 @@ import {
   withoutOrganizationId,
 } from '@/utils/supabaseSchema'
 import { getStoreOpenStatus } from '@/utils/storeHours'
+import { effectiveOrderTaxRate } from '@/utils/gstSettings'
 
 export interface CreateOrderInput {
   addressId: string
@@ -491,10 +492,15 @@ export async function createOrder(
     input.addressId,
   )
 
+  const gstSettings = await settingsService.getGstSettings()
+  const taxRate = effectiveOrderTaxRate(
+    gstSettings.success && gstSettings.data.enabled,
+  )
   const totals = calculateOrderTotals(
     cart.subtotal,
     discount,
     quote.amount ?? undefined,
+    taxRate,
   )
   const sequenceResult = await settingsService.getOrderNumberSequence(branchId)
   const orderNumber = generateOrderNumber(
@@ -717,7 +723,11 @@ export async function createPhoneOrder(
     input.fulfillmentType === 'pickup'
       ? 0
       : (input.deliveryCharge ?? defaultDeliveryCharge(subtotal))
-  const totals = calculateOrderTotals(subtotal, 0, deliveryCharge)
+  const gstSettings = await settingsService.getGstSettings()
+  const taxRate = effectiveOrderTaxRate(
+    gstSettings.success && gstSettings.data.enabled,
+  )
+  const totals = calculateOrderTotals(subtotal, 0, deliveryCharge, taxRate)
 
   let branchId = input.branchId ?? null
   if (!branchId) {
