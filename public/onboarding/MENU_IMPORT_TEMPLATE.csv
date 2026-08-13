@@ -1,0 +1,7 @@
+category,name,price,is_veg,spice_level,description,preparation_time_minutes,is_available,is_featured,display_order
+Starters,Paneer Tikka,249,TRUE,medium,Grilled cottage cheese with spices,20,TRUE,TRUE,1
+Starters,Chicken 65,280,FALSE,hot,Spicy deep-fried chicken,25,TRUE,FALSE,2
+Main Course,Dal Tadka,180,TRUE,mild,Yellow lentils with tempering,25,TRUE,FALSE,1
+Main Course,Butter Chicken,320,FALSE,medium,Creamy tomato chicken curry,30,TRUE,TRUE,2
+Breads,Butter Naan,60,TRUE,mild,Soft tandoor-baked naan,10,TRUE,FALSE,1
+Beverages,Masala Chaas,60,TRUE,mild,Spiced buttermilk,5,TRUE,FALSE,1

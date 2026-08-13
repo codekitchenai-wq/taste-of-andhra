@@ -68,6 +68,9 @@ export default function MasterDashboardPage() {
           <Link to={ROUTES.MASTER.TENANTS} className="text-primary hover:underline">
             Tenant & logins
           </Link>
+          <Link to={ROUTES.MASTER.ONBOARD} className="text-primary hover:underline">
+            Onboard restaurant
+          </Link>
         </div>
       </section>
 

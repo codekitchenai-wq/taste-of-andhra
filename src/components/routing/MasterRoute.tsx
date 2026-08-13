@@ -51,6 +51,12 @@ export function MasterLayout() {
               Tenants
             </Link>
             <Link
+              to={ROUTES.MASTER.ONBOARD}
+              className="text-text-secondary hover:text-primary"
+            >
+              Onboard
+            </Link>
+            <Link
               to={ROUTES.MASTER.FEATURES}
               className="text-text-secondary hover:text-primary"
             >

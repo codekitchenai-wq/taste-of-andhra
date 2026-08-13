@@ -37,6 +37,12 @@ export default function MasterTenantsPage() {
             {DEMO_PASSWORD}
           </span>
         </p>
+        <Link
+          to={ROUTES.MASTER.ONBOARD}
+          className="mt-4 inline-flex h-11 items-center rounded-[var(--radius-button)] bg-primary px-6 text-sm font-medium text-white hover:bg-primary-dark"
+        >
+          Onboard restaurant
+        </Link>
       </div>
 
       {orgs.length > 0 && (
@@ -55,12 +61,20 @@ export default function MasterTenantsPage() {
                     {org.subscription_active ? '' : ' · subscription inactive'}
                   </p>
                 </div>
-                <Link
-                  to={ROUTES.MASTER.featuresForOrg(org.id)}
-                  className="text-sm text-primary hover:underline"
-                >
-                  Manage features
-                </Link>
+                <div className="flex flex-wrap gap-3 text-sm">
+                  <Link
+                    to={ROUTES.MASTER.tenant(org.id)}
+                    className="text-primary hover:underline"
+                  >
+                    Open / import menu
+                  </Link>
+                  <Link
+                    to={ROUTES.MASTER.featuresForOrg(org.id)}
+                    className="text-primary hover:underline"
+                  >
+                    Manage features
+                  </Link>
+                </div>
               </li>
             ))}
           </ul>

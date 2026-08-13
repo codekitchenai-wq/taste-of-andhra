@@ -93,6 +93,12 @@ const MasterDashboardPage = lazy(
   () => import('@/pages/master/MasterDashboardPage'),
 )
 const MasterTenantsPage = lazy(() => import('@/pages/master/MasterTenantsPage'))
+const MasterOnboardTenantPage = lazy(
+  () => import('@/pages/master/MasterOnboardTenantPage'),
+)
+const MasterTenantDetailPage = lazy(
+  () => import('@/pages/master/MasterTenantDetailPage'),
+)
 const MasterFeaturesPage = lazy(
   () => import('@/pages/master/MasterFeaturesPage'),
 )
@@ -154,6 +160,14 @@ export const router = createBrowserRouter([
         children: [
           { path: ROUTES.MASTER.DASHBOARD, element: <MasterDashboardPage /> },
           { path: ROUTES.MASTER.TENANTS, element: <MasterTenantsPage /> },
+          {
+            path: ROUTES.MASTER.ONBOARD,
+            element: <MasterOnboardTenantPage />,
+          },
+          {
+            path: '/master/tenants/:orgId',
+            element: <MasterTenantDetailPage />,
+          },
           { path: ROUTES.MASTER.FEATURES, element: <MasterFeaturesPage /> },
         ],
       },

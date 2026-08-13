@@ -25,9 +25,11 @@ export const ROUTES = {
     LOGIN: '/master/login',
     DASHBOARD: '/master',
     TENANTS: '/master/tenants',
+    ONBOARD: '/master/tenants/new',
     FEATURES: '/master/features',
     featuresForOrg: (orgId: string) =>
       `/master/features?org=${encodeURIComponent(orgId)}`,
+    tenant: (orgId: string) => `/master/tenants/${orgId}`,
   },
   ADMIN: {
     LOGIN: '/admin/login',
