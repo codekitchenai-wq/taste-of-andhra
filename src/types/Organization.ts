@@ -18,6 +18,8 @@ export type SubscriptionStatus =
 
 export type EntitlementSource = 'plan' | 'addon' | 'manual'
 
+export type SetOrgFeatureCode = 'CORE_FEATURE' | 'DEPENDENTS_ENABLED'
+
 /** Coarse feature module keys (see SAAS_MULTI_TENANT_ARCHITECTURE.md §4.3). */
 export type FeatureKey =
   | 'menu'
@@ -34,6 +36,7 @@ export type FeatureKey =
   | 'loyalty'
   | 'whatsapp_notifications'
   | 'whatsapp_ordering'
+  | 'sms_notifications'
 
 export interface OrganizationBranding {
   logo_url?: string | null
@@ -81,9 +84,48 @@ export interface Feature {
   name: string
   description: string | null
   is_add_on: boolean
+  is_core: boolean
   default_enabled: boolean
   display_order: number
   created_at: string
+}
+
+export interface FeatureDependency {
+  feature_key: FeatureKey | string
+  requires_feature_key: FeatureKey | string
+}
+
+export interface MasterOrganizationSummary {
+  id: string
+  name: string
+  slug: string
+  status: OrganizationStatus
+  subscription_active: boolean
+}
+
+export interface OrgFeatureState {
+  feature_key: FeatureKey | string
+  name: string
+  description: string | null
+  is_add_on: boolean
+  is_core: boolean
+  default_enabled: boolean
+  display_order: number
+  enabled: boolean
+  source: EntitlementSource | null
+  requires: string[]
+  enabled_dependents: string[]
+}
+
+export interface SetOrgFeatureResult {
+  ok: boolean
+  feature_key: string
+  enabled: boolean
+  changed: string[]
+  already_set: string[]
+  blocked_by?: string[]
+  code?: SetOrgFeatureCode
+  message?: string
 }
 
 export interface Plan {

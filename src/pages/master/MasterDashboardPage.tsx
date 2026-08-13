@@ -24,9 +24,10 @@ export default function MasterDashboardPage() {
           Superuser dashboard
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-text-secondary">
-          You are signed in as the platform Superuser. Use this console to
-          review tenants, feature modules, and all QA login personas. Full
-          entitlement edits require the SaaS migration applied on Supabase.
+          You are signed in as the platform Superuser. Only you can turn
+          modules on or off for each restaurant — restaurant admins cannot.
+          Use this console to review tenants, manage entitlements, and open
+          QA login personas.
         </p>
       </div>
 

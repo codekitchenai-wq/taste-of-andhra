@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MasterWhatsAppObservability } from '@/components/master/MasterWhatsAppObservability'
 import {
@@ -7,6 +8,8 @@ import {
 } from '@/constants/DEMO_ACCOUNTS'
 import { ROUTES } from '@/constants/ROUTES'
 import { USER_ROLE } from '@/constants/USER_ROLE'
+import { listMasterOrganizations } from '@/services/entitlementService'
+import type { MasterOrganizationSummary } from '@/types/Organization'
 
 const PORTAL_BY_ROLE = {
   platform_master: ROUTES.MASTER.LOGIN,
@@ -16,6 +19,14 @@ const PORTAL_BY_ROLE = {
 } as const
 
 export default function MasterTenantsPage() {
+  const [orgs, setOrgs] = useState<MasterOrganizationSummary[]>([])
+
+  useEffect(() => {
+    void listMasterOrganizations().then((result) => {
+      if (result.success) setOrgs(result.data)
+    })
+  }, [])
+
   return (
     <div className="space-y-8">
       <div>
@@ -27,6 +38,34 @@ export default function MasterTenantsPage() {
           </span>
         </p>
       </div>
+
+      {orgs.length > 0 && (
+        <section>
+          <h2 className="text-lg font-semibold">Restaurants</h2>
+          <ul className="mt-3 space-y-3">
+            {orgs.map((org) => (
+              <li
+                key={org.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-card)] border border-black/10 bg-surface px-4 py-3"
+              >
+                <div>
+                  <p className="font-medium">{org.name}</p>
+                  <p className="font-mono text-xs text-text-secondary">
+                    {org.slug} · {org.status}
+                    {org.subscription_active ? '' : ' · subscription inactive'}
+                  </p>
+                </div>
+                <Link
+                  to={ROUTES.MASTER.featuresForOrg(org.id)}
+                  className="text-sm text-primary hover:underline"
+                >
+                  Manage features
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="rounded-[var(--radius-card)] border border-black/10 bg-surface p-5">
         <h2 className="text-lg font-semibold">{TENANT_TASTE_OF_ANDHRA.name}</h2>
@@ -57,6 +96,12 @@ export default function MasterTenantsPage() {
             className="text-primary hover:underline"
           >
             Delivery login
+          </Link>
+          <Link
+            to={ROUTES.MASTER.featuresForOrg(TENANT_TASTE_OF_ANDHRA.id)}
+            className="text-primary hover:underline"
+          >
+            Manage features
           </Link>
         </div>
       </section>
