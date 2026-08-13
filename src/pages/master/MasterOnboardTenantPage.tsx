@@ -1,6 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
+import { MenuCsvImport } from '@/components/master/MenuCsvImport'
 import { OnboardingPack } from '@/components/master/OnboardingPack'
 import { OnboardingTemplateDownloads } from '@/components/master/OnboardingTemplateDownloads'
 import { RestaurantSetupImport } from '@/components/master/RestaurantSetupImport'
@@ -16,6 +17,8 @@ import {
 } from '@/constants/ONBOARDING'
 import { ROUTES } from '@/constants/ROUTES'
 import {
+  importMenuCsv,
+  importRestaurantSetupCsv,
   onboardRestaurant,
   type OnboardRestaurantResult,
 } from '@/services/onboardingService'
@@ -42,6 +45,8 @@ export default function MasterOnboardTenantPage() {
   const [addons, setAddons] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
   const [created, setCreated] = useState<OnboardRestaurantResult | null>(null)
+  const [setupFile, setSetupFile] = useState<File | null>(null)
+  const [menuFile, setMenuFile] = useState<File | null>(null)
 
   const effectiveSlug = slugTouched ? slug : generateSlug(name)
   const selectedWithDeps = useMemo(() => expandSelectedAddons(addons), [addons])
@@ -75,18 +80,48 @@ export default function MasterOnboardTenantPage() {
       addonKeys: addons,
       homepage,
     })
-    setBusy(false)
 
     if (!result.success) {
+      setBusy(false)
       toast.error(result.message)
       return
     }
 
+    const importNotes: string[] = []
+    if (setupFile) {
+      const setupResult = await importRestaurantSetupCsv(
+        result.data.organizationId,
+        await setupFile.text(),
+      )
+      importNotes.push(
+        setupResult.success
+          ? `Setup loaded (${setupResult.data.updated.join(', ') || 'saved'}).`
+          : `Setup file not loaded: ${setupResult.message}`,
+      )
+    }
+    if (menuFile) {
+      const menuResult = await importMenuCsv(
+        result.data.organizationId,
+        await menuFile.text(),
+        false,
+      )
+      importNotes.push(
+        menuResult.success
+          ? `Menu loaded (${menuResult.data.dishesCreated} dishes).`
+          : `Menu file not loaded: ${menuResult.message}`,
+      )
+    }
+
+    setBusy(false)
     setCreated(result.data)
     if (result.data.inviteError) {
       toast.error(result.data.inviteError)
     } else {
       toast.success(`${result.data.name} created`)
+    }
+    for (const note of importNotes) {
+      if (note.includes('not loaded')) toast.error(note)
+      else toast.success(note)
     }
   }
 
@@ -149,6 +184,7 @@ export default function MasterOnboardTenantPage() {
           organizationId={created.organizationId}
           restaurantSlug={created.slug}
         />
+        <MenuCsvImport organizationId={created.organizationId} />
         <div className="flex flex-wrap gap-3 text-sm">
           <Link
             to={ROUTES.MASTER.tenant(created.organizationId)}
@@ -177,8 +213,8 @@ export default function MasterOnboardTenantPage() {
       <div>
         <h1 className="font-heading text-3xl font-bold">Onboard restaurant</h1>
         <p className="mt-2 max-w-2xl text-sm text-text-secondary">
-          Download the Excel sheets first and send them to the owner. Then
-          create the tenant and turn on add-ons. Homepage can wait.
+          Download the sheets, send them to the owner, attach the filled files
+          below, then create the restaurant.
         </p>
       </div>
 
@@ -190,6 +226,11 @@ export default function MasterOnboardTenantPage() {
           publicEmail: ownerEmail,
           city,
         }}
+        showUploads
+        setupFile={setupFile}
+        menuFile={menuFile}
+        onSetupFileChange={setSetupFile}
+        onMenuFileChange={setMenuFile}
       />
 
       <form className="space-y-8" onSubmit={(event) => void onSubmit(event)}>
@@ -331,7 +372,11 @@ export default function MasterOnboardTenantPage() {
         </section>
 
         <Button type="submit" disabled={busy}>
-          {busy ? 'Creating…' : 'Create restaurant'}
+          {busy
+            ? 'Creating…'
+            : setupFile || menuFile
+              ? 'Create restaurant and load sheets'
+              : 'Create restaurant'}
         </Button>
       </form>
     </div>

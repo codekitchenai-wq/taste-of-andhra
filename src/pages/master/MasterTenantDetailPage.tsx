@@ -134,6 +134,12 @@ export default function MasterTenantDetailPage() {
         }}
       />
 
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Upload filled templates</h2>
+        <p className="text-sm text-text-secondary">
+          If the owner already sent the Excel/CSV files, upload them here.
+        </p>
+      </section>
       <RestaurantSetupImport
         organizationId={org.id}
         restaurantSlug={org.slug}
