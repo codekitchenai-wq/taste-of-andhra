@@ -18,6 +18,18 @@ export type SubscriptionStatus =
 
 export type EntitlementSource = 'plan' | 'addon' | 'manual'
 
+export type HomepageMode =
+  | 'platform_subdomain'
+  | 'custom_domain'
+  | 'external_link'
+  | 'set_later'
+
+export interface TenantHomepage {
+  mode: HomepageMode
+  customDomain: string | null
+  homepageUrl: string
+}
+
 export type SetOrgFeatureCode = 'CORE_FEATURE' | 'DEPENDENTS_ENABLED'
 
 /** Coarse feature module keys (see SAAS_MULTI_TENANT_ARCHITECTURE.md §4.3). */
@@ -64,6 +76,9 @@ export interface Organization {
   opening_hours: OrganizationOpeningHours
   gstin: string | null
   fssai_license: string | null
+  homepage_mode: HomepageMode
+  custom_domain: string | null
+  homepage_url: string | null
   settings: Record<string, unknown>
   created_at: string
   updated_at: string
@@ -101,6 +116,7 @@ export interface MasterOrganizationSummary {
   slug: string
   status: OrganizationStatus
   subscription_active: boolean
+  homepage: TenantHomepage
 }
 
 export interface OrgFeatureState {

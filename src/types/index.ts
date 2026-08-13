@@ -48,4 +48,6 @@ export type {
   Subscription,
   OrganizationEntitlement,
   OrganizationFormInput,
+  HomepageMode,
+  TenantHomepage,
 } from './Organization'

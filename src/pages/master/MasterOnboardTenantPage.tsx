@@ -2,12 +2,16 @@ import { useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { OnboardingPack } from '@/components/master/OnboardingPack'
+import { RestaurantSetupImport } from '@/components/master/RestaurantSetupImport'
+import { TenantHomepageFields } from '@/components/master/TenantHomepageFields'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import {
   ADDON_FEATURE_OPTIONS,
   DEFAULT_TRIAL_DAYS,
   expandSelectedAddons,
+  type BillingCycle,
+  type BillingMode,
 } from '@/constants/ONBOARDING'
 import { ROUTES } from '@/constants/ROUTES'
 import {
@@ -15,6 +19,7 @@ import {
   type OnboardRestaurantResult,
 } from '@/services/onboardingService'
 import { generateSlug } from '@/utils/slug'
+import type { TenantHomepageDraft } from '@/utils/tenantHomepage'
 
 export default function MasterOnboardTenantPage() {
   const [name, setName] = useState('')
@@ -25,7 +30,14 @@ export default function MasterOnboardTenantPage() {
   const [ownerName, setOwnerName] = useState('')
   const [ownerEmail, setOwnerEmail] = useState('')
   const [ownerPhone, setOwnerPhone] = useState('')
+  const [billingMode, setBillingMode] = useState<BillingMode>('trial')
   const [trialDays, setTrialDays] = useState(String(DEFAULT_TRIAL_DAYS))
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly')
+  const [homepage, setHomepage] = useState<TenantHomepageDraft>({
+    mode: 'set_later',
+    customDomain: '',
+    externalUrl: '',
+  })
   const [addons, setAddons] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
   const [created, setCreated] = useState<OnboardRestaurantResult | null>(null)
@@ -56,8 +68,11 @@ export default function MasterOnboardTenantPage() {
       ownerName,
       ownerEmail,
       ownerPhone,
+      billingMode,
       trialDays: Number(trialDays) || DEFAULT_TRIAL_DAYS,
+      billingCycle,
       addonKeys: addons,
+      homepage,
     })
     setBusy(false)
 
@@ -80,13 +95,40 @@ export default function MasterOnboardTenantPage() {
         <div>
           <h1 className="font-heading text-3xl font-bold">Restaurant created</h1>
           <p className="mt-2 text-sm text-text-secondary">
-            {created.name} ({created.slug}) is on a trial. Share the pack, then
-            import their menu when they send the CSV.
+            {created.name} ({created.slug}) is{' '}
+            {created.billingMode === 'paid'
+              ? `on a paid ${created.billingCycle} plan`
+              : `on a ${created.periodDays}-day trial`}
+            . Share the setup + menu sheets, then upload what they send back.
           </p>
+          {created.homepage.homepageUrl ? (
+            <p className="mt-2 text-sm">
+              Customer home:{' '}
+              <a
+                href={created.homepage.homepageUrl}
+                className="break-all font-mono text-primary hover:underline"
+                target="_blank"
+                rel="noreferrer"
+              >
+                {created.homepage.homepageUrl}
+              </a>
+            </p>
+          ) : (
+            <p className="mt-2 text-sm text-text-secondary">
+              No public homepage yet. You can add or change it on the tenant
+              page.
+            </p>
+          )}
         </div>
         {created.inviteError && (
           <p className="rounded-[var(--radius-card)] border border-amber-500/40 bg-amber-50 px-3 py-2 text-sm text-amber-900">
             {created.inviteError}
+          </p>
+        )}
+        {created.setupWarning && (
+          <p className="rounded-[var(--radius-card)] border border-amber-500/40 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            Restaurant created, but default setup was not saved:{' '}
+            {created.setupWarning}
           </p>
         )}
         <OnboardingPack
@@ -94,13 +136,26 @@ export default function MasterOnboardTenantPage() {
           ownerEmail={created.ownerEmail}
           temporaryPassword={created.temporaryPassword}
           existingUser={created.existingUser}
+          homepageUrl={created.homepage.homepageUrl}
+          setupValues={{
+            restaurantName: created.name,
+            publicPhone: created.publicPhone,
+            publicEmail: created.ownerEmail,
+            city: created.city,
+          }}
+        />
+        <RestaurantSetupImport
+          organizationId={created.organizationId}
+          restaurantSlug={created.slug}
         />
         <div className="flex flex-wrap gap-3 text-sm">
           <Link
             to={ROUTES.MASTER.tenant(created.organizationId)}
             className="text-primary hover:underline"
           >
-            Open tenant · import menu
+            {created.homepage.homepageUrl
+              ? 'Change homepage · import menu'
+              : 'Add or change homepage · import menu'}
           </Link>
           <Link
             to={ROUTES.MASTER.featuresForOrg(created.organizationId)}
@@ -121,8 +176,8 @@ export default function MasterOnboardTenantPage() {
       <div>
         <h1 className="font-heading text-3xl font-bold">Onboard restaurant</h1>
         <p className="mt-2 max-w-2xl text-sm text-text-secondary">
-          You create the tenant and turn on add-ons. The owner fills the
-          profile + menu templates. They cannot enable or disable features.
+          You create the tenant and turn on add-ons. Add a public homepage now
+          if you have it, or skip and change it later on the tenant page.
         </p>
       </div>
 
@@ -135,7 +190,7 @@ export default function MasterOnboardTenantPage() {
             required
           />
           <Input
-            label="URL slug"
+            label="URL slug (tenant key)"
             value={effectiveSlug}
             onChange={(event) => {
               setSlugTouched(true)
@@ -174,12 +229,71 @@ export default function MasterOnboardTenantPage() {
             onChange={(event) => setOwnerPhone(event.target.value)}
             required
           />
-          <Input
-            label="Trial days"
-            type="number"
-            min={1}
-            value={trialDays}
-            onChange={(event) => setTrialDays(event.target.value)}
+          <fieldset className="sm:col-span-2 space-y-3">
+            <legend className="text-sm font-medium text-text-primary">
+              Billing
+            </legend>
+            <p className="text-sm text-text-secondary">
+              Trial is free until the days run out. Paid skips trial and marks
+              the restaurant active from day one.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="onboard-billing-mode"
+                  checked={billingMode === 'trial'}
+                  onChange={() => setBillingMode('trial')}
+                />
+                Trial
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="onboard-billing-mode"
+                  checked={billingMode === 'paid'}
+                  onChange={() => setBillingMode('paid')}
+                />
+                Paid
+              </label>
+            </div>
+            {billingMode === 'trial' ? (
+              <Input
+                label="Trial days"
+                type="number"
+                min={1}
+                value={trialDays}
+                onChange={(event) => setTrialDays(event.target.value)}
+              />
+            ) : (
+              <div className="flex flex-wrap gap-3">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="onboard-billing-cycle"
+                    checked={billingCycle === 'monthly'}
+                    onChange={() => setBillingCycle('monthly')}
+                  />
+                  Monthly (30 days)
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="onboard-billing-cycle"
+                    checked={billingCycle === 'yearly'}
+                    onChange={() => setBillingCycle('yearly')}
+                  />
+                  Yearly (365 days)
+                </label>
+              </div>
+            )}
+          </fieldset>
+          <TenantHomepageFields
+            slug={effectiveSlug}
+            draft={homepage}
+            onChange={setHomepage}
+            radioName="onboard-homepage-mode"
+            heading="Public homepage — add now or later"
           />
         </section>
 

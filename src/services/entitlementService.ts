@@ -16,7 +16,20 @@ import {
   isCoreFeature,
   requirementClosure,
 } from '@/constants/FEATURES'
+import { isMissingColumnError } from '@/utils/supabaseSchema'
+import { homepageFromOrgRow } from '@/utils/tenantHomepage'
 import { supabase } from '@/services/supabaseClient'
+
+type OrgListRow = {
+  id: string
+  name: string
+  slug: string
+  status: OrganizationStatus
+  homepage_mode?: string | null
+  custom_domain?: string | null
+  homepage_url?: string | null
+  settings?: Record<string, unknown> | null
+}
 
 function isMissingRpc(message: string): boolean {
   const lower = message.toLowerCase()
@@ -96,10 +109,15 @@ export async function listMasterOrganizations(): Promise<
 > {
   const { data, error } = await supabase
     .from('organizations')
-    .select('id, name, slug, status')
+    .select(
+      'id, name, slug, status, homepage_mode, custom_domain, homepage_url, settings',
+    )
     .order('name', { ascending: true })
 
   if (error) {
+    if (isMissingColumnError(error.message)) {
+      return listMasterOrganizationsWithoutHomepage()
+    }
     if (isMissingRpc(error.message) || error.message.includes('organizations')) {
       return createErrorResponse(
         'Restaurant list is not available yet. Apply the SaaS migrations in Supabase.',
@@ -112,12 +130,7 @@ export async function listMasterOrganizations(): Promise<
     )
   }
 
-  const rows = (data ?? []) as Array<{
-    id: string
-    name: string
-    slug: string
-    status: OrganizationStatus
-  }>
+  const rows = (data ?? []) as OrgListRow[]
 
   const withSubscription = await Promise.all(
     rows.map(async (org) => {
@@ -130,6 +143,42 @@ export async function listMasterOrganizations(): Promise<
         slug: org.slug,
         status: org.status,
         subscription_active: Boolean(active),
+        homepage: homepageFromOrgRow(org),
+      } satisfies MasterOrganizationSummary
+    }),
+  )
+
+  return createSuccessResponse(withSubscription)
+}
+
+async function listMasterOrganizationsWithoutHomepage(): Promise<
+  ServiceResponse<MasterOrganizationSummary[]>
+> {
+  const { data, error } = await supabase
+    .from('organizations')
+    .select('id, name, slug, status, settings')
+    .order('name', { ascending: true })
+
+  if (error) {
+    return createErrorResponse(
+      'Unable to load restaurants.',
+      error.message,
+    )
+  }
+
+  const rows = (data ?? []) as OrgListRow[]
+  const withSubscription = await Promise.all(
+    rows.map(async (org) => {
+      const { data: active } = await supabase.rpc('org_subscription_active', {
+        target_org_id: org.id,
+      })
+      return {
+        id: org.id,
+        name: org.name,
+        slug: org.slug,
+        status: org.status,
+        subscription_active: Boolean(active),
+        homepage: homepageFromOrgRow(org),
       } satisfies MasterOrganizationSummary
     }),
   )

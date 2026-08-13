@@ -5,12 +5,19 @@ import {
   adminLoginUrl,
   buildOwnerWhatsAppMessage,
 } from '@/constants/ONBOARDING'
+import { downloadTextFile } from '@/utils/downloadTextFile'
+import {
+  buildRestaurantSetupCsv,
+  type RestaurantSetupValues,
+} from '@/utils/parseRestaurantSetupCsv'
 
 interface OnboardingPackProps {
   restaurantName: string
   ownerEmail: string
   temporaryPassword?: string | null
   existingUser?: boolean
+  homepageUrl?: string | null
+  setupValues?: RestaurantSetupValues
 }
 
 export function OnboardingPack({
@@ -18,6 +25,8 @@ export function OnboardingPack({
   ownerEmail,
   temporaryPassword,
   existingUser = false,
+  homepageUrl,
+  setupValues,
 }: OnboardingPackProps) {
   const message = buildOwnerWhatsAppMessage({
     restaurantName,
@@ -25,6 +34,7 @@ export function OnboardingPack({
     temporaryPassword,
     existingUser,
     adminLoginUrl: adminLoginUrl(),
+    homepageUrl,
   })
 
   async function copyMessage() {
@@ -41,7 +51,8 @@ export function OnboardingPack({
       <div>
         <h2 className="text-lg font-semibold">Share pack with the restaurant</h2>
         <p className="mt-1 text-sm text-text-secondary">
-          Send only three asks: profile template, menu CSV, optional logo.
+          Send only three asks: setup CSV, menu CSV, optional logo. Defaults are
+          already filled — they only change what is different.
         </p>
       </div>
 
@@ -49,11 +60,18 @@ export function OnboardingPack({
         <Button size="sm" onClick={() => void copyMessage()}>
           Copy WhatsApp message
         </Button>
-        <a href={ONBOARDING_PACK_FILES.profile} download>
-          <Button size="sm" variant="secondary">
-            Download profile template
-          </Button>
-        </a>
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() =>
+            downloadTextFile(
+              `${restaurantName.replace(/\s+/g, '-').toLowerCase() || 'restaurant'}-setup.csv`,
+              buildRestaurantSetupCsv(setupValues ?? {}),
+            )
+          }
+        >
+          Download setup CSV
+        </Button>
         <a href={ONBOARDING_PACK_FILES.menu} download>
           <Button size="sm" variant="secondary">
             Download menu CSV

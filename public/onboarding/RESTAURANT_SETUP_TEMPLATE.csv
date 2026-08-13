@@ -1,0 +1,23 @@
+field,value,example,notes
+restaurant_name,,Spice Garden,Name shown to customers
+public_phone,,9876543210,Public / storefront phone
+public_email,,hello@spicegarden.in,Optional public email
+address_line_1,,12 MG Road,Street address
+address_line_2,,Near Metro,Optional
+landmark,,Opposite City Mall,Optional
+city,,Bangalore,Required for go-live
+state,,Karnataka,Optional
+pincode,,560001,6-digit pincode
+gstin,,29ABCDE1234F1Z5,If registered
+fssai_license,,11223344556677,Food license number
+tagline,,Homestyle Andhra meals,Short line on the homepage
+hours_weekdays,11:00-23:00,11:00 AM – 11:00 PM,Mon–Fri. Use 11:00-23:00 or 11:00 AM – 11:00 PM
+hours_weekends,10:00-23:30,10:00 AM – 11:30 PM,Sat–Sun
+delivers,no,yes,yes or no
+service_pincodes,,"560001,560002,560003",Comma-separated. Empty = no pincode limit once delivery is on
+delivery_radius_km,,5,Optional km limit from kitchen
+delivery_charge,49,49,Default ₹49
+free_delivery_above,399,399,Default ₹399. Blank = no free delivery
+eta_minutes,45,45,Default prep + delivery time (5–240)
+upi_id,,spicegarden@okaxis,Their UPI ID — do not use another restaurant’s
+upi_payee_name,,Spice Garden,Name shown on the UPI payment

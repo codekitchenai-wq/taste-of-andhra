@@ -60,6 +60,20 @@ export default function MasterTenantsPage() {
                     {org.slug} · {org.status}
                     {org.subscription_active ? '' : ' · subscription inactive'}
                   </p>
+                  {org.homepage.homepageUrl ? (
+                    <a
+                      href={org.homepage.homepageUrl}
+                      className="mt-1 block break-all font-mono text-xs text-primary hover:underline"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {org.homepage.homepageUrl}
+                    </a>
+                  ) : (
+                    <p className="mt-1 text-xs text-text-secondary">
+                      Homepage not set — add or change on the tenant page
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-3 text-sm">
                   <Link
