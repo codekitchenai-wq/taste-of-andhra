@@ -70,12 +70,34 @@ export function validateOnboardingCsv(
     }
   }
 
+  const warnings: string[] = []
+  if (looksLikeSampleMenu(parsed.rows.map((row) => row.name))) {
+    warnings.push(
+      'This still looks like the sample template (Paneer Tikka, Chicken 65, Dal Tadka…). Replace the rows with the restaurant’s real menu before go-live.',
+    )
+  }
+
   return {
     ok: true,
     summary: `Menu sheet is ready (${parsed.rows.length} dish${
       parsed.rows.length === 1 ? '' : 'es'
     }).`,
     errors: [],
-    warnings: [],
+    warnings,
   }
+}
+
+const SAMPLE_MENU_NAMES = [
+  'paneer tikka',
+  'chicken 65',
+  'dal tadka',
+  'butter chicken',
+  'butter naan',
+  'masala chaas',
+]
+
+function looksLikeSampleMenu(names: string[]): boolean {
+  const normalized = new Set(names.map((name) => name.trim().toLowerCase()))
+  const matched = SAMPLE_MENU_NAMES.filter((name) => normalized.has(name))
+  return matched.length >= 4
 }

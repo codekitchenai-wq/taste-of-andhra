@@ -49,11 +49,36 @@ function parseCsvLine(line: string): string[] {
 }
 
 function parseBoolean(value: string, fallback: boolean): boolean {
-  const normalized = value.trim().toLowerCase()
-  if (!normalized) return fallback
-  if (['true', 'yes', '1', 'y'].includes(normalized)) return true
-  if (['false', 'no', '0', 'n'].includes(normalized)) return false
-  return fallback
+  const parsed = parseVegFlag(value)
+  if (parsed == null) return fallback
+  return parsed
+}
+
+/** Veg/non-veg as kitchens write it. null = unrecognized (do not guess). */
+export function parseVegFlag(value: string): boolean | null {
+  const normalized = value.trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ')
+  if (!normalized) return null
+  if (
+    ['true', 'yes', '1', 'y', 'veg', 'v', 'vegetarian'].includes(normalized)
+  ) {
+    return true
+  }
+  if (
+    [
+      'false',
+      'no',
+      '0',
+      'n',
+      'nv',
+      'non veg',
+      'nonveg',
+      'non vegetarian',
+      'nonvegetarian',
+    ].includes(normalized)
+  ) {
+    return false
+  }
+  return null
 }
 
 function parsePrice(value: string): number | null {
@@ -123,8 +148,11 @@ export function parseMenuCsv(text: string): ParseMenuCsvResult {
       errors.push(`Line ${lineNumber}: price must be a number (e.g. 249).`)
       continue
     }
-    if (!isVegRaw) {
-      errors.push(`Line ${lineNumber}: is_veg is required (TRUE or FALSE).`)
+    const isVeg = parseVegFlag(isVegRaw)
+    if (isVeg == null) {
+      errors.push(
+        `Line ${lineNumber}: is_veg must be Veg / Non-veg (or TRUE / FALSE).`,
+      )
       continue
     }
 
@@ -135,7 +163,7 @@ export function parseMenuCsv(text: string): ParseMenuCsvResult {
       category,
       name,
       price,
-      isVeg: parseBoolean(isVegRaw, true),
+      isVeg,
       spiceLevel: parseSpice(read('spice_level')),
       description: read('description'),
       preparationTimeMinutes: Number.isFinite(prepRaw) ? prepRaw : null,
