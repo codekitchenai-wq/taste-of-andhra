@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import toast from 'react-hot-toast'
+import { CsvSheetPicker } from '@/components/master/CsvSheetPicker'
 import { Button } from '@/components/ui/Button'
 import {
   exportRestaurantSetupCsv,
   importRestaurantSetupCsv,
 } from '@/services/onboardingService'
 import { downloadTextFile } from '@/utils/downloadTextFile'
+import { validateOnboardingCsv } from '@/utils/validateOnboardingCsv'
 
 interface RestaurantSetupImportProps {
   organizationId: string
@@ -40,6 +42,12 @@ export function RestaurantSetupImport({
     }
     setBusy(true)
     const text = await file.text()
+    const check = validateOnboardingCsv('setup', text, file.name)
+    if (!check.ok) {
+      setBusy(false)
+      toast.error(check.errors[0] || 'Validate and fix the setup file first.')
+      return
+    }
     const result = await importRestaurantSetupCsv(organizationId, text)
     setBusy(false)
 
@@ -76,11 +84,11 @@ export function RestaurantSetupImport({
           {downloading ? 'Preparing…' : 'Download current setup'}
         </Button>
       </div>
-      <input
-        type="file"
-        accept=".csv,text/csv"
-        onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-        className="text-sm"
+      <CsvSheetPicker
+        label="Restaurant setup file"
+        kind="setup"
+        file={file}
+        onFileChange={setFile}
       />
       <Button size="sm" disabled={busy || !file} onClick={() => void onImport()}>
         {busy ? 'Applying…' : 'Upload and apply setup'}

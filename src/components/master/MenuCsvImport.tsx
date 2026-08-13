@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import toast from 'react-hot-toast'
+import { CsvSheetPicker } from '@/components/master/CsvSheetPicker'
 import { Button } from '@/components/ui/Button'
 import { importMenuCsv } from '@/services/onboardingService'
+import { validateOnboardingCsv } from '@/utils/validateOnboardingCsv'
 
 interface MenuCsvImportProps {
   organizationId: string
@@ -20,6 +22,12 @@ export function MenuCsvImport({ organizationId }: MenuCsvImportProps) {
     }
     setBusy(true)
     const text = await file.text()
+    const check = validateOnboardingCsv('menu', text, file.name)
+    if (!check.ok) {
+      setBusy(false)
+      toast.error(check.errors[0] || 'Validate and fix the menu file first.')
+      return
+    }
     const result = await importMenuCsv(organizationId, text, publishImmediately)
     setBusy(false)
 
@@ -46,11 +54,11 @@ export function MenuCsvImport({ organizationId }: MenuCsvImportProps) {
           tick publish now after the owner confirmed prices.
         </p>
       </div>
-      <input
-        type="file"
-        accept=".csv,text/csv"
-        onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-        className="text-sm"
+      <CsvSheetPicker
+        label="Menu file"
+        kind="menu"
+        file={file}
+        onFileChange={setFile}
       />
       <label className="flex items-center gap-2 text-sm">
         <input

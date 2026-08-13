@@ -23,6 +23,7 @@ import {
 } from '@/services/onboardingService'
 import { generateSlug } from '@/utils/slug'
 import type { TenantHomepageDraft } from '@/utils/tenantHomepage'
+import { validateOnboardingCsv } from '@/utils/validateOnboardingCsv'
 
 export default function MasterOnboardTenantPage() {
   const [name, setName] = useState('')
@@ -65,6 +66,32 @@ export default function MasterOnboardTenantPage() {
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
     setBusy(true)
+
+    if (setupFile) {
+      const setupCheck = validateOnboardingCsv(
+        'setup',
+        await setupFile.text(),
+        setupFile.name,
+      )
+      if (!setupCheck.ok) {
+        setBusy(false)
+        toast.error(setupCheck.errors[0] || 'Fix the setup file, then Validate.')
+        return
+      }
+    }
+    if (menuFile) {
+      const menuCheck = validateOnboardingCsv(
+        'menu',
+        await menuFile.text(),
+        menuFile.name,
+      )
+      if (!menuCheck.ok) {
+        setBusy(false)
+        toast.error(menuCheck.errors[0] || 'Fix the menu file, then Validate.')
+        return
+      }
+    }
+
     const result = await onboardRestaurant({
       name,
       slug: effectiveSlug,
