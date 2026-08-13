@@ -1,15 +1,11 @@
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/Button'
+import { OnboardingTemplateDownloads } from '@/components/master/OnboardingTemplateDownloads'
 import {
-  ONBOARDING_PACK_FILES,
   adminLoginUrl,
   buildOwnerWhatsAppMessage,
 } from '@/constants/ONBOARDING'
-import { downloadTextFile } from '@/utils/downloadTextFile'
-import {
-  buildRestaurantSetupCsv,
-  type RestaurantSetupValues,
-} from '@/utils/parseRestaurantSetupCsv'
+import type { RestaurantSetupValues } from '@/utils/parseRestaurantSetupCsv'
 
 interface OnboardingPackProps {
   restaurantName: string
@@ -51,32 +47,20 @@ export function OnboardingPack({
       <div>
         <h2 className="text-lg font-semibold">Share pack with the restaurant</h2>
         <p className="mt-1 text-sm text-text-secondary">
-          Send only three asks: setup CSV, menu CSV, optional logo. Defaults are
-          already filled — they only change what is different.
+          Copy the WhatsApp text, attach the two Excel files, and send. Optional
+          logo can wait.
         </p>
       </div>
+
+      <OnboardingTemplateDownloads
+        restaurantName={restaurantName}
+        setupValues={setupValues}
+      />
 
       <div className="flex flex-wrap gap-2">
         <Button size="sm" onClick={() => void copyMessage()}>
           Copy WhatsApp message
         </Button>
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() =>
-            downloadTextFile(
-              `${restaurantName.replace(/\s+/g, '-').toLowerCase() || 'restaurant'}-setup.csv`,
-              buildRestaurantSetupCsv(setupValues ?? {}),
-            )
-          }
-        >
-          Download setup CSV
-        </Button>
-        <a href={ONBOARDING_PACK_FILES.menu} download>
-          <Button size="sm" variant="secondary">
-            Download menu CSV
-          </Button>
-        </a>
       </div>
 
       <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-[var(--radius-card)] bg-black/[0.04] p-3 text-xs text-text-primary">

@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { OnboardingPack } from '@/components/master/OnboardingPack'
+import { OnboardingTemplateDownloads } from '@/components/master/OnboardingTemplateDownloads'
 import { RestaurantSetupImport } from '@/components/master/RestaurantSetupImport'
 import { TenantHomepageFields } from '@/components/master/TenantHomepageFields'
 import { Button } from '@/components/ui/Button'
@@ -176,10 +177,20 @@ export default function MasterOnboardTenantPage() {
       <div>
         <h1 className="font-heading text-3xl font-bold">Onboard restaurant</h1>
         <p className="mt-2 max-w-2xl text-sm text-text-secondary">
-          You create the tenant and turn on add-ons. Add a public homepage now
-          if you have it, or skip and change it later on the tenant page.
+          Download the Excel sheets first and send them to the owner. Then
+          create the tenant and turn on add-ons. Homepage can wait.
         </p>
       </div>
+
+      <OnboardingTemplateDownloads
+        restaurantName={name}
+        setupValues={{
+          restaurantName: name,
+          publicPhone,
+          publicEmail: ownerEmail,
+          city,
+        }}
+      />
 
       <form className="space-y-8" onSubmit={(event) => void onSubmit(event)}>
         <section className="grid gap-4 sm:grid-cols-2">
