@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import * as deliveryService from '@/services/deliveryService'
+import { distanceInMeters } from '@/utils/geo'
 
 // Writing every GPS fix would hammer the database, so a fix is only persisted
 // when the partner has moved far enough or enough time has passed.
@@ -13,35 +14,21 @@ export type LocationSharingStatus =
   | 'unsupported'
   | 'error'
 
+export interface LiveLocationCoords {
+  lat: number
+  lng: number
+}
+
 export interface UseLiveLocationSharingResult {
   status: LocationSharingStatus
   isSharing: boolean
   isScreenAwake: boolean
   lastSentAt: Date | null
+  lastCoords: LiveLocationCoords | null
   error: string | null
   start: () => void
   stop: () => void
   toggle: () => void
-}
-
-function distanceInMeters(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number,
-): number {
-  const earthRadius = 6_371_000
-  const toRadians = (value: number) => (value * Math.PI) / 180
-  const dLat = toRadians(lat2 - lat1)
-  const dLng = toRadians(lng2 - lng1)
-
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRadians(lat1)) *
-      Math.cos(toRadians(lat2)) *
-      Math.sin(dLng / 2) ** 2
-
-  return 2 * earthRadius * Math.asin(Math.sqrt(a))
 }
 
 interface UseLiveLocationSharingOptions {
@@ -57,6 +44,7 @@ export function useLiveLocationSharing({
   const [status, setStatus] = useState<LocationSharingStatus>('idle')
   const [isScreenAwake, setIsScreenAwake] = useState(false)
   const [lastSentAt, setLastSentAt] = useState<Date | null>(null)
+  const [lastCoords, setLastCoords] = useState<LiveLocationCoords | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const watchIdRef = useRef<number | null>(null)
@@ -125,6 +113,7 @@ export function useLiveLocationSharing({
       .then((result) => {
         if (result.success) {
           setLastSentAt(new Date())
+          setLastCoords({ lat: latitude, lng: longitude })
           setError(null)
         } else {
           setError(result.message)
@@ -138,6 +127,8 @@ export function useLiveLocationSharing({
       watchIdRef.current = null
     }
     lastSentRef.current = null
+    setLastCoords(null)
+    setLastSentAt(null)
     releaseWakeLock()
     setStatus((previous) => (previous === 'sharing' ? 'idle' : previous))
   }, [releaseWakeLock])
@@ -257,6 +248,7 @@ export function useLiveLocationSharing({
     isSharing: status === 'sharing',
     isScreenAwake,
     lastSentAt,
+    lastCoords,
     error,
     start,
     stop,

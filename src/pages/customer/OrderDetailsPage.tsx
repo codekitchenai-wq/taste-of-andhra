@@ -29,8 +29,9 @@ export default function OrderDetailsPage() {
 
   const showLiveTracking =
     order &&
-    (order.order_status === 'out_for_delivery' ||
-      order.order_status === 'delivered')
+    order.fulfillment_type !== 'pickup' &&
+    order.order_status !== 'pending' &&
+    order.order_status !== 'cancelled'
 
   const handleCancel = async () => {
     if (!order) return
@@ -97,12 +98,13 @@ export default function OrderDetailsPage() {
             {showLiveTracking && (
               <div className="mt-6">
                 <h3 className="mb-3 text-sm font-semibold text-text-primary">
-                  Live Delivery Map
+                  Track your delivery
                 </h3>
                 <LiveTrackingMap
                   orderId={order.id}
                   dropoffLat={order.address?.latitude}
                   dropoffLng={order.address?.longitude}
+                  orderStatus={order.order_status}
                 />
               </div>
             )}

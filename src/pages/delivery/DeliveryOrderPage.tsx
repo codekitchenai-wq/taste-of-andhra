@@ -9,8 +9,10 @@ import { Container } from '@/components/ui/Container'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { LoadingState } from '@/components/ui/LoadingState'
 import { ROUTES } from '@/constants/ROUTES'
+import { PartnerTrackingChecklist } from '@/components/delivery/PartnerTrackingChecklist'
 import { useLiveLocationSharing } from '@/hooks/useLiveLocationSharing'
 import * as deliveryService from '@/services/deliveryService'
+import { getPartnerEtaDisplay } from '@/utils/partnerEta'
 import type { DeliveryWithOrder } from '@/services/deliveryService'
 import { formatPrice } from '@/utils/format'
 
@@ -53,11 +55,11 @@ export default function DeliveryOrderPage() {
     delivery != null &&
     delivery.status !== 'delivered' &&
     delivery.status !== 'cancelled'
-
   const {
     isSharing,
     isScreenAwake,
     lastSentAt,
+    lastCoords,
     error: locationError,
     stop: stopSharingLocation,
     toggle: toggleSharingLocation,
@@ -65,6 +67,21 @@ export default function DeliveryOrderPage() {
     deliveryId,
     autoStart: isActiveDelivery,
   })
+
+  const partnerLat = lastCoords?.lat ?? delivery?.current_lat
+  const partnerLng = lastCoords?.lng ?? delivery?.current_lng
+  const partnerEta =
+    delivery && isActiveDelivery
+      ? getPartnerEtaDisplay({
+          partnerLat,
+          partnerLng,
+          dropoffLat: delivery.dropoff_lat,
+          dropoffLng: delivery.dropoff_lng,
+          locationUpdatedAt:
+            lastSentAt?.toISOString() ?? delivery.location_updated_at,
+          orderStatus: delivery.status,
+        })
+      : null
 
   const handleMarkDelivered = async () => {
     if (!delivery) return
@@ -184,6 +201,11 @@ export default function DeliveryOrderPage() {
                   {locationError && (
                     <p className="mt-2 text-sm text-error">{locationError}</p>
                   )}
+                  {partnerEta?.customerLabel && (
+                    <p className="mt-2 text-sm font-medium text-primary">
+                      Customer sees: {partnerEta.customerLabel}
+                    </p>
+                  )}
                 </div>
                 <Button
                   type="button"
@@ -194,6 +216,12 @@ export default function DeliveryOrderPage() {
                   {isSharing ? 'Stop Sharing' : 'Share Live Location'}
                 </Button>
               </div>
+              <PartnerTrackingChecklist
+                isSharing={isSharing}
+                isScreenAwake={isScreenAwake}
+                lastSentAt={lastSentAt}
+                locationError={locationError}
+              />
             </section>
           )}
 

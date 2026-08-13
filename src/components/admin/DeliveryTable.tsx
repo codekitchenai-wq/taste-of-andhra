@@ -169,6 +169,7 @@ export function DeliveryTable({
             orderId={trackedDelivery.order_id}
             dropoffLat={trackedDelivery.dropoff_lat}
             dropoffLng={trackedDelivery.dropoff_lng}
+            orderStatus={trackedDelivery.status}
           />
         </section>
       )}
