@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Copy, ExternalLink, Minus, Plus, Search, Trash2 } from 'lucide-react'
+import {
+  Copy,
+  CreditCard,
+  ExternalLink,
+  MessageCircle,
+  Minus,
+  Plus,
+  Search,
+  Trash2,
+} from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/Button'
@@ -104,11 +113,16 @@ export default function AdminPhoneOrderPage() {
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false)
   const [paymentCollection, setPaymentCollection] =
     useState<PaymentCollection>('counter')
+  /** After placing: open customer payment page (order details + UPI QR). */
+  const [makePaymentAfterPlace, setMakePaymentAfterPlace] = useState(true)
+  /** After placing: open WhatsApp with order details + payment link. */
+  const [sendMessageAfterPlace, setSendMessageAfterPlace] = useState(true)
   const [shareModal, setShareModal] = useState<{
     orderNumber: string
     pageUrl: string
     message: string
     phone: string
+    totalLabel: string
   } | null>(null)
 
   const currentSnapshot = useMemo<CustomerFormSnapshot>(
@@ -174,6 +188,8 @@ export default function AdminPhoneOrderPage() {
     setCouponCode('')
     setCouponDraft('')
     setPaymentCollection('counter')
+    setMakePaymentAfterPlace(true)
+    setSendMessageAfterPlace(true)
     setShareModal(null)
     if (!keepPhone) {
       // phone cleared by caller when needed
@@ -298,8 +314,28 @@ export default function AdminPhoneOrderPage() {
   }, [fulfillmentType, addressId, savedGuestAddress?.pincode, branchId])
 
   useEffect(() => {
-    setPaymentCollection(fulfillmentType === 'pickup' ? 'counter' : 'delivery')
+    if (fulfillmentType === 'pickup') {
+      setPaymentCollection('counter')
+      setMakePaymentAfterPlace(true)
+      setSendMessageAfterPlace(true)
+      return
+    }
+    setPaymentCollection('delivery')
+    setMakePaymentAfterPlace(false)
+    setSendMessageAfterPlace(true)
   }, [fulfillmentType])
+
+  useEffect(() => {
+    if (paymentCollection === 'link') {
+      setMakePaymentAfterPlace(true)
+      setSendMessageAfterPlace(true)
+    } else if (paymentCollection === 'counter') {
+      setMakePaymentAfterPlace(true)
+    } else if (paymentCollection === 'delivery') {
+      setMakePaymentAfterPlace(false)
+      setSendMessageAfterPlace(true)
+    }
+  }, [paymentCollection])
 
   useEffect(() => {
     if (deliveryChargeOverride !== null) {
@@ -671,17 +707,63 @@ export default function AdminPhoneOrderPage() {
     }
 
     const pageUrl = paymentShareService.paymentShareAbsoluteUrl(token)
-    const shareView = await paymentShareService.getPaymentShareByToken(token)
-    const message = shareView.success
-      ? paymentShareService.buildPaymentShareMessage(shareView.data, pageUrl)
-      : `${customerName ? `Hi ${customerName.trim()},` : 'Hi,'}\nOrder ${order.order_number}\nTotal: ${formatPrice(order.total)}\nPay here: ${pageUrl}`
+    // Build message from local order data first so WhatsApp / payment can open
+    // in the same user-gesture turn (avoids popup blockers after await).
+    const localMessage = paymentShareService.buildPaymentShareMessage(
+      {
+        orderNumber: order.order_number,
+        guestName: customerName.trim() || null,
+        fulfillmentType,
+        items: items.map((item) => ({
+          name: item.name,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          lineTotal: item.unitPrice * item.quantity,
+        })),
+        subtotal: order.subtotal,
+        tax: order.tax,
+        deliveryCharge: order.delivery_charge,
+        discount: order.discount,
+        total: order.total,
+      },
+      pageUrl,
+    )
+
+    const phoneDigits = phone.trim()
+    if (makePaymentAfterPlace) {
+      window.open(pageUrl, '_blank', 'noopener,noreferrer')
+    }
+    if (sendMessageAfterPlace) {
+      window.open(
+        paymentShareService.whatsappShareUrl(phoneDigits, localMessage),
+        '_blank',
+        'noopener,noreferrer',
+      )
+    }
 
     setShareModal({
       orderNumber: order.order_number,
       pageUrl,
-      message,
-      phone: phone.trim(),
+      message: localMessage,
+      phone: phoneDigits,
+      totalLabel: formatPrice(order.total),
     })
+
+    // Enrich modal copy from the public share RPC when available.
+    const shareView = await paymentShareService.getPaymentShareByToken(token)
+    if (shareView.success) {
+      setShareModal((prev) =>
+        prev
+          ? {
+              ...prev,
+              message: paymentShareService.buildPaymentShareMessage(
+                shareView.data,
+                pageUrl,
+              ),
+            }
+          : prev,
+      )
+    }
   }
 
   const handleSubmit = async () => {
@@ -1329,7 +1411,7 @@ export default function AdminPhoneOrderPage() {
           ) : null}
 
           {canEnterOrder ? (
-            <div className="space-y-1.5 rounded-[var(--radius-button)] border border-black/8 bg-background/60 p-2">
+            <div className="space-y-2 rounded-[var(--radius-button)] border border-black/8 bg-background/60 p-2">
               <p className="text-[11px] font-medium text-text-primary">
                 When will they pay?
               </p>
@@ -1342,18 +1424,18 @@ export default function AdminPhoneOrderPage() {
                   [
                     {
                       value: 'link' as const,
-                      label: 'Share payment link',
-                      hint: 'WhatsApp / copy link with order details + UPI QR',
+                      label: 'Pay via shared link',
+                      hint: 'Customer pays on their phone (UPI QR page)',
                     },
                     {
                       value: 'counter' as const,
                       label: 'Pay at counter',
-                      hint: 'Cash / UPI when they pick up',
+                      hint: 'Collect when they pick up',
                     },
                     {
                       value: 'delivery' as const,
                       label: 'Pay on delivery',
-                      hint: 'Collect with rider or doorstep UPI',
+                      hint: 'Collect at the door',
                     },
                   ] as const
                 ).map((option) => {
@@ -1382,12 +1464,59 @@ export default function AdminPhoneOrderPage() {
                   )
                 })}
               </div>
+
+              <div className="space-y-1.5 border-t border-black/8 pt-2">
+                <p className="text-[11px] font-medium text-text-primary">
+                  After placing this order
+                </p>
+                <label className="flex cursor-pointer items-start gap-2 rounded-[var(--radius-button)] border border-black/10 px-2 py-1.5">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={makePaymentAfterPlace}
+                    onChange={(event) =>
+                      setMakePaymentAfterPlace(event.target.checked)
+                    }
+                  />
+                  <span>
+                    <span className="flex items-center gap-1 text-xs font-semibold text-text-primary">
+                      <CreditCard className="h-3.5 w-3.5" aria-hidden="true" />
+                      Make payment
+                    </span>
+                    <span className="block text-[10px] text-text-secondary">
+                      Open payment page with order details, GST, and UPI QR
+                    </span>
+                  </span>
+                </label>
+                <label className="flex cursor-pointer items-start gap-2 rounded-[var(--radius-button)] border border-black/10 px-2 py-1.5">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={sendMessageAfterPlace}
+                    onChange={(event) =>
+                      setSendMessageAfterPlace(event.target.checked)
+                    }
+                  />
+                  <span>
+                    <span className="flex items-center gap-1 text-xs font-semibold text-text-primary">
+                      <MessageCircle
+                        className="h-3.5 w-3.5"
+                        aria-hidden="true"
+                      />
+                      Send message
+                    </span>
+                    <span className="block text-[10px] text-text-secondary">
+                      WhatsApp order details + payment link to this mobile
+                    </span>
+                  </span>
+                </label>
+              </div>
             </div>
           ) : null}
 
           <p className="text-[11px] text-text-secondary">
-            After placing, you can share a payment page with items, GST, and UPI
-            QR.
+            Payment page includes items, GST, total, and UPI QR. No WhatsApp
+            Business API needed for Send message (opens WhatsApp on this device).
           </p>
 
           {!phoneVerified ? (
@@ -1429,8 +1558,8 @@ export default function AdminPhoneOrderPage() {
                     ? 'Save details first'
                     : fulfillmentType === 'delivery' && isQuoteLoading
                       ? 'Calculating delivery…'
-                      : paymentCollection === 'link'
-                        ? 'Place order & share link'
+                      : makePaymentAfterPlace || sendMessageAfterPlace
+                        ? 'Place order & continue'
                         : 'Place order'}
           </Button>
         </section>
@@ -1442,7 +1571,7 @@ export default function AdminPhoneOrderPage() {
           setShareModal(null)
           navigate(ROUTES.ADMIN.ORDERS)
         }}
-        title="Share payment link"
+        title="Payment & message"
         className="max-w-lg"
         footer={
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
@@ -1462,10 +1591,52 @@ export default function AdminPhoneOrderPage() {
         {shareModal ? (
           <div className="space-y-4">
             <p className="text-sm text-text-secondary">
-              Order <span className="font-semibold text-text-primary">{shareModal.orderNumber}</span>
-              {' — '}customer opens this page to see items, GST, total, and UPI
-              QR.
+              Order{' '}
+              <span className="font-semibold text-text-primary">
+                {shareModal.orderNumber}
+              </span>
+              {' · '}
+              {shareModal.totalLabel}
             </p>
+
+            <div className="grid gap-2 sm:grid-cols-2">
+              <a
+                href={shareModal.pageUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="block"
+              >
+                <Button type="button" className="h-auto w-full flex-col gap-1 py-3">
+                  <CreditCard className="h-5 w-5" aria-hidden="true" />
+                  <span className="text-sm font-semibold">Make payment</span>
+                  <span className="text-[11px] font-normal opacity-90">
+                    Open order details + UPI QR
+                  </span>
+                </Button>
+              </a>
+              <a
+                href={paymentShareService.whatsappShareUrl(
+                  shareModal.phone,
+                  shareModal.message,
+                )}
+                target="_blank"
+                rel="noreferrer"
+                className="block"
+              >
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="h-auto w-full flex-col gap-1 py-3"
+                >
+                  <MessageCircle className="h-5 w-5" aria-hidden="true" />
+                  <span className="text-sm font-semibold">Send message</span>
+                  <span className="text-[11px] font-normal text-text-secondary">
+                    WhatsApp details + pay link
+                  </span>
+                </Button>
+              </a>
+            </div>
+
             <div className="rounded-[var(--radius-input)] border border-black/10 bg-background px-3 py-2">
               <p className="break-all text-xs text-text-primary">
                 {shareModal.pageUrl}
@@ -1505,31 +1676,18 @@ export default function AdminPhoneOrderPage() {
                 Copy message
               </Button>
               <a
-                href={paymentShareService.whatsappShareUrl(
-                  shareModal.phone,
-                  shareModal.message,
-                )}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex"
-              >
-                <Button type="button" size="sm">
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  WhatsApp
-                </Button>
-              </a>
-              <a
                 href={shareModal.pageUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex"
               >
                 <Button type="button" size="sm" variant="secondary">
+                  <ExternalLink className="h-3.5 w-3.5" />
                   Open page
                 </Button>
               </a>
             </div>
-            <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-[var(--radius-input)] bg-background p-3 text-[11px] text-text-secondary">
+            <pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded-[var(--radius-input)] bg-background p-3 text-[11px] text-text-secondary">
               {shareModal.message}
             </pre>
           </div>
