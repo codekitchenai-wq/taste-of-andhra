@@ -79,7 +79,17 @@ export default function ProfilePage() {
         description="Manage your personal information."
       />
 
-      <section className="mt-8 max-w-xl rounded-[var(--radius-card)] bg-surface p-6 shadow-md">
+      <p className="mb-8 text-sm text-text-secondary">
+        Looking for an order?{' '}
+        <Link
+          to={ROUTES.ORDERS}
+          className="font-medium text-primary hover:text-primary-dark"
+        >
+          Check order status in My Orders
+        </Link>
+      </p>
+
+      <section className="max-w-xl rounded-[var(--radius-card)] bg-surface p-6 shadow-md">
         <h2 className="text-lg font-semibold text-text-primary">
           Personal Information
         </h2>

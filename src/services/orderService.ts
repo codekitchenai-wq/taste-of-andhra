@@ -1029,10 +1029,48 @@ export function subscribeToOrders(onChange: () => void): () => void {
   }
 }
 
+async function requireStaffOrderManager(): Promise<ServiceResponse<true>> {
+  const userResult = await requireUserId()
+
+  if (!userResult.success) {
+    return userResult
+  }
+
+  const { data: profile, error } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', userResult.data)
+    .maybeSingle()
+
+  if (error) {
+    return createErrorResponse(
+      'Unable to verify permissions.',
+      error.message,
+    )
+  }
+
+  if (
+    !profile ||
+    (profile.role !== 'admin' && profile.role !== 'platform_master')
+  ) {
+    return createErrorResponse(
+      'Only restaurant staff can change or cancel order status.',
+    )
+  }
+
+  return createSuccessResponse(true)
+}
+
 export async function updateOrderStatus(
   orderId: string,
   status: OrderStatus,
 ): Promise<ServiceResponse<Order>> {
+  const staffResult = await requireStaffOrderManager()
+
+  if (!staffResult.success) {
+    return staffResult
+  }
+
   const { data: existing, error: fetchError } = await supabase
     .from('orders')
     .select('id, order_status, estimated_delivery, fulfillment_type, user_id')
@@ -1272,20 +1310,20 @@ export async function setEstimatedDeliveryMinutesFromNow(
   return updateEstimatedDelivery(orderId, addMinutesToIso(new Date(), minutes))
 }
 
+/** Admin-only cancel. Customers may view status but cannot cancel. */
 export async function cancelOrder(
   orderId: string,
 ): Promise<ServiceResponse<Order>> {
-  const userResult = await requireUserId()
+  const staffResult = await requireStaffOrderManager()
 
-  if (!userResult.success) {
-    return userResult
+  if (!staffResult.success) {
+    return staffResult
   }
 
   const { data: order, error: fetchError } = await supabase
     .from('orders')
     .select('order_status')
     .eq('id', orderId)
-    .eq('user_id', userResult.data)
     .maybeSingle()
 
   if (fetchError) {

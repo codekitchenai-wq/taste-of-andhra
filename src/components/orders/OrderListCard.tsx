@@ -38,12 +38,15 @@ export function OrderListCard({ order, itemCount }: OrderListCardProps) {
               variant="badge"
             />
           </div>
-          {order.fulfillment_type !== 'pickup' &&
-            order.order_status === 'out_for_delivery' && (
-              <p className="mt-2 text-xs font-medium text-primary">
-                Track rider and arrival time →
-              </p>
-            )}
+          {order.order_status !== 'delivered' &&
+          order.order_status !== 'cancelled' ? (
+            <p className="mt-2 text-xs font-medium text-primary">
+              {order.fulfillment_type !== 'pickup' &&
+              order.order_status === 'out_for_delivery'
+                ? 'Track rider and arrival time →'
+                : 'View current status →'}
+            </p>
+          ) : null}
         </div>
 
         <div className="flex shrink-0 flex-col items-end gap-2">

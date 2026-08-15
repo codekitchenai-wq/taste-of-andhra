@@ -1,5 +1,4 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import toast from 'react-hot-toast'
 import { FileText } from 'lucide-react'
 import { OrderStatusBadge } from '@/components/admin/OrderStatusBadge'
 import { GoogleReviewPrompt } from '@/components/orders/GoogleReviewPrompt'
@@ -8,15 +7,12 @@ import { OrderDetailsPanel } from '@/components/orders/OrderDetailsPanel'
 import { OrderEtaBanner } from '@/components/orders/OrderEtaBanner'
 import { OrderNumberDisplay } from '@/components/orders/OrderNumberDisplay'
 import { OrderTracking } from '@/components/orders/OrderTracking'
-import { Button } from '@/components/ui/Button'
 import { Container } from '@/components/ui/Container'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { LoadingState } from '@/components/ui/LoadingState'
-import { CANCELLABLE_ORDER_STATUSES } from '@/constants/ORDER_STATUS'
 import { ROUTES } from '@/constants/ROUTES'
 import { useGstSettings } from '@/hooks/useGstSettings'
 import { useOrderDetails } from '@/hooks/useOrderDetails'
-import * as orderService from '@/services/orderService'
 
 export default function OrderDetailsPage() {
   const { orderId } = useParams<{ orderId: string }>()
@@ -24,28 +20,11 @@ export default function OrderDetailsPage() {
   const { order, isLoading, error, refetch } = useOrderDetails(orderId)
   const { settings: gstSettings } = useGstSettings()
 
-  const canCancel =
-    order && CANCELLABLE_ORDER_STATUSES.includes(order.order_status)
-
   const showLiveTracking =
     order &&
     order.fulfillment_type !== 'pickup' &&
     order.order_status !== 'pending' &&
     order.order_status !== 'cancelled'
-
-  const handleCancel = async () => {
-    if (!order) return
-
-    const result = await orderService.cancelOrder(order.id)
-
-    if (!result.success) {
-      toast.error(result.message)
-      return
-    }
-
-    toast.success('Order cancelled')
-    void refetch()
-  }
 
   return (
     <Container as="div" className="py-8 md:py-12">
@@ -63,7 +42,8 @@ export default function OrderDetailsPage() {
                 <OrderNumberDisplay value={order.order_number} />
               </h1>
               <p className="mt-2 text-sm text-text-secondary">
-                Track your order and view full details.
+                View your current order status and details. Status updates are
+                managed by the restaurant.
               </p>
             </div>
             <OrderStatusBadge status={order.order_status} />
@@ -74,17 +54,14 @@ export default function OrderDetailsPage() {
       {isLoading && <LoadingState variant="inline" />}
 
       {!isLoading && error && (
-        <ErrorState
-          message={error}
-          onRetry={() => void refetch()}
-        />
+        <ErrorState message={error} onRetry={() => void refetch()} />
       )}
 
       {!isLoading && !error && order && (
         <div className="grid gap-8 lg:grid-cols-[320px_1fr]">
           <section className="rounded-[var(--radius-card)] bg-surface p-5 shadow-md lg:sticky lg:top-24 lg:self-start">
             <h2 className="text-lg font-semibold text-text-primary">
-              Order Tracking
+              Order status
             </h2>
             <div className="mt-4">
               <OrderEtaBanner
@@ -121,17 +98,6 @@ export default function OrderDetailsPage() {
                 <FileText className="h-4 w-4" />
                 View GST Invoice
               </Link>
-            )}
-            {canCancel && (
-              <Button
-                type="button"
-                variant="danger"
-                fullWidth
-                className="mt-4"
-                onClick={() => void handleCancel()}
-              >
-                Cancel Order
-              </Button>
             )}
           </section>
 

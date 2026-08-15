@@ -24,7 +24,7 @@ export default function OrderSuccessPage() {
           purchases.
         </p>
         <Button className="mt-6" onClick={() => navigate(ROUTES.ORDERS)}>
-          View My Orders
+          My Orders
         </Button>
       </Container>
     )
@@ -54,14 +54,14 @@ export default function OrderSuccessPage() {
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
           {state.orderId && (
             <Button onClick={() => navigate(ROUTES.ORDER_DETAILS(state.orderId!))}>
-              View Order
+              Track order status
             </Button>
           )}
           <Button
             variant={state.orderId ? 'secondary' : 'primary'}
             onClick={() => navigate(ROUTES.ORDERS)}
           >
-            View My Orders
+            My Orders
           </Button>
           <Link to={ROUTES.MENU}>
             <Button variant="secondary" fullWidth>

@@ -62,6 +62,13 @@ export function MobileMenu({
             {isAuthenticated ? (
               <>
                 <Link
+                  to={ROUTES.ORDERS}
+                  onClick={onClose}
+                  className="block rounded-[var(--radius-button)] px-4 py-3 text-base font-medium text-text-primary"
+                >
+                  My Orders
+                </Link>
+                <Link
                   to={ROUTES.PROFILE}
                   onClick={onClose}
                   className="block rounded-[var(--radius-button)] px-4 py-3 text-base font-medium text-text-primary"

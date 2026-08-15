@@ -136,6 +136,19 @@ export function LiveTrackingMap({
   }
 
   if (!hasFix) {
+    if (status === 'delivered') {
+      return (
+        <div
+          className={
+            className ??
+            'rounded-[var(--radius-card)] bg-background p-4 text-sm text-text-secondary'
+          }
+        >
+          {eta.customerLabel ?? 'Your order has been delivered.'}
+        </div>
+      )
+    }
+
     return (
       <div
         className={
