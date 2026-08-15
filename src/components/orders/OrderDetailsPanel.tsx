@@ -1,11 +1,15 @@
 import type { OrderFullDetails } from '@/types/Order'
 import { OrderPaymentQr } from '@/components/orders/OrderPaymentQr'
+import { OrderRazorpayCollect } from '@/components/orders/OrderRazorpayCollect'
+import { Button } from '@/components/ui/Button'
 import { PAYMENT_METHOD } from '@/constants/PAYMENT_METHOD'
 import { PAYMENT_STATUS } from '@/constants/PAYMENT_STATUS'
+import * as paymentShareService from '@/services/paymentShareService'
 import { formatAddressLine } from '@/utils/mapAddress'
 import { formatGuestAddress } from '@/utils/mapOrder'
 import { formatPrice, formatDateTimeFull } from '@/utils/format'
 import { cn } from '@/utils/cn'
+import toast from 'react-hot-toast'
 
 interface OrderDetailsPanelProps {
   order: OrderFullDetails
@@ -164,6 +168,78 @@ export function OrderDetailsPanel({
       </section>
 
       <OrderPaymentQr order={order} onMarkedPaid={onOrderUpdated} />
+      <OrderRazorpayCollect order={order} onMarkedPaid={onOrderUpdated} />
+
+      {order.payment_share_token &&
+      order.payment_status === 'pending' &&
+      order.order_source === 'phone' ? (
+        <section className={sectionClass}>
+          <h3 className={headingClass}>Share payment link</h3>
+          <p
+            className={cn(
+              'text-sm text-text-secondary',
+              compact ? 'mt-2' : 'mt-3',
+            )}
+          >
+            Customer sees order details (including GST) and a UPI QR.
+          </p>
+          <div className={cn('flex flex-wrap gap-2', compact ? 'mt-2' : 'mt-3')}>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={async () => {
+                const url = paymentShareService.paymentShareAbsoluteUrl(
+                  order.payment_share_token!,
+                )
+                try {
+                  await navigator.clipboard.writeText(url)
+                  toast.success('Payment link copied')
+                } catch {
+                  toast.error('Unable to copy link')
+                }
+              }}
+            >
+              Copy link
+            </Button>
+            <a
+              href={paymentShareService.whatsappShareUrl(
+                order.guest_phone ?? '',
+                paymentShareService.buildPaymentShareMessage(
+                  {
+                    orderNumber: order.order_number,
+                    guestName: order.guest_name,
+                    fulfillmentType: order.fulfillment_type,
+                    items: order.items.map((item) => ({
+                      name:
+                        item.dish_name_snapshot ??
+                        item.dish?.name ??
+                        'Item',
+                      quantity: item.quantity,
+                      unitPrice: item.price,
+                      lineTotal: item.total,
+                    })),
+                    subtotal: order.subtotal,
+                    tax: order.tax,
+                    deliveryCharge: order.delivery_charge,
+                    discount: order.discount,
+                    total: order.total,
+                  },
+                  paymentShareService.paymentShareAbsoluteUrl(
+                    order.payment_share_token!,
+                  ),
+                ),
+              )}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Button type="button" size="sm">
+                WhatsApp
+              </Button>
+            </a>
+          </div>
+        </section>
+      ) : null}
 
       <section className={sectionClass}>
         <h3 className={headingClass}>Order Summary</h3>

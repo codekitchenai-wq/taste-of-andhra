@@ -41,6 +41,9 @@ const NotificationsPage = lazy(
   () => import('@/pages/customer/NotificationsPage'),
 )
 const InvoicePage = lazy(() => import('@/pages/customer/InvoicePage'))
+const OrderPaymentSharePage = lazy(
+  () => import('@/pages/public/OrderPaymentSharePage'),
+)
 
 const AdminLoginPage = lazy(() => import('@/pages/admin/AdminLoginPage'))
 const AdminDashboardPage = lazy(
@@ -117,6 +120,7 @@ export const router = createBrowserRouter([
       { path: ROUTES.PARTY_ORDER, element: <PartyOrderPage /> },
       { path: 'qr/:tableCode', element: <QrMenuPage /> },
       { path: 'b/:slug', element: <BranchMenuPage /> },
+      { path: 'pay/:token', element: <OrderPaymentSharePage /> },
       { path: ROUTES.CART, element: <CartPage /> },
       {
         element: <ProtectedRoute />,

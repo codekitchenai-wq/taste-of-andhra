@@ -15,7 +15,8 @@ import { mapAddress } from '@/utils/mapAddress'
 import { mapPayment } from '@/utils/mapPayment'
 import * as offerService from '@/services/offerService'
 import * as settingsService from '@/services/settingsService'
-import { DEFAULT_ETA_MINUTES } from '@/constants/ORDER'
+import { requestPidgeCancel } from '@/services/deliveryQuoteService'
+import { DEFAULT_ETA_MINUTES, ORDER_TAX_RATE } from '@/constants/ORDER'
 import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
 import { calculateOrderTotals, defaultDeliveryCharge } from '@/utils/orderTotals'
 import { addMinutesToIso } from '@/utils/orderEta'
@@ -115,6 +116,10 @@ export function stripMissingOrderColumns(
   }
   if (msg.includes('whatsapp_updates_opt_in')) {
     const { whatsapp_updates_opt_in: _wa, ...rest } = next
+    next = rest
+  }
+  if (msg.includes('payment_share_token')) {
+    const { payment_share_token: _token, ...rest } = next
     next = rest
   }
   if (
@@ -672,11 +677,22 @@ export interface CreatePhoneOrderInput {
   items: PhoneOrderItemInput[]
   /** Manual delivery charge override; 0 for pickup. */
   deliveryCharge?: number
+  /** Optional coupon applied on the phone-order screen. */
+  couponCode?: string
+  /**
+   * Phone/counter collection point. Online checkout on the admin PC is not used;
+   * customers pay via shared UPI link, at counter, or on delivery.
+   */
+  paymentCollection?: 'counter' | 'delivery' | 'link'
+}
+
+export interface CreatePhoneOrderResult extends Order {
+  payment_share_token: string
 }
 
 export async function createPhoneOrder(
   input: CreatePhoneOrderInput,
-): Promise<ServiceResponse<Order>> {
+): Promise<ServiceResponse<CreatePhoneOrderResult>> {
   const customerName = input.customerName.trim()
   const customerPhone = input.customerPhone.trim()
 
@@ -719,15 +735,31 @@ export async function createPhoneOrder(
     (sum, item) => sum + item.unitPrice * item.quantity,
     0,
   )
+
+  let discount = 0
+  if (input.couponCode?.trim()) {
+    const couponResult = await offerService.validateCoupon(
+      input.couponCode,
+      subtotal,
+    )
+    if (!couponResult.success) {
+      return createErrorResponse(couponResult.message, couponResult.error)
+    }
+    discount = couponResult.data.discountAmount
+  }
+
   const deliveryCharge =
     input.fulfillmentType === 'pickup'
       ? 0
       : (input.deliveryCharge ?? defaultDeliveryCharge(subtotal))
-  const gstSettings = await settingsService.getGstSettings()
-  const taxRate = effectiveOrderTaxRate(
-    gstSettings.success && gstSettings.data.enabled,
+  // Phone/counter bills always include GST so the shared payment link shows tax.
+  const taxRate = ORDER_TAX_RATE
+  const totals = calculateOrderTotals(
+    subtotal,
+    discount,
+    deliveryCharge,
+    taxRate,
   )
-  const totals = calculateOrderTotals(subtotal, 0, deliveryCharge, taxRate)
 
   let branchId = input.branchId ?? null
   if (!branchId) {
@@ -750,6 +782,8 @@ export async function createPhoneOrder(
     sequenceResult.success ? sequenceResult.data : undefined,
   )
   const guest = input.guestAddress
+  const paymentShareToken = crypto.randomUUID()
+  const paymentMethod: PaymentMethod = 'pay_later'
 
   const orderPayload: Record<string, unknown> = {
     organization_id: DEFAULT_ORGANIZATION_ID,
@@ -760,14 +794,15 @@ export async function createPhoneOrder(
     subtotal: totals.subtotal,
     tax: totals.tax,
     delivery_charge: totals.deliveryCharge,
-    discount: 0,
+    discount: totals.discount,
     total: totals.total,
-    payment_method: 'pay_later' satisfies PaymentMethod,
+    payment_method: paymentMethod,
     payment_status: 'pending',
     // Staff already took the call — land on the kitchen board (Confirmed), not New Orders.
     order_status: 'confirmed',
     fulfillment_type: input.fulfillmentType,
     order_source: 'phone',
+    payment_share_token: paymentShareToken,
     guest_name: customerName,
     guest_phone: customerPhone,
     guest_address_line1:
@@ -890,7 +925,15 @@ export async function createPhoneOrder(
     )
   }
 
-  return createSuccessResponse(mapOrder(order))
+  const mapped = mapOrder(order)
+  const token =
+    (order.payment_share_token as string | undefined)?.trim() ||
+    paymentShareToken
+
+  return createSuccessResponse({
+    ...mapped,
+    payment_share_token: token,
+  })
 }
 
 const ADMIN_ORDERS_SELECT = `
@@ -1107,6 +1150,10 @@ export async function updateOrderStatus(
       data.id as string,
       Number(data.total),
     )
+  }
+
+  if (status === 'cancelled') {
+    requestPidgeCancel(orderId)
   }
 
   return createSuccessResponse(mapOrder(data))

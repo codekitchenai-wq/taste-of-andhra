@@ -1,30 +1,38 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Minus, Plus, Search, Trash2 } from 'lucide-react'
+import { Copy, ExternalLink, Minus, Plus, Search, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { LoadingState } from '@/components/ui/LoadingState'
+import { Modal } from '@/components/ui/Modal'
 import { Select } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
+import { ORDER_TAX_RATE } from '@/constants/ORDER'
 import { ROUTES } from '@/constants/ROUTES'
-import { useGstSettings } from '@/hooks/useGstSettings'
+import { usePhoneOrderDeliveryQuote } from '@/hooks/usePhoneOrderDeliveryQuote'
 import { useStoreOpenStatus } from '@/hooks/useStoreOpenStatus'
 import * as branchService from '@/services/branchService'
 import * as customerService from '@/services/customerService'
 import * as dishService from '@/services/dishService'
+import * as gstInvoiceService from '@/services/gstInvoiceService'
+import * as offerService from '@/services/offerService'
 import * as orderService from '@/services/orderService'
+import * as paymentShareService from '@/services/paymentShareService'
+import * as printerService from '@/services/printerService'
 import type { Address } from '@/types/Address'
 import type { Branch } from '@/types/Branch'
 import type { FulfillmentType } from '@/types/enums'
+import type { Offer } from '@/types/Offer'
 import type { Profile } from '@/types/Profile'
 import type { DishWithCategory } from '@/utils/mapDish'
 import { formatAddressLine } from '@/utils/mapAddress'
-import { effectiveOrderTaxRate } from '@/utils/gstSettings'
-import { calculateOrderTotals, defaultDeliveryCharge } from '@/utils/orderTotals'
+import { calculateOrderTotals } from '@/utils/orderTotals'
 import { formatPrice } from '@/utils/format'
 import { cn } from '@/utils/cn'
 import { isValidPhone } from '@/utils/validation'
+
+type PaymentCollection = 'counter' | 'delivery' | 'link'
 
 interface DraftItem {
   key: string
@@ -57,7 +65,6 @@ export default function AdminPhoneOrderPage() {
   const navigate = useNavigate()
   const { status: storeStatus, isLoading: isStoreStatusLoading } =
     useStoreOpenStatus()
-  const { settings: gstSettings } = useGstSettings()
   const [dishes, setDishes] = useState<DishWithCategory[]>([])
   const [branches, setBranches] = useState<Branch[]>([])
   const [isLoadingMenu, setIsLoadingMenu] = useState(true)
@@ -68,7 +75,7 @@ export default function AdminPhoneOrderPage() {
   const [addresses, setAddresses] = useState<Address[]>([])
   const [addressId, setAddressId] = useState('')
   const [fulfillmentType, setFulfillmentType] =
-    useState<FulfillmentType>('delivery')
+    useState<FulfillmentType>('pickup')
   const [branchId, setBranchId] = useState('')
   const [notes, setNotes] = useState('')
   const [items, setItems] = useState<DraftItem[]>([])
@@ -85,6 +92,24 @@ export default function AdminPhoneOrderPage() {
   const [guestCity, setGuestCity] = useState('Bangalore')
   const [guestState, setGuestState] = useState('Karnataka')
   const [guestPincode, setGuestPincode] = useState('')
+  /** Null = use quoted amount; otherwise staff override. */
+  const [deliveryChargeOverride, setDeliveryChargeOverride] = useState<
+    number | null
+  >(null)
+  const [deliveryChargeInput, setDeliveryChargeInput] = useState('')
+  const [appliedOffer, setAppliedOffer] = useState<Offer | null>(null)
+  const [couponDiscount, setCouponDiscount] = useState(0)
+  const [couponCode, setCouponCode] = useState('')
+  const [couponDraft, setCouponDraft] = useState('')
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false)
+  const [paymentCollection, setPaymentCollection] =
+    useState<PaymentCollection>('counter')
+  const [shareModal, setShareModal] = useState<{
+    orderNumber: string
+    pageUrl: string
+    message: string
+    phone: string
+  } | null>(null)
 
   const currentSnapshot = useMemo<CustomerFormSnapshot>(
     () => ({
@@ -120,7 +145,8 @@ export default function AdminPhoneOrderPage() {
   const customerDirty =
     savedSnapshot === null || snapshotKey(currentSnapshot) !== savedSnapshot
 
-  const hasSavedNumber =
+  /** Customer mobile + details must be saved before menu / place order. */
+  const canEnterOrder =
     phoneVerified &&
     !customerDirty &&
     isValidPhone(phone) &&
@@ -138,8 +164,17 @@ export default function AdminPhoneOrderPage() {
     setGuestState('Karnataka')
     setGuestPincode('')
     setNotes('')
+    setItems([])
     setSavedSnapshot(null)
     setPhoneVerified(false)
+    setDeliveryChargeOverride(null)
+    setDeliveryChargeInput('')
+    setAppliedOffer(null)
+    setCouponDiscount(0)
+    setCouponCode('')
+    setCouponDraft('')
+    setPaymentCollection('counter')
+    setShareModal(null)
     if (!keepPhone) {
       // phone cleared by caller when needed
     }
@@ -149,8 +184,6 @@ export default function AdminPhoneOrderPage() {
     const next = value.replace(/\D/g, '').slice(0, 10)
     if (next !== phone) {
       clearCustomerDetails(true)
-      setSavedSnapshot(null)
-      setPhoneVerified(false)
     }
     setPhone(next)
   }
@@ -211,13 +244,94 @@ export default function AdminPhoneOrderPage() {
     (sum, item) => sum + item.unitPrice * item.quantity,
     0,
   )
+  const itemCount = items.reduce((sum, item) => sum + item.quantity, 0)
+
+  const selectedBranch = useMemo(
+    () => branches.find((branch) => branch.id === branchId) ?? null,
+    [branches, branchId],
+  )
+
+  const selectedAddress = useMemo(
+    () => addresses.find((address) => address.id === addressId) ?? null,
+    [addresses, addressId],
+  )
+
+  const savedGuestAddress = useMemo(() => {
+    if (fulfillmentType !== 'delivery' || addressId) return null
+    if (!canEnterOrder) return null
+    if (!guestLine1.trim() || !/^\d{6}$/.test(guestPincode.trim())) return null
+    return {
+      line1: guestLine1.trim(),
+      line2: guestLine2.trim(),
+      landmark: guestLandmark.trim(),
+      city: guestCity.trim(),
+      state: guestState.trim(),
+      pincode: guestPincode.trim(),
+    }
+  }, [
+    fulfillmentType,
+    addressId,
+    canEnterOrder,
+    guestLine1,
+    guestLine2,
+    guestLandmark,
+    guestCity,
+    guestState,
+    guestPincode,
+  ])
+
+  const { quote: deliveryQuote, isLoading: isQuoteLoading } =
+    usePhoneOrderDeliveryQuote({
+      enabled: canEnterOrder && fulfillmentType === 'delivery',
+      fulfillmentType,
+      savedAddress:
+        canEnterOrder && fulfillmentType === 'delivery' ? selectedAddress : null,
+      guestAddress: savedGuestAddress,
+      branch: selectedBranch,
+      subtotal,
+      itemCount,
+    })
+
+  useEffect(() => {
+    setDeliveryChargeOverride(null)
+    setDeliveryChargeInput('')
+  }, [fulfillmentType, addressId, savedGuestAddress?.pincode, branchId])
+
+  useEffect(() => {
+    setPaymentCollection(fulfillmentType === 'pickup' ? 'counter' : 'delivery')
+  }, [fulfillmentType])
+
+  useEffect(() => {
+    if (deliveryChargeOverride !== null) {
+      setDeliveryChargeInput(String(deliveryChargeOverride))
+      return
+    }
+    if (deliveryQuote?.isServiceable) {
+      setDeliveryChargeInput(String(deliveryQuote.amount))
+      return
+    }
+    if (fulfillmentType === 'pickup') {
+      setDeliveryChargeInput('0')
+    }
+  }, [deliveryChargeOverride, deliveryQuote, fulfillmentType])
+
+  const quotedDeliveryAmount =
+    fulfillmentType === 'pickup'
+      ? 0
+      : deliveryQuote?.isServiceable
+        ? deliveryQuote.amount
+        : 0
+
   const deliveryCharge =
-    fulfillmentType === 'pickup' ? 0 : defaultDeliveryCharge(subtotal)
+    fulfillmentType === 'pickup'
+      ? 0
+      : (deliveryChargeOverride ?? quotedDeliveryAmount)
+
   const totals = calculateOrderTotals(
     subtotal,
-    0,
+    couponDiscount,
     deliveryCharge,
-    effectiveOrderTaxRate(gstSettings.enabled),
+    ORDER_TAX_RATE,
   )
 
   const validateCustomerForm = (): string | null => {
@@ -256,13 +370,14 @@ export default function AdminPhoneOrderPage() {
 
     if (!result.data) {
       clearCustomerDetails(true)
-      setSavedSnapshot(null)
       setPhoneVerified(true)
-      toast.success('New number — enter details and tap Save.')
+      toast.success('New number — enter details and tap Save before ordering.')
       return
     }
 
     const lookup = result.data
+    setItems([])
+    setSavedSnapshot(null)
     setPhoneVerified(true)
     setMatchedCustomer(lookup.profile)
     setCustomerName(lookup.customerName)
@@ -294,34 +409,16 @@ export default function AdminPhoneOrderPage() {
       setGuestPincode('')
     }
 
-    const loaded: CustomerFormSnapshot = {
-      phone,
-      customerName: lookup.customerName.trim(),
-      fulfillmentType,
-      branchId,
-      addressId: nextAddressId,
-      guestLine1: nextAddressId ? '' : lookup.guestAddress?.line1.trim() ?? '',
-      guestLine2: nextAddressId ? '' : lookup.guestAddress?.line2.trim() ?? '',
-      guestLandmark: nextAddressId
-        ? ''
-        : lookup.guestAddress?.landmark.trim() ?? '',
-      guestCity: nextAddressId
-        ? 'Bangalore'
-        : lookup.guestAddress?.city.trim() ?? 'Bangalore',
-      guestState: nextAddressId
-        ? 'Karnataka'
-        : lookup.guestAddress?.state.trim() ?? 'Karnataka',
-      guestPincode: nextAddressId ? '' : lookup.guestAddress?.pincode.trim() ?? '',
-      matchedCustomerId: lookup.profile?.id ?? null,
-    }
-    markSaved(loaded)
-
     if (lookup.source === 'profile' || lookup.source === 'address') {
-      toast.success(`Matched ${lookup.customerName} — ready to order`)
+      toast.success(
+        `Matched ${lookup.customerName} — review details and tap Save.`,
+      )
       return
     }
 
-    toast.success(`Found ${lookup.customerName} from a previous order — ready to order`)
+    toast.success(
+      `Found ${lookup.customerName} from a previous order — review and tap Save.`,
+    )
   }
 
   const handleSaveCustomer = async () => {
@@ -403,14 +500,14 @@ export default function AdminPhoneOrderPage() {
 
     markSaved(currentSnapshot)
     setIsSavingCustomer(false)
-    toast.success(
-      matchedCustomer
-        ? 'Customer details saved'
-        : 'Customer details saved — you can place the order',
-    )
+    toast.success('Customer details saved — you can enter the order')
   }
 
   const addDish = (dish: DishWithCategory) => {
+    if (!canEnterOrder) {
+      toast.error('Save customer details before adding dishes.')
+      return
+    }
     setItems((prev) => {
       const existing = prev.find((item) => item.dishId === dish.id)
       if (existing) {
@@ -435,6 +532,10 @@ export default function AdminPhoneOrderPage() {
   }
 
   const updateQtyByDish = (dishId: string, delta: number) => {
+    if (!canEnterOrder) {
+      toast.error('Save customer details before editing the order.')
+      return
+    }
     setItems((prev) => {
       const existing = prev.find((item) => item.dishId === dishId)
       if (!existing) return prev
@@ -449,6 +550,10 @@ export default function AdminPhoneOrderPage() {
   }
 
   const updateQty = (key: string, delta: number) => {
+    if (!canEnterOrder) {
+      toast.error('Save customer details before editing the order.')
+      return
+    }
     setItems((prev) =>
       prev
         .map((item) =>
@@ -460,6 +565,125 @@ export default function AdminPhoneOrderPage() {
     )
   }
 
+  const applyDeliveryChargeInput = () => {
+    const parsed = Number(deliveryChargeInput)
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      toast.error('Enter a valid delivery charge (0 or more).')
+      return
+    }
+    const rounded = Math.round(parsed * 100) / 100
+    setDeliveryChargeOverride(rounded)
+    setDeliveryChargeInput(String(rounded))
+    toast.success('Delivery charge updated')
+  }
+
+  const resetDeliveryChargeToQuote = () => {
+    setDeliveryChargeOverride(null)
+    if (deliveryQuote?.isServiceable) {
+      setDeliveryChargeInput(String(deliveryQuote.amount))
+    }
+  }
+
+  const handleApplyCoupon = async () => {
+    const code = couponDraft.trim()
+    if (!code) return
+    if (subtotal <= 0) {
+      toast.error('Add dishes before applying a coupon.')
+      return
+    }
+
+    setIsApplyingCoupon(true)
+    const result = await offerService.validateCoupon(code, subtotal)
+    setIsApplyingCoupon(false)
+
+    if (!result.success) {
+      toast.error(result.message)
+      return
+    }
+
+    setAppliedOffer(result.data.offer)
+    setCouponDiscount(result.data.discountAmount)
+    setCouponCode(result.data.offer.coupon_code?.trim() ?? code)
+    setCouponDraft('')
+    toast.success(`Coupon applied: ${result.data.offer.title}`)
+  }
+
+  const handleRemoveCoupon = () => {
+    setAppliedOffer(null)
+    setCouponDiscount(0)
+    setCouponCode('')
+  }
+
+  useEffect(() => {
+    if (!appliedOffer || !couponCode) return
+    if (subtotal >= appliedOffer.minimum_order) {
+      const next =
+        Math.round(subtotal * (appliedOffer.discount_percentage / 100) * 100) /
+        100
+      setCouponDiscount(next)
+      return
+    }
+    setAppliedOffer(null)
+    setCouponDiscount(0)
+    setCouponCode('')
+    toast.error('Coupon removed — order no longer meets the minimum.')
+  }, [subtotal, appliedOffer, couponCode])
+
+  const generateCounterBill = async (orderId: string) => {
+    const details = await orderService.getAdminOrderDetails(orderId)
+    if (!details.success) return
+
+    const invoiceResult = await gstInvoiceService.ensureInvoiceForOrder(
+      details.data,
+    )
+    if (invoiceResult.success) {
+      toast.success(`Bill ${invoiceResult.data.invoice_number} generated`)
+    } else if (!invoiceResult.message.toLowerCase().includes('disabled')) {
+      toast.error(invoiceResult.message)
+    }
+
+    const settingsResult = await printerService.getPrinterSettings()
+    if (!settingsResult.success) return
+    const settings = settingsResult.data
+    if (!settings.billing.enabled) return
+
+    const printResult = await printerService.printTicket(
+      details.data,
+      'billing',
+      settings,
+      { forceBrowser: settings.mode === 'browser' },
+    )
+    if (printResult.success) {
+      toast.success('Bill sent to printer')
+    }
+  }
+
+  const openShareForOrder = async (
+    order: orderService.CreatePhoneOrderResult,
+  ) => {
+    const token = order.payment_share_token
+    if (!token) {
+      toast.error(
+        'Payment link is unavailable until the database migration is applied.',
+      )
+      navigate(ROUTES.ADMIN.ORDERS)
+      return
+    }
+
+    const pageUrl = paymentShareService.paymentShareAbsoluteUrl(token)
+    const shareView = await paymentShareService.getPaymentShareByToken(token)
+    const message = shareView.success
+      ? paymentShareService.buildPaymentShareMessage(shareView.data, pageUrl)
+      : `${customerName ? `Hi ${customerName.trim()},` : 'Hi,'}\nOrder ${order.order_number}\nTotal: ${formatPrice(order.total)}\nPay here: ${pageUrl}`
+
+    setShareModal({
+      orderNumber: order.order_number,
+      pageUrl,
+      message,
+      phone: phone.trim(),
+    })
+  }
+
   const handleSubmit = async () => {
     if (!phoneVerified || !isValidPhone(phone)) {
       toast.error(
@@ -468,7 +692,7 @@ export default function AdminPhoneOrderPage() {
       return
     }
 
-    if (customerDirty || !hasSavedNumber) {
+    if (customerDirty || !canEnterOrder) {
       toast.error(
         'Save customer details for this mobile number before placing the order.',
       )
@@ -519,6 +743,8 @@ export default function AdminPhoneOrderPage() {
         dishName: item.name,
       })),
       deliveryCharge,
+      couponCode: couponCode || undefined,
+      paymentCollection,
     })
     setIsSubmitting(false)
 
@@ -529,9 +755,23 @@ export default function AdminPhoneOrderPage() {
       return
     }
 
+    if (fulfillmentType === 'pickup' || paymentCollection === 'counter') {
+      await generateCounterBill(result.data.id)
+    }
+
     toast.success(
-      `Phone / counter order ${result.data.order_number} placed — now on the kitchen board`,
+      `Phone order ${result.data.order_number} placed — on the kitchen board`,
     )
+
+    if (
+      paymentCollection === 'link' ||
+      paymentCollection === 'delivery' ||
+      paymentCollection === 'counter'
+    ) {
+      await openShareForOrder(result.data)
+      return
+    }
+
     navigate(ROUTES.ADMIN.ORDERS)
   }
 
@@ -551,7 +791,7 @@ export default function AdminPhoneOrderPage() {
             </h3>
             {customerDirty ? (
               <span className="text-[11px] font-medium text-error">
-                Unsaved
+                Unsaved — save before ordering
               </span>
             ) : (
               <span className="text-[11px] font-medium text-success">
@@ -621,18 +861,42 @@ export default function AdminPhoneOrderPage() {
               />
             </div>
 
-            <Select
-              compact
-              label="Type"
-              value={fulfillmentType}
-              onChange={(event) =>
-                setFulfillmentType(event.target.value as FulfillmentType)
-              }
-              options={[
-                { label: 'Delivery', value: 'delivery' },
-                { label: 'Pickup', value: 'pickup' },
-              ]}
-            />
+            <div className="col-span-2 lg:col-span-1">
+              <p className="mb-1 text-[11px] font-medium text-text-secondary">
+                Fulfillment
+              </p>
+              <div
+                className="flex h-9 overflow-hidden rounded-[var(--radius-input)] border border-black/10"
+                role="radiogroup"
+                aria-label="Fulfillment type"
+              >
+                {(
+                  [
+                    { value: 'pickup', label: 'Pickup' },
+                    { value: 'delivery', label: 'Delivery' },
+                  ] as const
+                ).map((option) => {
+                  const selected = fulfillmentType === option.value
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      onClick={() => setFulfillmentType(option.value)}
+                      className={cn(
+                        'flex-1 px-2 text-xs font-semibold transition-colors',
+                        selected
+                          ? 'bg-primary text-white'
+                          : 'bg-surface text-text-secondary hover:bg-primary/5',
+                      )}
+                    >
+                      {option.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
 
             <Select
               compact
@@ -768,11 +1032,25 @@ export default function AdminPhoneOrderPage() {
                 onChange={(event) => setDishSearch(event.target.value)}
                 className="pl-9"
                 aria-label="Search dishes"
+                disabled={!canEnterOrder}
               />
             </div>
           </div>
 
-          <ul className="grid max-h-[min(52vh,520px)] gap-1 overflow-y-auto sm:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
+          {!canEnterOrder ? (
+            <p className="mb-2 rounded-[var(--radius-button)] bg-primary/10 px-2 py-1.5 text-[11px] text-text-primary">
+              {!phoneVerified
+                ? 'Look up the mobile number, then tap Save before adding dishes.'
+                : 'Save customer details (name, pickup/delivery, address) before adding dishes.'}
+            </p>
+          ) : null}
+
+          <ul
+            className={cn(
+              'grid max-h-[min(52vh,520px)] gap-1 overflow-y-auto sm:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3',
+              !canEnterOrder && 'pointer-events-none opacity-50',
+            )}
+          >
             {filteredDishes.map((dish) => {
               const qty = qtyByDishId.get(dish.id) ?? 0
               const inCart = qty > 0
@@ -798,9 +1076,10 @@ export default function AdminPhoneOrderPage() {
                     <div className="flex shrink-0 items-center gap-1">
                       <button
                         type="button"
-                        className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-white"
+                        className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-white disabled:opacity-40"
                         onClick={() => updateQtyByDish(dish.id, -1)}
                         aria-label={`Decrease ${dish.name}`}
+                        disabled={!canEnterOrder}
                       >
                         <Minus className="h-3.5 w-3.5" />
                       </button>
@@ -809,9 +1088,10 @@ export default function AdminPhoneOrderPage() {
                       </span>
                       <button
                         type="button"
-                        className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-white"
+                        className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-white disabled:opacity-40"
                         onClick={() => updateQtyByDish(dish.id, 1)}
                         aria-label={`Increase ${dish.name}`}
+                        disabled={!canEnterOrder}
                       >
                         <Plus className="h-3.5 w-3.5" />
                       </button>
@@ -823,6 +1103,7 @@ export default function AdminPhoneOrderPage() {
                       variant="secondary"
                       className="h-8 px-2.5"
                       onClick={() => addDish(dish)}
+                      disabled={!canEnterOrder}
                     >
                       <Plus className="h-3.5 w-3.5" />
                       Add
@@ -840,7 +1121,9 @@ export default function AdminPhoneOrderPage() {
           </h3>
           {items.length === 0 ? (
             <p className="text-xs text-text-secondary">
-              Add dishes from the menu.
+              {canEnterOrder
+                ? 'Add dishes from the menu.'
+                : 'Save customer details first, then add dishes.'}
             </p>
           ) : (
             <ul className="max-h-48 divide-y divide-black/5 overflow-y-auto">
@@ -860,9 +1143,10 @@ export default function AdminPhoneOrderPage() {
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
-                      className="rounded-full border border-black/10 p-0.5"
+                      className="rounded-full border border-black/10 p-0.5 disabled:opacity-40"
                       onClick={() => updateQty(item.key, -1)}
                       aria-label="Decrease quantity"
+                      disabled={!canEnterOrder}
                     >
                       <Minus className="h-3.5 w-3.5" />
                     </button>
@@ -871,21 +1155,23 @@ export default function AdminPhoneOrderPage() {
                     </span>
                     <button
                       type="button"
-                      className="rounded-full border border-black/10 p-0.5"
+                      className="rounded-full border border-black/10 p-0.5 disabled:opacity-40"
                       onClick={() => updateQty(item.key, 1)}
                       aria-label="Increase quantity"
+                      disabled={!canEnterOrder}
                     >
                       <Plus className="h-3.5 w-3.5" />
                     </button>
                     <button
                       type="button"
-                      className="rounded-full p-0.5 text-error"
+                      className="rounded-full p-0.5 text-error disabled:opacity-40"
                       onClick={() =>
                         setItems((prev) =>
                           prev.filter((row) => row.key !== item.key),
                         )
                       }
                       aria-label="Remove item"
+                      disabled={!canEnterOrder}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -900,18 +1186,26 @@ export default function AdminPhoneOrderPage() {
               <dt>Subtotal</dt>
               <dd>{formatPrice(totals.subtotal)}</dd>
             </div>
-            {totals.tax > 0 && (
-              <div className="flex justify-between text-text-secondary">
-                <dt>GST</dt>
-                <dd>{formatPrice(totals.tax)}</dd>
+            <div className="flex justify-between text-text-secondary">
+              <dt>GST ({(ORDER_TAX_RATE * 100).toFixed(0)}%)</dt>
+              <dd>{formatPrice(totals.tax)}</dd>
+            </div>
+            {totals.discount > 0 && (
+              <div className="flex justify-between text-success">
+                <dt>Coupon{couponCode ? ` (${couponCode})` : ''}</dt>
+                <dd>-{formatPrice(totals.discount)}</dd>
               </div>
             )}
             <div className="flex justify-between text-text-secondary">
-              <dt>Delivery</dt>
+              <dt>{fulfillmentType === 'pickup' ? 'Pickup' : 'Delivery'}</dt>
               <dd>
-                {totals.deliveryCharge === 0
-                  ? 'Free'
-                  : formatPrice(totals.deliveryCharge)}
+                {fulfillmentType === 'pickup'
+                  ? '—'
+                  : isQuoteLoading
+                    ? 'Calculating…'
+                    : totals.deliveryCharge === 0
+                      ? 'Free'
+                      : formatPrice(totals.deliveryCharge)}
               </dd>
             </div>
             <div className="flex justify-between border-t border-black/5 pt-1.5 text-sm font-semibold text-text-primary">
@@ -920,19 +1214,189 @@ export default function AdminPhoneOrderPage() {
             </div>
           </dl>
 
+          {fulfillmentType === 'delivery' && canEnterOrder ? (
+            <div className="space-y-1.5 rounded-[var(--radius-button)] border border-black/8 bg-background/60 p-2">
+              <p className="text-[11px] font-medium text-text-primary">
+                Delivery charge
+              </p>
+              {isQuoteLoading ? (
+                <p className="text-[11px] text-text-secondary">
+                  Calculating from distance…
+                </p>
+              ) : (
+                <p className="text-[11px] text-text-secondary">
+                  {deliveryQuote?.distanceKm != null
+                    ? `${deliveryQuote.distanceKm.toFixed(1)} km from kitchen`
+                    : 'Distance unavailable — using base rate'}
+                  {deliveryQuote?.isServiceable
+                    ? ` · quoted ${formatPrice(deliveryQuote.amount)}`
+                    : ''}
+                  {deliveryChargeOverride !== null ? ' · overridden' : ''}
+                </p>
+              )}
+              {deliveryQuote?.isServiceable === false ? (
+                <p className="text-[11px] text-error">
+                  {deliveryQuote.unserviceableReason ??
+                    'Outside delivery area — set a charge to continue.'}
+                </p>
+              ) : null}
+              <div className="flex gap-1.5">
+                <Input
+                  compact
+                  inputMode="decimal"
+                  value={deliveryChargeInput}
+                  onChange={(event) =>
+                    setDeliveryChargeInput(
+                      event.target.value.replace(/[^\d.]/g, ''),
+                    )
+                  }
+                  aria-label="Delivery charge"
+                  className="min-w-0"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  className="h-9 shrink-0 px-2.5"
+                  onClick={applyDeliveryChargeInput}
+                >
+                  Apply
+                </Button>
+              </div>
+              {deliveryChargeOverride !== null ? (
+                <button
+                  type="button"
+                  className="text-[11px] font-medium text-primary"
+                  onClick={resetDeliveryChargeToQuote}
+                >
+                  Reset to quoted amount
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
+          {canEnterOrder ? (
+            <div className="space-y-1.5 rounded-[var(--radius-button)] border border-black/8 bg-background/60 p-2">
+              <p className="text-[11px] font-medium text-text-primary">
+                Coupon
+              </p>
+              {appliedOffer ? (
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-semibold text-text-primary">
+                      {appliedOffer.coupon_code}
+                    </p>
+                    <p className="text-[11px] text-text-secondary">
+                      {appliedOffer.discount_percentage}% off · saves{' '}
+                      {formatPrice(couponDiscount)}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    className="h-7 shrink-0 px-2"
+                    onClick={handleRemoveCoupon}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex gap-1.5">
+                  <Input
+                    compact
+                    placeholder="Code"
+                    value={couponDraft}
+                    onChange={(event) =>
+                      setCouponDraft(event.target.value.toUpperCase())
+                    }
+                    aria-label="Coupon code"
+                    className="min-w-0"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    className="h-9 shrink-0 px-2.5"
+                    disabled={!couponDraft.trim() || isApplyingCoupon}
+                    onClick={() => void handleApplyCoupon()}
+                  >
+                    {isApplyingCoupon ? '…' : 'Apply'}
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          {canEnterOrder ? (
+            <div className="space-y-1.5 rounded-[var(--radius-button)] border border-black/8 bg-background/60 p-2">
+              <p className="text-[11px] font-medium text-text-primary">
+                When will they pay?
+              </p>
+              <div
+                className="grid grid-cols-1 gap-1.5"
+                role="radiogroup"
+                aria-label="Payment collection"
+              >
+                {(
+                  [
+                    {
+                      value: 'link' as const,
+                      label: 'Share payment link',
+                      hint: 'WhatsApp / copy link with order details + UPI QR',
+                    },
+                    {
+                      value: 'counter' as const,
+                      label: 'Pay at counter',
+                      hint: 'Cash / UPI when they pick up',
+                    },
+                    {
+                      value: 'delivery' as const,
+                      label: 'Pay on delivery',
+                      hint: 'Collect with rider or doorstep UPI',
+                    },
+                  ] as const
+                ).map((option) => {
+                  const selected = paymentCollection === option.value
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      onClick={() => setPaymentCollection(option.value)}
+                      className={cn(
+                        'rounded-[var(--radius-button)] border px-2 py-1.5 text-left transition-colors',
+                        selected
+                          ? 'border-primary bg-primary/5'
+                          : 'border-black/10 hover:border-primary/30',
+                      )}
+                    >
+                      <span className="block text-xs font-semibold text-text-primary">
+                        {option.label}
+                      </span>
+                      <span className="block text-[10px] text-text-secondary">
+                        {option.hint}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ) : null}
+
           <p className="text-[11px] text-text-secondary">
-            Pay later (UPI QR after ready / delivery)
+            After placing, you can share a payment page with items, GST, and UPI
+            QR.
           </p>
 
           {!phoneVerified ? (
             <p className="rounded-[var(--radius-button)] bg-primary/10 px-2 py-1 text-[11px] text-text-primary">
-              Look up a mobile number, then save details before placing the
-              order.
+              Look up a mobile number, then tap Save before entering the order.
             </p>
-          ) : !hasSavedNumber ? (
+          ) : !canEnterOrder ? (
             <p className="rounded-[var(--radius-button)] bg-primary/10 px-2 py-1 text-[11px] text-text-primary">
-              Save customer details for this mobile number before placing the
-              order.
+              Unsaved changes — tap Save before entering or placing the order.
             </p>
           ) : null}
 
@@ -948,9 +1412,10 @@ export default function AdminPhoneOrderPage() {
             className="w-full"
             disabled={
               isSubmitting ||
-              !hasSavedNumber ||
+              !canEnterOrder ||
               isStoreStatusLoading ||
-              Boolean(storeStatus && !storeStatus.isOpen)
+              Boolean(storeStatus && !storeStatus.isOpen) ||
+              (fulfillmentType === 'delivery' && isQuoteLoading)
             }
             onClick={() => void handleSubmit()}
           >
@@ -960,12 +1425,116 @@ export default function AdminPhoneOrderPage() {
                 ? 'Store closed'
                 : !phoneVerified
                   ? 'Look up mobile first'
-                  : !hasSavedNumber
-                    ? 'Save number first'
-                    : 'Place order'}
+                  : !canEnterOrder
+                    ? 'Save details first'
+                    : fulfillmentType === 'delivery' && isQuoteLoading
+                      ? 'Calculating delivery…'
+                      : paymentCollection === 'link'
+                        ? 'Place order & share link'
+                        : 'Place order'}
           </Button>
         </section>
       </div>
+
+      <Modal
+        isOpen={Boolean(shareModal)}
+        onClose={() => {
+          setShareModal(null)
+          navigate(ROUTES.ADMIN.ORDERS)
+        }}
+        title="Share payment link"
+        className="max-w-lg"
+        footer={
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setShareModal(null)
+                navigate(ROUTES.ADMIN.ORDERS)
+              }}
+            >
+              Done — kitchen board
+            </Button>
+          </div>
+        }
+      >
+        {shareModal ? (
+          <div className="space-y-4">
+            <p className="text-sm text-text-secondary">
+              Order <span className="font-semibold text-text-primary">{shareModal.orderNumber}</span>
+              {' — '}customer opens this page to see items, GST, total, and UPI
+              QR.
+            </p>
+            <div className="rounded-[var(--radius-input)] border border-black/10 bg-background px-3 py-2">
+              <p className="break-all text-xs text-text-primary">
+                {shareModal.pageUrl}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(shareModal.pageUrl)
+                    toast.success('Payment link copied')
+                  } catch {
+                    toast.error('Unable to copy link')
+                  }
+                }}
+              >
+                <Copy className="h-3.5 w-3.5" />
+                Copy link
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(shareModal.message)
+                    toast.success('Message with order details copied')
+                  } catch {
+                    toast.error('Unable to copy message')
+                  }
+                }}
+              >
+                <Copy className="h-3.5 w-3.5" />
+                Copy message
+              </Button>
+              <a
+                href={paymentShareService.whatsappShareUrl(
+                  shareModal.phone,
+                  shareModal.message,
+                )}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex"
+              >
+                <Button type="button" size="sm">
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  WhatsApp
+                </Button>
+              </a>
+              <a
+                href={shareModal.pageUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex"
+              >
+                <Button type="button" size="sm" variant="secondary">
+                  Open page
+                </Button>
+              </a>
+            </div>
+            <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-[var(--radius-input)] bg-background p-3 text-[11px] text-text-secondary">
+              {shareModal.message}
+            </pre>
+          </div>
+        ) : null}
+      </Modal>
     </div>
   )
 }

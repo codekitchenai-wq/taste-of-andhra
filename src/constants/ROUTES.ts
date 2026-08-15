@@ -13,6 +13,8 @@ export const ROUTES = {
   ORDERS: '/orders',
   ORDER_DETAILS: (orderId: string) => `/orders/${orderId}`,
   ORDER_INVOICE: (orderId: string) => `/orders/${orderId}/invoice`,
+  /** Public phone/counter payment page (order details + UPI QR). */
+  ORDER_PAYMENT_SHARE: (token: string) => `/pay/${token}`,
   CART: '/cart',
   CHECKOUT: '/checkout',
   ORDER_SUCCESS: '/order-success',
