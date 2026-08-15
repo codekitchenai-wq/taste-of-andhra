@@ -1,7 +1,7 @@
 import { MapPin, Pencil, Star, Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { formatAddressLine } from '@/utils/mapAddress'
+import { formatAddressLine, hasLocationPin } from '@/utils/mapAddress'
 import type { Address } from '@/types/Address'
 
 interface SavedAddressCardProps {
@@ -28,6 +28,9 @@ export function SavedAddressCard({
             <h3 className="font-semibold text-text-primary">{address.full_name}</h3>
             <Badge variant="default">{address.address_type}</Badge>
             {address.is_default && <Badge variant="featured">Default</Badge>}
+            {!hasLocationPin(address) && (
+              <Badge variant="warning">Needs pin</Badge>
+            )}
           </div>
           <p className="mt-2 text-sm text-text-secondary">
             {formatAddressLine(address)}
@@ -65,7 +68,7 @@ export function SavedAddressCard({
           onClick={() => onEdit(address)}
         >
           <Pencil className="h-4 w-4" aria-hidden="true" />
-          Edit
+          {hasLocationPin(address) ? 'Edit' : 'Add pin'}
         </Button>
         <Button
           type="button"

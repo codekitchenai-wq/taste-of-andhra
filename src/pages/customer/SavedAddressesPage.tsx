@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { MapPin, Plus } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { AddressFormModal } from '@/components/checkout/AddressFormModal'
@@ -15,10 +16,18 @@ import type { Address } from '@/types/Address'
 
 export default function SavedAddressesPage() {
   const { addresses, isLoading, error, refetch } = useAddresses()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const isSetup = searchParams.get('setup') === '1'
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingAddress, setEditingAddress] = useState<Address | null>(null)
   const [deletingAddress, setDeletingAddress] = useState<Address | null>(null)
   const [isBusy, setIsBusy] = useState(false)
+
+  useEffect(() => {
+    if (!isSetup || isLoading || addresses.length > 0) return
+    setEditingAddress(null)
+    setIsFormOpen(true)
+  }, [isSetup, isLoading, addresses.length])
 
   const openAddForm = () => {
     setEditingAddress(null)
@@ -70,10 +79,13 @@ export default function SavedAddressesPage() {
     <Container as="div" className="py-8 md:py-12">
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold md:text-4xl">Saved Addresses</h1>
+          <h1 className="text-3xl font-bold md:text-4xl">
+            {isSetup ? 'Finish setting up' : 'Saved Addresses'}
+          </h1>
           <p className="mt-3 max-w-2xl text-base text-text-secondary md:text-lg">
-            Add and manage multiple delivery addresses with pincode and nearest
-            landmark.
+            {isSetup
+              ? 'Add your delivery address so we can take your next order. You can save more addresses later.'
+              : 'Add and manage delivery addresses. Pin each one on the map so we can check delivery and calculate shipping.'}
           </p>
         </div>
         <Button type="button" onClick={openAddForm} className="shrink-0">
@@ -91,8 +103,12 @@ export default function SavedAddressesPage() {
       {!isLoading && !error && addresses.length === 0 && (
         <EmptyState
           icon={MapPin}
-          title="No addresses yet"
-          description="Save home, work, or other delivery addresses for faster checkout."
+          title={isSetup ? 'Add your first address' : 'No addresses yet'}
+          description={
+            isSetup
+              ? 'Save home or work so checkout is ready the next time you sign in.'
+              : 'Save home, work, or other delivery addresses for faster checkout.'
+          }
           actionLabel="Add Address"
           onAction={openAddForm}
         />
@@ -119,6 +135,10 @@ export default function SavedAddressesPage() {
         onClose={closeForm}
         onSuccess={() => {
           void refetch()
+          if (isSetup) {
+            setSearchParams({})
+            toast.success('Address saved. You are ready to order.')
+          }
         }}
       />
 

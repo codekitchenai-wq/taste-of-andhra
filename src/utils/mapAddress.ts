@@ -20,6 +20,20 @@ export function mapAddress(row: Record<string, unknown>): Address {
   }
 }
 
+/** True when the customer dropped a usable map pin for distance and shipping. */
+export function hasLocationPin(
+  address: Pick<Address, 'latitude' | 'longitude'> | null | undefined,
+): address is { latitude: number; longitude: number } {
+  if (!address) return false
+
+  return (
+    address.latitude != null &&
+    address.longitude != null &&
+    Number.isFinite(address.latitude) &&
+    Number.isFinite(address.longitude)
+  )
+}
+
 export function formatAddressLine(address: Address): string {
   const parts = [
     address.address_line1,

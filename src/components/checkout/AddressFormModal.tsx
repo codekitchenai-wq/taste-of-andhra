@@ -12,6 +12,10 @@ import type { CreateAddressInput } from '@/services/addressService'
 import * as addressService from '@/services/addressService'
 import type { Address } from '@/types/Address'
 import { isGoogleMapsConfigured, type ResolvedPlace } from '@/utils/googleMaps'
+import { hasLocationPin } from '@/utils/mapAddress'
+
+const PIN_REQUIRED_MESSAGE =
+  'Pin your location on the map so we can check delivery and calculate shipping.'
 
 interface AddressFormValues {
   addressType: string
@@ -73,6 +77,8 @@ export function AddressFormModal({
     latitude: number
     longitude: number
   } | null>(null)
+  const [pinError, setPinError] = useState<string | undefined>()
+  const pinRequired = isGoogleMapsConfigured
 
   const {
     register,
@@ -90,13 +96,14 @@ export function AddressFormModal({
     if (addressToEdit) {
       reset(toFormValues(addressToEdit))
       setCoordinates(
-        addressToEdit.latitude !== null && addressToEdit.longitude !== null
+        hasLocationPin(addressToEdit)
           ? {
               latitude: addressToEdit.latitude,
               longitude: addressToEdit.longitude,
             }
           : null,
       )
+      setPinError(undefined)
       return
     }
 
@@ -109,24 +116,35 @@ export function AddressFormModal({
       isDefault: true,
     })
     setCoordinates(null)
+    setPinError(undefined)
   }, [isOpen, addressToEdit, user, reset])
 
-  // The pin is the source of truth for pricing, so it also fills the text
-  // fields. Anything the customer already typed is left alone.
+  const fillField = (name: keyof AddressFormValues, value: string) => {
+    if (!value.trim()) return
+    setValue(name, value, { shouldValidate: true, shouldDirty: true })
+  }
+
+  // The pin is the source of truth. It overwrites address columns so search,
+  // tap, and "use my location" all land in the same fields.
   const handlePlaceSelected = (place: ResolvedPlace) => {
     setCoordinates({ latitude: place.latitude, longitude: place.longitude })
+    setPinError(undefined)
 
-    if (place.city) setValue('city', place.city, { shouldValidate: true })
-    if (place.state) setValue('state', place.state, { shouldValidate: true })
-    if (place.pincode) {
-      setValue('pincode', place.pincode, { shouldValidate: true })
-    }
-    if (place.addressLine1) {
-      setValue('addressLine1', place.addressLine1, { shouldValidate: true })
-    }
+    fillField('addressLine1', place.addressLine1 || place.formattedAddress)
+    fillField('addressLine2', place.addressLine2)
+    fillField('landmark', place.landmark)
+    fillField('city', place.city)
+    fillField('state', place.state)
+    fillField('pincode', place.pincode)
   }
 
   const onSubmit = async (values: AddressFormValues) => {
+    if (pinRequired && !hasLocationPin(coordinates)) {
+      setPinError(PIN_REQUIRED_MESSAGE)
+      toast.error('Please pin your location on the map')
+      return
+    }
+
     const payload: CreateAddressInput = {
       addressType: values.addressType,
       fullName: values.fullName,
@@ -198,17 +216,24 @@ export function AddressFormModal({
         <div className="space-y-2">
           <p className="text-sm font-medium text-text-primary">
             Pin your location
+            {pinRequired ? (
+              <span className="text-error" aria-hidden="true">
+                {' '}
+                *
+              </span>
+            ) : null}
+          </p>
+          <p className="text-xs text-text-secondary">
+            Search, use your current location, or tap the map. We use this pin
+            to check if we deliver and to calculate shipping.
           </p>
           <LocationPicker
             latitude={coordinates?.latitude ?? null}
             longitude={coordinates?.longitude ?? null}
             onChange={handlePlaceSelected}
+            required={pinRequired}
+            error={pinError}
           />
-          {isGoogleMapsConfigured && !coordinates && (
-            <p className="text-xs text-warning">
-              Without a pin we can only estimate your delivery charge.
-            </p>
-          )}
         </div>
 
         <Select

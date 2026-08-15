@@ -1,6 +1,6 @@
 import { MapPin } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
-import { formatAddressLine } from '@/utils/mapAddress'
+import { formatAddressLine, hasLocationPin } from '@/utils/mapAddress'
 import type { Address } from '@/types/Address'
 import { cn } from '@/utils/cn'
 
@@ -40,6 +40,9 @@ export function AddressCard({ address, selected, onSelect }: AddressCardProps) {
             </span>
             <Badge variant="default">{address.address_type}</Badge>
             {address.is_default && <Badge variant="featured">Default</Badge>}
+            {!hasLocationPin(address) && (
+              <Badge variant="warning">Needs pin</Badge>
+            )}
           </div>
           <p className="mt-2 text-sm text-text-secondary">
             {formatAddressLine(address)}

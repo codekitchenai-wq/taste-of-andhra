@@ -1,6 +1,12 @@
 import { cn } from '@/utils/cn'
 
-type BadgeVariant = 'veg' | 'nonVeg' | 'featured' | 'unavailable' | 'default'
+type BadgeVariant =
+  | 'veg'
+  | 'nonVeg'
+  | 'featured'
+  | 'unavailable'
+  | 'warning'
+  | 'default'
 
 interface BadgeProps {
   variant?: BadgeVariant
@@ -13,6 +19,7 @@ const variantStyles: Record<BadgeVariant, string> = {
   nonVeg: 'bg-error/10 text-error',
   featured: 'bg-accent/20 text-text-primary',
   unavailable: 'bg-gray-100 text-text-secondary',
+  warning: 'bg-warning/10 text-warning',
   default: 'bg-primary/10 text-primary',
 }
 

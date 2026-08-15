@@ -2,17 +2,23 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Crosshair, MapPin } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import {
+  EMPTY_RESOLVED_PLACE,
+  geocodeQuery,
   isGoogleMapsConfigured,
   loadGoogleMaps,
+  mergeResolvedPlaces,
   parsePlaceComponents,
   reverseGeocode,
   type ResolvedPlace,
 } from '@/utils/googleMaps'
+import { cn } from '@/utils/cn'
 
 interface LocationPickerProps {
   latitude: number | null
   longitude: number | null
   onChange: (place: ResolvedPlace) => void
+  required?: boolean
+  error?: string
 }
 
 // Centred on India so the first view is useful before a pin is dropped.
@@ -24,6 +30,8 @@ export function LocationPicker({
   latitude,
   longitude,
   onChange,
+  required = false,
+  error,
 }: LocationPickerProps) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const searchInputRef = useRef<HTMLInputElement | null>(null)
@@ -33,6 +41,7 @@ export function LocationPicker({
 
   const [loadError, setLoadError] = useState<string | null>(null)
   const [isLocating, setIsLocating] = useState(false)
+  const [isLookingUp, setIsLookingUp] = useState(false)
 
   // Held in refs so the map's listeners, registered once, never read stale
   // props. Re-creating the map on every render would drop the user's pin.
@@ -40,32 +49,37 @@ export function LocationPicker({
   onChangeRef.current = onChange
 
   const initialPositionRef = useRef({ latitude, longitude })
+  const lookupSearchQueryRef = useRef<(query: string) => Promise<void>>(
+    async () => {},
+  )
 
   const commitPosition = useCallback(
     async (lat: number, lng: number, known?: ResolvedPlace) => {
       const maps = mapsRef.current
       if (!maps) return
 
+      markerRef.current?.setVisible(true)
       markerRef.current?.setPosition({ lat, lng })
       mapRef.current?.panTo({ lat, lng })
+      mapRef.current?.setZoom(PINNED_ZOOM)
 
-      if (known) {
-        onChangeRef.current(known)
-        return
+      setIsLookingUp(true)
+      const resolved = await reverseGeocode(maps, lat, lng)
+      setIsLookingUp(false)
+
+      const fallback: ResolvedPlace = known ?? {
+        latitude: lat,
+        longitude: lng,
+        ...EMPTY_RESOLVED_PLACE,
       }
 
-      const resolved = await reverseGeocode(maps, lat, lng)
-
       onChangeRef.current(
-        resolved ?? {
-          latitude: lat,
-          longitude: lng,
-          addressLine1: '',
-          city: '',
-          state: '',
-          pincode: '',
-          formattedAddress: '',
-        },
+        mergeResolvedPlaces(
+          resolved
+            ? { ...resolved, latitude: lat, longitude: lng }
+            : null,
+          { ...fallback, latitude: lat, longitude: lng },
+        ),
       )
     },
     [],
@@ -124,7 +138,12 @@ export function LocationPicker({
             searchInputRef.current,
             {
               componentRestrictions: { country: 'in' },
-              fields: ['address_components', 'geometry', 'formatted_address'],
+              fields: [
+                'address_components',
+                'geometry',
+                'formatted_address',
+                'name',
+              ],
             },
           )
 
@@ -132,17 +151,18 @@ export function LocationPicker({
             const place = autocomplete.getPlace()
             const location = place.geometry?.location
 
-            if (!location) return
-
-            marker.setVisible(true)
-            map.setZoom(PINNED_ZOOM)
+            if (!location) {
+              const query = searchInputRef.current?.value?.trim()
+              if (query) void lookupSearchQueryRef.current(query)
+              return
+            }
 
             void commitPosition(location.lat(), location.lng(), {
               latitude: location.lat(),
               longitude: location.lng(),
               ...parsePlaceComponents(
                 place.address_components ?? [],
-                place.formatted_address ?? '',
+                place.formatted_address || place.name || '',
               ),
             })
           })
@@ -172,34 +192,76 @@ export function LocationPicker({
     map.panTo({ lat: latitude, lng: longitude })
   }, [latitude, longitude])
 
-  const handleUseMyLocation = () => {
-    if (!navigator.geolocation) return
+  const lookupSearchQuery = async (query: string) => {
+    const maps = mapsRef.current
+    if (!maps || !query.trim()) return
 
+    setIsLookingUp(true)
+    const resolved = await geocodeQuery(maps, query)
+    setIsLookingUp(false)
+
+    if (!resolved) {
+      setLoadError(
+        'We could not find that place. Pick a suggestion from the list or tap the map.',
+      )
+      return
+    }
+
+    setLoadError(null)
+    await commitPosition(resolved.latitude, resolved.longitude, resolved)
+  }
+
+  lookupSearchQueryRef.current = lookupSearchQuery
+
+  const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== 'Enter') return
+    event.preventDefault()
+    void lookupSearchQuery(event.currentTarget.value)
+  }
+
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) {
+      setLoadError('This browser cannot share your location.')
+      return
+    }
+
+    if (!mapsRef.current) {
+      setLoadError('Wait for the map to load, then try again.')
+      return
+    }
+
+    setLoadError(null)
     setIsLocating(true)
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setIsLocating(false)
-        markerRef.current?.setVisible(true)
-        mapRef.current?.setZoom(PINNED_ZOOM)
         void commitPosition(
           position.coords.latitude,
           position.coords.longitude,
         )
       },
-      () => setIsLocating(false),
+      (error) => {
+        setIsLocating(false)
+        if (error.code === error.PERMISSION_DENIED) {
+          setLoadError(
+            'Location permission was blocked. Allow location for this site, or search / tap the map.',
+          )
+          return
+        }
+        setLoadError(
+          'Could not read your GPS. Search for your area or tap the map instead.',
+        )
+      },
       { enableHighAccuracy: true, timeout: 10000 },
     )
   }
 
   if (!isGoogleMapsConfigured) {
     return (
-      <div className="rounded-[var(--radius-card)] border border-dashed border-gray-300 bg-background p-4 text-sm text-text-secondary">
-        Map location is unavailable because{' '}
-        <code className="rounded bg-surface px-1">
-          VITE_GOOGLE_MAPS_API_KEY
-        </code>{' '}
-        is not set. Your address will still be saved, but delivery pricing may
-        be less accurate.
+      <div className="rounded-[var(--radius-card)] border border-dashed border-warning/40 bg-warning/5 p-4 text-sm text-text-secondary">
+        Map pin is unavailable on this site. You can still type your address.
+        Delivery distance and shipping may be less accurate until maps are
+        enabled.
       </div>
     )
   }
@@ -214,10 +276,19 @@ export function LocationPicker({
           />
           <input
             ref={searchInputRef}
-            type="text"
+            type="search"
             placeholder="Search your building, street or area"
             aria-label="Search for your delivery location"
-            className="h-12 w-full rounded-[var(--radius-input)] border border-gray-300 bg-surface pl-9 pr-4 text-sm text-text-primary transition-colors placeholder:text-text-secondary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            aria-invalid={Boolean(error)}
+            aria-describedby={error ? 'location-pin-error' : undefined}
+            onKeyDown={handleSearchKeyDown}
+            autoComplete="off"
+            className={cn(
+              'h-12 w-full rounded-[var(--radius-input)] border bg-surface pl-9 pr-4 text-sm text-text-primary transition-colors placeholder:text-text-secondary focus:outline-none focus:ring-2',
+              error
+                ? 'border-error focus:border-error focus:ring-error/20'
+                : 'border-gray-300 focus:border-primary focus:ring-primary/20',
+            )}
           />
         </div>
         <Button
@@ -228,7 +299,11 @@ export function LocationPicker({
           className="shrink-0"
         >
           <Crosshair className="h-4 w-4" aria-hidden="true" />
-          {isLocating ? 'Locating...' : 'Use my location'}
+          {isLocating
+            ? 'Locating...'
+            : isLookingUp
+              ? 'Finding address...'
+              : 'Use my location'}
         </Button>
       </div>
 
@@ -236,20 +311,32 @@ export function LocationPicker({
         <p className="text-sm text-error" role="alert">
           {loadError}
         </p>
+      ) : null}
+
+      <div
+        ref={mapContainerRef}
+        className={cn(
+          'h-56 w-full overflow-hidden rounded-[var(--radius-card)] border bg-background',
+          error ? 'border-error' : 'border-gray-200',
+        )}
+        role="application"
+        aria-label="Delivery location map"
+        aria-invalid={Boolean(error)}
+      />
+      {error ? (
+        <p id="location-pin-error" className="text-xs text-error" role="alert">
+          {error}
+        </p>
       ) : (
-        <>
-          <div
-            ref={mapContainerRef}
-            className="h-56 w-full overflow-hidden rounded-[var(--radius-card)] border border-gray-200 bg-background"
-            role="application"
-            aria-label="Delivery location map"
-          />
-          <p className="text-xs text-text-secondary">
-            {latitude !== null && longitude !== null
-              ? 'Drag the pin to your exact gate or door so the rider finds you.'
-              : 'Search above or tap the map to drop a pin. This sets your delivery charge.'}
-          </p>
-        </>
+        <p className="text-xs text-text-secondary">
+          {isLookingUp
+            ? 'Looking up the address for this pin…'
+            : latitude !== null && longitude !== null
+              ? 'Address fields below are filled from this pin. Drag it to your gate if needed.'
+              : required
+                ? 'Pick a suggestion, press Enter, use your location, or tap the map.'
+                : 'Search above or tap the map to drop a pin. This sets your delivery charge.'}
+        </p>
       )}
     </div>
   )
