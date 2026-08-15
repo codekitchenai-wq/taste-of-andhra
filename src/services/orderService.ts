@@ -626,9 +626,15 @@ export async function createOrder(
     return createErrorResponse('Unable to create order items.', itemsError.message)
   }
 
+  const paymentGateway =
+    input.paymentMethod === 'razorpay' ? 'razorpay' : 'cod'
   const { error: paymentError } = await supabase.from('payments').insert({
     order_id: order.id,
-    payment_gateway: input.paymentMethod === 'razorpay' ? 'razorpay' : 'cod',
+    organization_id:
+      (order.organization_id as string | undefined) ?? DEFAULT_ORGANIZATION_ID,
+    payment_gateway: paymentGateway,
+    provider: paymentGateway === 'razorpay' ? 'razorpay' : 'cod',
+    payment_mode: 'DIRECT',
     amount: totals.total,
     status: 'pending',
   })
@@ -903,7 +909,11 @@ export async function createPhoneOrder(
 
   const { error: paymentError } = await supabase.from('payments').insert({
     order_id: order.id,
+    organization_id:
+      (order.organization_id as string | undefined) ?? DEFAULT_ORGANIZATION_ID,
     payment_gateway: 'pay_later',
+    provider: 'pay_later',
+    payment_mode: 'DIRECT',
     amount: totals.total,
     status: 'pending',
   })

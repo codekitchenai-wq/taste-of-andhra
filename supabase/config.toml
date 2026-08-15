@@ -409,6 +409,26 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 [functions.master-onboard-owner]
 verify_jwt = true
 
+[functions.whatsapp-otp]
+verify_jwt = false
+
+[functions.delivery-quote]
+verify_jwt = true
+
+[functions.pidge-dispatch]
+verify_jwt = true
+
+# Pidge signs callbacks with PIDGE_WEBHOOK_TOKEN, not a Supabase JWT.
+[functions.pidge-webhook]
+verify_jwt = false
+
+[functions.razorpay-confirm]
+verify_jwt = true
+
+# Razorpay signs with x-razorpay-signature (RAZORPAY_WEBHOOK_SECRET).
+[functions.razorpay-webhook]
+verify_jwt = false
+
 [experimental.pgdelta]
 enabled = true
 # Directory under `supabase/` where declarative files are written.

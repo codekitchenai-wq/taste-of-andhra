@@ -60,64 +60,65 @@ function mapPaymentRow(row: Record<string, unknown>): Payment {
   return mapPayment(row)
 }
 
+/**
+ * Server-side payment confirmation (Razorpay API verify or gated demo).
+ * Clients must not UPDATE payments to paid directly.
+ */
+export async function confirmOnlinePayment(input: {
+  orderId: string
+  razorpay_payment_id?: string
+  razorpay_order_id?: string
+  transactionId?: string
+  mode?: 'live' | 'demo'
+}): Promise<ServiceResponse<Payment>> {
+  const { data, error } = await supabase.functions.invoke('razorpay-confirm', {
+    body: {
+      orderId: input.orderId,
+      razorpay_payment_id: input.razorpay_payment_id ?? input.transactionId,
+      razorpay_order_id: input.razorpay_order_id,
+      transactionId: input.transactionId,
+      mode: input.mode,
+    },
+  })
+
+  if (error) {
+    return createErrorResponse(
+      'Unable to confirm payment.',
+      error.message,
+    )
+  }
+
+  const payload = data as {
+    error?: string
+    payment?: Record<string, unknown>
+  } | null
+
+  if (!payload || payload.error || !payload.payment) {
+    return createErrorResponse(
+      payload?.error ?? 'Unable to confirm payment.',
+    )
+  }
+
+  return createSuccessResponse(mapPaymentRow(payload.payment))
+}
+
+/**
+ * @deprecated Prefer confirmOnlinePayment — kept only for typed internal use.
+ */
 export async function markOrderPaid(
   orderId: string,
   transactionId: string,
 ): Promise<ServiceResponse<Payment>> {
-  const paidAt = new Date().toISOString()
-
-  const { data: payment, error: paymentError } = await supabase
-    .from('payments')
-    .update({
-      status: 'paid',
-      transaction_id: transactionId,
-      paid_at: paidAt,
-      payment_gateway: 'razorpay',
-    })
-    .eq('order_id', orderId)
-    .select()
-    .single()
-
-  if (paymentError) {
-    return createErrorResponse(
-      'Unable to update payment status.',
-      paymentError.message,
-    )
-  }
-
-  const { data: order, error: orderError } = await supabase
-    .from('orders')
-    .update({
-      payment_status: 'paid',
-      order_status: 'confirmed',
-    })
-    .eq('id', orderId)
-    .select('id, user_id, order_number')
-    .single()
-
-  if (orderError) {
-    return createErrorResponse(
-      'Payment recorded but order status update failed.',
-      orderError.message,
-    )
-  }
-
-  if (order) {
-    const { notifyOrderStatus } = await import('@/services/notificationService')
-    void notifyOrderStatus(
-      order.user_id as string,
-      order.id as string,
-      order.order_number as string,
-      'confirmed',
-    )
-  }
-
-  return createSuccessResponse(mapPaymentRow(payment))
+  return confirmOnlinePayment({
+    orderId,
+    transactionId,
+    mode: transactionId.startsWith('demo_') ? 'demo' : 'live',
+  })
 }
 
 /**
  * Marks a pay-later / COD collection without resetting kitchen status.
- * Use after the customer pays via UPI QR (or cash) at pickup/delivery.
+ * Org admins only (RLS). Use after customer pays via UPI QR (or cash).
  */
 export async function markPaymentCollected(
   orderId: string,
@@ -133,8 +134,11 @@ export async function markPaymentCollected(
     .update({
       status: 'paid',
       transaction_id: txn,
+      provider_payment_id: txn,
       paid_at: paidAt,
       payment_gateway: 'upi_qr',
+      provider: 'upi_qr',
+      payment_mode: 'DIRECT',
     })
     .eq('order_id', orderId)
     .select()
@@ -164,7 +168,7 @@ export async function markPaymentCollected(
 
 /**
  * Opens Razorpay Checkout when VITE_RAZORPAY_KEY_ID is set.
- * Otherwise resolves with a demo transaction so the UI can be tested.
+ * Otherwise confirms a demo payment via the server function.
  */
 export async function processOnlinePayment(
   input: RazorpayCheckoutInput,
@@ -173,7 +177,11 @@ export async function processOnlinePayment(
 
   if (!key) {
     const transactionId = `demo_${input.channel}_${Date.now()}`
-    const markResult = await markOrderPaid(input.orderId, transactionId)
+    const markResult = await confirmOnlinePayment({
+      orderId: input.orderId,
+      transactionId,
+      mode: 'demo',
+    })
 
     if (!markResult.success) {
       return markResult
@@ -205,6 +213,10 @@ export async function processOnlinePayment(
       name: 'The Taste of Andhra',
       description: `Order ${input.orderNumber}`,
       order_id: undefined,
+      notes: {
+        order_id: input.orderId,
+        order_number: input.orderNumber,
+      },
       prefill: {
         name: input.customerName,
         email: input.customerEmail ?? undefined,
@@ -218,7 +230,12 @@ export async function processOnlinePayment(
       }) => {
         const transactionId =
           response.razorpay_payment_id ?? `rzp_${Date.now()}`
-        const markResult = await markOrderPaid(input.orderId, transactionId)
+        const markResult = await confirmOnlinePayment({
+          orderId: input.orderId,
+          razorpay_payment_id: response.razorpay_payment_id ?? transactionId,
+          razorpay_order_id: response.razorpay_order_id,
+          mode: 'live',
+        })
 
         if (!markResult.success) {
           resolve(markResult)
