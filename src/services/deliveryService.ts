@@ -8,6 +8,7 @@ import type { OrderStatus } from '@/types/enums'
 import type { AdminOrder } from '@/services/orderService'
 import * as loyaltyService from '@/services/loyaltyService'
 import * as notificationService from '@/services/notificationService'
+import { requestPidgeCancel } from '@/services/deliveryQuoteService'
 import { supabase } from '@/services/supabaseClient'
 import { mapOrder } from '@/utils/mapOrder'
 import { toE164IndianPhone, normalizeIndianPhone } from '@/utils/phone'
@@ -535,6 +536,9 @@ export async function updateDeliveryStatus(
     if (currentOrderStatus !== status || repairingDeliveredSync) {
       void notifyStatusAndLoyalty(mapped.order_id, status)
     }
+    if (status === 'cancelled') {
+      requestPidgeCancel(mapped.order_id)
+    }
     return createSuccessResponse(mapped)
   }
 
@@ -553,6 +557,7 @@ export async function updateDeliveryStatus(
     })
 
     if (!viaFunction.missing && !viaFunction.error && viaFunction.data) {
+      // This branch is only entered for status === 'delivered'.
       return createSuccessResponse(viaFunction.data)
     }
 
@@ -623,6 +628,10 @@ export async function updateDeliveryStatus(
         )
       }
     }
+  }
+
+  if (status === 'cancelled') {
+    requestPidgeCancel(data.order_id as string)
   }
 
   return createSuccessResponse(mapDelivery(data))

@@ -47,10 +47,13 @@ import {
   isRazorpayConfigured,
   processOnlinePayment,
 } from '@/services/paymentService'
+import type { Address } from '@/types/Address'
 import type { LoyaltyAccount } from '@/types/Loyalty'
 import type { PaymentMethod } from '@/types/enums'
 import type { Offer } from '@/types/Offer'
+import { isGoogleMapsConfigured } from '@/utils/googleMaps'
 import { effectiveOrderTaxRate } from '@/utils/gstSettings'
+import { hasLocationPin } from '@/utils/mapAddress'
 import { calculateOrderTotals } from '@/utils/orderTotals'
 import { cn } from '@/utils/cn'
 import { formatPrice } from '@/utils/format'
@@ -83,6 +86,7 @@ export default function CheckoutPage() {
   const [specialInstructions, setSpecialInstructions] = useState('')
   const [whatsappUpdatesOptIn, setWhatsappUpdatesOptIn] = useState(true)
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false)
+  const [addressToEdit, setAddressToEdit] = useState<Address | null>(null)
   const [hasPromptedForAddress, setHasPromptedForAddress] = useState(false)
   const [isPlacingOrder, setIsPlacingOrder] = useState(false)
   const [isPaymentOpen, setIsPaymentOpen] = useState(false)
@@ -129,6 +133,7 @@ export default function CheckoutPage() {
     if (isAddressesLoading || hasPromptedForAddress) return
     if (addresses.length > 0) return
 
+    setAddressToEdit(null)
     setIsAddressModalOpen(true)
     setHasPromptedForAddress(true)
   }, [addresses.length, hasPromptedForAddress, isAddressesLoading])
@@ -195,11 +200,21 @@ export default function CheckoutPage() {
   )
 
   const isUnserviceable = deliveryQuote?.isServiceable === false
-  const needsLocationPin = Boolean(
-    deliverySettings?.require_location_pin &&
-      selectedAddress &&
-      (selectedAddress.latitude === null || selectedAddress.longitude === null),
+  const quoteAsksForPin = Boolean(
+    deliveryQuote?.unserviceableReason
+      ?.toLowerCase()
+      .includes('pin this address'),
   )
+  // New addresses already require a pin when Maps is configured. Checkout only
+  // blocks older unpinned addresses when the restaurant turns that setting on
+  // (or the quote/DB already rejected the address for a missing pin).
+  const needsLocationPin = Boolean(
+    isGoogleMapsConfigured &&
+      selectedAddress &&
+      !hasLocationPin(selectedAddress) &&
+      (deliverySettings?.require_location_pin === true || quoteAsksForPin),
+  )
+  const showUnserviceable = isUnserviceable && !needsLocationPin
 
   const needsAddress = addresses.length === 0 || !selectedAddressId
 
@@ -211,7 +226,8 @@ export default function CheckoutPage() {
     if (storeStatus && !storeStatus.isOpen) return 'closed'
     if (needsAddress) return 'address'
     if (branches.length > 0 && !selectedBranch) return 'branch'
-    if (isUnserviceable) return 'unserviceable'
+    if (needsLocationPin) return 'pin'
+    if (showUnserviceable) return 'unserviceable'
     return null
   }, [
     isPlacingOrder,
@@ -222,7 +238,8 @@ export default function CheckoutPage() {
     needsAddress,
     branches.length,
     selectedBranch,
-    isUnserviceable,
+    needsLocationPin,
+    showUnserviceable,
   ])
 
   const checkoutButtonLabel = useMemo(() => {
@@ -235,6 +252,8 @@ export default function CheckoutPage() {
         return 'Store closed'
       case 'address':
         return 'Add delivery address'
+      case 'pin':
+        return 'Pin this address'
       case 'branch':
         return 'Select a branch'
       case 'unserviceable':
@@ -246,9 +265,24 @@ export default function CheckoutPage() {
     }
   }, [checkoutBlockReason, paymentMethod])
 
+  const openAddAddress = () => {
+    setAddressToEdit(null)
+    setIsAddressModalOpen(true)
+  }
+
+  const openEditAddress = (address: Address) => {
+    setAddressToEdit(address)
+    setIsAddressModalOpen(true)
+  }
+
   const handleCheckoutClick = () => {
     if (checkoutBlockReason === 'address') {
-      setIsAddressModalOpen(true)
+      openAddAddress()
+      return
+    }
+
+    if (checkoutBlockReason === 'pin' && selectedAddress) {
+      openEditAddress(selectedAddress)
       return
     }
 
@@ -286,6 +320,11 @@ export default function CheckoutPage() {
 
     if (!isStoreStatusLoading && storeStatus && !storeStatus.isOpen) {
       toast.error(storeStatus.reason)
+      return
+    }
+
+    if (needsLocationPin) {
+      toast.error('Pin this address on the map so we can calculate delivery.')
       return
     }
 
@@ -381,6 +420,15 @@ export default function CheckoutPage() {
 
   return (
     <Container as="div" className="py-8 md:py-12">
+      <nav aria-label="Checkout navigation" className="mb-4">
+        <Link
+          to={ROUTES.MENU}
+          className="text-sm font-medium text-primary transition-colors hover:text-primary-dark"
+        >
+          Back to Menu
+        </Link>
+      </nav>
+
       <PageHeader
         title="Checkout"
         description="Confirm your branch, address, payment, and place your order."
@@ -414,7 +462,7 @@ export default function CheckoutPage() {
                 type="button"
                 variant="secondary"
                 size="sm"
-                onClick={() => setIsAddressModalOpen(true)}
+                onClick={openAddAddress}
               >
                 <Plus className="mr-1 h-4 w-4" aria-hidden="true" />
                 Add new
@@ -440,7 +488,7 @@ export default function CheckoutPage() {
                   type="button"
                   size="sm"
                   className="mt-3"
-                  onClick={() => setIsAddressModalOpen(true)}
+                  onClick={openAddAddress}
                 >
                   <Plus className="mr-1 h-4 w-4" aria-hidden="true" />
                   Add delivery address
@@ -459,7 +507,38 @@ export default function CheckoutPage() {
               </div>
             )}
 
-            {isUnserviceable && (
+            {needsLocationPin ? (
+              <div
+                className="flex items-start gap-3 rounded-[var(--radius-card)] border border-warning/30 bg-warning/5 p-4"
+                role="alert"
+              >
+                <MapPin
+                  className="mt-0.5 h-5 w-5 shrink-0 text-warning"
+                  aria-hidden="true"
+                />
+                <div className="min-w-0 flex-1 text-sm">
+                  <p className="font-medium text-text-primary">
+                    Pin this address on the map
+                  </p>
+                  <p className="mt-1 text-text-secondary">
+                    We need a map pin to check if we deliver here and to
+                    calculate shipping.
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() =>
+                      selectedAddress
+                        ? openEditAddress(selectedAddress)
+                        : openAddAddress()
+                    }
+                  >
+                    Pin this address
+                  </Button>
+                </div>
+              </div>
+            ) : showUnserviceable ? (
               <div
                 className="flex items-start gap-3 rounded-[var(--radius-card)] border border-error/30 bg-error/5 p-4"
                 role="alert"
@@ -475,13 +554,11 @@ export default function CheckoutPage() {
                   <p className="mt-1 text-text-secondary">
                     {deliveryQuote?.unserviceableReason ??
                       'We cannot deliver to this address yet.'}{' '}
-                    {needsLocationPin
-                      ? 'Save the address again with a map pin, or pick another one.'
-                      : 'Choose a different address to continue.'}
+                    Choose a different address to continue.
                   </p>
                 </div>
               </div>
-            )}
+            ) : null}
 
             {!isStoreStatusLoading && storeStatus && !storeStatus.isOpen && (
               <div
@@ -646,6 +723,11 @@ export default function CheckoutPage() {
                     A delivery address is required before you can pay.
                   </p>
                 )}
+                {checkoutBlockReason === 'pin' && (
+                  <p className="mb-2 text-xs text-text-secondary">
+                    Pin this address on the map before you can pay.
+                  </p>
+                )}
 
                 <Button
                   type="button"
@@ -653,12 +735,19 @@ export default function CheckoutPage() {
                   size="lg"
                   disabled={
                     checkoutBlockReason !== null &&
-                    checkoutBlockReason !== 'address'
+                    checkoutBlockReason !== 'address' &&
+                    checkoutBlockReason !== 'pin'
                   }
                   onClick={handleCheckoutClick}
                 >
                   {checkoutButtonLabel}
                 </Button>
+
+                <Link to={ROUTES.MENU} className="mt-3 block">
+                  <Button type="button" variant="secondary" fullWidth>
+                    Back to Menu
+                  </Button>
+                </Link>
               </>
             }
           />
@@ -667,9 +756,14 @@ export default function CheckoutPage() {
 
       <AddressFormModal
         isOpen={isAddressModalOpen}
-        onClose={() => setIsAddressModalOpen(false)}
+        addressToEdit={addressToEdit}
+        onClose={() => {
+          setIsAddressModalOpen(false)
+          setAddressToEdit(null)
+        }}
         onSuccess={(addressId) => {
           setIsAddressModalOpen(false)
+          setAddressToEdit(null)
           setSelectedAddressId(addressId)
           void refetch()
         }}
