@@ -53,7 +53,7 @@ export function PlatformLayout() {
                 <NavLink
                   key={item.to}
                   to={item.to}
-                  end={item.end}
+                  end={'end' in item ? item.end : false}
                   className={({ isActive }) =>
                     cn(
                       'text-sm transition-colors hover:text-white',

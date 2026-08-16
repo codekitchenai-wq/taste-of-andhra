@@ -1,5 +1,4 @@
 import {
-  createErrorResponse,
   createSuccessResponse,
   type ServiceResponse,
 } from '@/types/api'
