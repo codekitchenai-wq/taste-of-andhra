@@ -32,6 +32,7 @@ import {
   type OnlinePaymentChannel,
 } from '@/constants/PAYMENT_METHOD'
 import { ROUTES } from '@/constants/ROUTES'
+import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
 import { useAddresses } from '@/hooks/useAddresses'
 import { useAuth } from '@/hooks/useAuth'
 import { useCart } from '@/hooks/useCart'
@@ -47,6 +48,7 @@ import {
   isRazorpayConfigured,
   processOnlinePayment,
 } from '@/services/paymentService'
+import { supabase } from '@/services/supabaseClient'
 import type { Address } from '@/types/Address'
 import type { LoyaltyAccount } from '@/types/Loyalty'
 import type { PaymentMethod } from '@/types/enums'
@@ -80,11 +82,12 @@ export default function CheckoutPage() {
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
     null,
   )
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cod')
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pay_later')
   const [onlineChannel, setOnlineChannel] =
     useState<OnlinePaymentChannel>('upi')
   const [specialInstructions, setSpecialInstructions] = useState('')
-  const [whatsappUpdatesOptIn, setWhatsappUpdatesOptIn] = useState(true)
+  const [whatsappUpdatesOptIn, setWhatsappUpdatesOptIn] = useState(false)
+  const [whatsappEntitled, setWhatsappEntitled] = useState(false)
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false)
   const [addressToEdit, setAddressToEdit] = useState<Address | null>(null)
   const [hasPromptedForAddress, setHasPromptedForAddress] = useState(false)
@@ -137,6 +140,23 @@ export default function CheckoutPage() {
     setIsAddressModalOpen(true)
     setHasPromptedForAddress(true)
   }, [addresses.length, hasPromptedForAddress, isAddressesLoading])
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      const { data } = await supabase.rpc('has_feature', {
+        target_org_id: DEFAULT_ORGANIZATION_ID,
+        feature_key: 'whatsapp_notifications',
+      })
+      if (cancelled) return
+      const entitled = Boolean(data)
+      setWhatsappEntitled(entitled)
+      if (!entitled) setWhatsappUpdatesOptIn(false)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     void loyaltyService.getOrCreateAccount().then((result) => {
@@ -289,7 +309,14 @@ export default function CheckoutPage() {
     void handlePlaceOrder()
   }
 
-  const finishCheckout = async (orderId: string, orderNumber: string) => {
+  const finishCheckout = async (
+    orderId: string,
+    orderNumber: string,
+    options?: {
+      paymentMethod?: PaymentMethod
+      paymentShareToken?: string | null
+    },
+  ) => {
     setIsCompletingCheckout(true)
     try {
       await clearCart()
@@ -299,7 +326,12 @@ export default function CheckoutPage() {
       toast.success('Order placed successfully')
       navigate(ROUTES.ORDER_SUCCESS, {
         replace: true,
-        state: { orderId, orderNumber },
+        state: {
+          orderId,
+          orderNumber,
+          paymentMethod: options?.paymentMethod,
+          paymentShareToken: options?.paymentShareToken ?? null,
+        },
       })
     } catch (error) {
       setIsCompletingCheckout(false)
@@ -372,7 +404,10 @@ export default function CheckoutPage() {
       return
     }
 
-    await finishCheckout(result.data.id, result.data.order_number)
+    await finishCheckout(result.data.id, result.data.order_number, {
+      paymentMethod: result.data.payment_method,
+      paymentShareToken: result.data.payment_share_token ?? null,
+    })
   }
 
   const handlePaymentConfirm = async (channel: OnlinePaymentChannel) => {
@@ -502,6 +537,7 @@ export default function CheckoutPage() {
                     address={address}
                     selected={selectedAddressId === address.id}
                     onSelect={() => setSelectedAddressId(address.id)}
+                    onEdit={openEditAddress}
                   />
                 ))}
               </div>
@@ -597,6 +633,7 @@ export default function CheckoutPage() {
             <PaymentMethodSelector
               value={paymentMethod}
               onChange={setPaymentMethod}
+              organizationId={DEFAULT_ORGANIZATION_ID}
             />
 
             {paymentMethod === 'razorpay' && (
@@ -681,25 +718,27 @@ export default function CheckoutPage() {
             />
           </section>
 
-          <section className="rounded-[var(--radius-card)] bg-surface p-5 shadow-md">
-            <label className="flex cursor-pointer items-start gap-3 text-sm text-text-primary">
-              <input
-                type="checkbox"
-                checked={whatsappUpdatesOptIn}
-                onChange={(event) =>
-                  setWhatsappUpdatesOptIn(event.target.checked)
-                }
-                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-              />
-              <span>
-                <span className="font-medium">Order updates on WhatsApp</span>
-                <span className="mt-1 block text-xs text-text-secondary">
-                  Get status messages on your profile phone number. Reply STOP
-                  anytime to unsubscribe from this restaurant.
+          {whatsappEntitled && (
+            <section className="rounded-[var(--radius-card)] bg-surface p-5 shadow-md">
+              <label className="flex cursor-pointer items-start gap-3 text-sm text-text-primary">
+                <input
+                  type="checkbox"
+                  checked={whatsappUpdatesOptIn}
+                  onChange={(event) =>
+                    setWhatsappUpdatesOptIn(event.target.checked)
+                  }
+                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <span>
+                  <span className="font-medium">Order updates on WhatsApp</span>
+                  <span className="mt-1 block text-xs text-text-secondary">
+                    Get status messages on your profile phone number. Reply STOP
+                    anytime to unsubscribe from this restaurant.
+                  </span>
                 </span>
-              </span>
-            </label>
-          </section>
+              </label>
+            </section>
+          )}
 
           <Link
             to={ROUTES.CART}

@@ -84,11 +84,20 @@ export function AddressFormModal({
     register,
     handleSubmit,
     reset,
+    getValues,
     setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<AddressFormValues>({
     defaultValues: emptyValues,
   })
+
+  const addressLine1 = watch('addressLine1')
+  const addressLine2 = watch('addressLine2')
+  const landmark = watch('landmark')
+  const city = watch('city')
+  const state = watch('state')
+  const pincode = watch('pincode')
 
   useEffect(() => {
     if (!isOpen) return
@@ -119,23 +128,25 @@ export function AddressFormModal({
     setPinError(undefined)
   }, [isOpen, addressToEdit, user, reset])
 
-  const fillField = (name: keyof AddressFormValues, value: string) => {
-    if (!value.trim()) return
-    setValue(name, value, { shouldValidate: true, shouldDirty: true })
-  }
-
-  // The pin is the source of truth. It overwrites address columns so search,
-  // tap, and "use my location" all land in the same fields.
+  // Pin fills the form; customers can still edit every field afterwards.
   const handlePlaceSelected = (place: ResolvedPlace) => {
     setCoordinates({ latitude: place.latitude, longitude: place.longitude })
     setPinError(undefined)
 
-    fillField('addressLine1', place.addressLine1 || place.formattedAddress)
-    fillField('addressLine2', place.addressLine2)
-    fillField('landmark', place.landmark)
-    fillField('city', place.city)
-    fillField('state', place.state)
-    fillField('pincode', place.pincode)
+    const current = getValues()
+    reset(
+      {
+        ...current,
+        addressLine1:
+          place.addressLine1 || place.formattedAddress || current.addressLine1,
+        addressLine2: place.addressLine2 || current.addressLine2,
+        landmark: place.landmark || current.landmark,
+        city: place.city || current.city,
+        state: place.state || current.state,
+        pincode: place.pincode || current.pincode,
+      },
+      { keepDefaultValues: true },
+    )
   }
 
   const onSubmit = async (values: AddressFormValues) => {
@@ -276,19 +287,31 @@ export function AddressFormModal({
           label="Address Line 1"
           placeholder="House / flat number, street"
           error={errors.addressLine1?.message}
+          value={addressLine1}
           {...register('addressLine1', { required: 'Address is required' })}
+          onChange={(event) =>
+            setValue('addressLine1', event.target.value, {
+              shouldValidate: true,
+              shouldDirty: true,
+            })
+          }
         />
 
         <Input
           label="Address Line 2 (optional)"
           placeholder="Apartment, floor, area"
+          value={addressLine2}
           {...register('addressLine2')}
+          onChange={(event) =>
+            setValue('addressLine2', event.target.value, { shouldDirty: true })
+          }
         />
 
         <Input
           label="Nearest Landmark"
           placeholder="e.g. Near Metro station / temple"
           error={errors.landmark?.message}
+          value={landmark}
           {...register('landmark', {
             required: 'Nearest landmark is required',
             minLength: {
@@ -296,18 +319,38 @@ export function AddressFormModal({
               message: 'Enter a nearby landmark',
             },
           })}
+          onChange={(event) =>
+            setValue('landmark', event.target.value, {
+              shouldValidate: true,
+              shouldDirty: true,
+            })
+          }
         />
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Input
             label="City"
             error={errors.city?.message}
+            value={city}
             {...register('city', { required: 'City is required' })}
+            onChange={(event) =>
+              setValue('city', event.target.value, {
+                shouldValidate: true,
+                shouldDirty: true,
+              })
+            }
           />
           <Input
             label="State"
             error={errors.state?.message}
+            value={state}
             {...register('state', { required: 'State is required' })}
+            onChange={(event) =>
+              setValue('state', event.target.value, {
+                shouldValidate: true,
+                shouldDirty: true,
+              })
+            }
           />
         </div>
 
@@ -316,6 +359,7 @@ export function AddressFormModal({
           placeholder="6-digit pincode"
           inputMode="numeric"
           error={errors.pincode?.message}
+          value={pincode}
           {...register('pincode', {
             required: 'Pincode is required',
             pattern: {
@@ -323,7 +367,18 @@ export function AddressFormModal({
               message: 'Enter a valid 6-digit pincode',
             },
           })}
+          onChange={(event) =>
+            setValue('pincode', event.target.value, {
+              shouldValidate: true,
+              shouldDirty: true,
+            })
+          }
         />
+
+        <p className="text-xs text-text-secondary">
+          Pin fills these fields automatically. Change house number, landmark,
+          or any detail before saving.
+        </p>
 
         <label className="flex items-center gap-3 text-sm text-text-primary">
           <input

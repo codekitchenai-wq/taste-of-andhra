@@ -64,7 +64,7 @@ export function LocationPicker({
       mapRef.current?.setZoom(PINNED_ZOOM)
 
       setIsLookingUp(true)
-      const resolved = await reverseGeocode(maps, lat, lng)
+      const lookup = await reverseGeocode(maps, lat, lng)
       setIsLookingUp(false)
 
       const fallback: ResolvedPlace = known ?? {
@@ -73,14 +73,20 @@ export function LocationPicker({
         ...EMPTY_RESOLVED_PLACE,
       }
 
-      onChangeRef.current(
-        mergeResolvedPlaces(
-          resolved
-            ? { ...resolved, latitude: lat, longitude: lng }
-            : null,
-          { ...fallback, latitude: lat, longitude: lng },
-        ),
+      const merged = mergeResolvedPlaces(
+        lookup.ok
+          ? { ...lookup.place, latitude: lat, longitude: lng }
+          : null,
+        { ...fallback, latitude: lat, longitude: lng },
       )
+
+      if (!lookup.ok && !merged.addressLine1 && !merged.city && !merged.pincode) {
+        setLoadError(lookup.message)
+      } else {
+        setLoadError(null)
+      }
+
+      onChangeRef.current(merged)
     },
     [],
   )
@@ -94,6 +100,9 @@ export function LocationPicker({
       .then((maps) => {
         if (cancelled || !mapContainerRef.current) return
 
+        // Strict Mode remounts can leave a half-initialised map in the same
+        // container; clear it before creating a fresh instance.
+        mapContainerRef.current.innerHTML = ''
         mapsRef.current = maps
 
         const { latitude: initialLat, longitude: initialLng } =
@@ -177,6 +186,12 @@ export function LocationPicker({
 
     return () => {
       cancelled = true
+      markerRef.current = null
+      mapRef.current = null
+      mapsRef.current = null
+      if (mapContainerRef.current) {
+        mapContainerRef.current.innerHTML = ''
+      }
     }
   }, [commitPosition])
 
@@ -197,18 +212,20 @@ export function LocationPicker({
     if (!maps || !query.trim()) return
 
     setIsLookingUp(true)
-    const resolved = await geocodeQuery(maps, query)
+    const lookup = await geocodeQuery(maps, query)
     setIsLookingUp(false)
 
-    if (!resolved) {
-      setLoadError(
-        'We could not find that place. Pick a suggestion from the list or tap the map.',
-      )
+    if (!lookup.ok) {
+      setLoadError(lookup.message)
       return
     }
 
     setLoadError(null)
-    await commitPosition(resolved.latitude, resolved.longitude, resolved)
+    await commitPosition(
+      lookup.place.latitude,
+      lookup.place.longitude,
+      lookup.place,
+    )
   }
 
   lookupSearchQueryRef.current = lookupSearchQuery
@@ -240,9 +257,9 @@ export function LocationPicker({
           position.coords.longitude,
         )
       },
-      (error) => {
+      (geoError) => {
         setIsLocating(false)
-        if (error.code === error.PERMISSION_DENIED) {
+        if (geoError.code === geoError.PERMISSION_DENIED) {
           setLoadError(
             'Location permission was blocked. Allow location for this site, or search / tap the map.',
           )
@@ -295,7 +312,7 @@ export function LocationPicker({
           type="button"
           variant="secondary"
           onClick={handleUseMyLocation}
-          disabled={isLocating}
+          disabled={isLocating || isLookingUp}
           className="shrink-0"
         >
           <Crosshair className="h-4 w-4" aria-hidden="true" />
@@ -332,7 +349,7 @@ export function LocationPicker({
           {isLookingUp
             ? 'Looking up the address for this pin…'
             : latitude !== null && longitude !== null
-              ? 'Address fields below are filled from this pin. Drag it to your gate if needed.'
+              ? 'Address fields below update from this pin. Edit house number or landmark if needed.'
               : required
                 ? 'Pick a suggestion, press Enter, use your location, or tap the map.'
                 : 'Search above or tap the map to drop a pin. This sets your delivery charge.'}

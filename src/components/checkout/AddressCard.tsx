@@ -1,5 +1,6 @@
-import { MapPin } from 'lucide-react'
+import { MapPin, Pencil } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
 import { formatAddressLine, hasLocationPin } from '@/utils/mapAddress'
 import type { Address } from '@/types/Address'
 import { cn } from '@/utils/cn'
@@ -8,63 +9,87 @@ interface AddressCardProps {
   address: Address
   selected: boolean
   onSelect: (addressId: string) => void
+  onEdit?: (address: Address) => void
 }
 
-export function AddressCard({ address, selected, onSelect }: AddressCardProps) {
+export function AddressCard({
+  address,
+  selected,
+  onSelect,
+  onEdit,
+}: AddressCardProps) {
   return (
-    <button
-      type="button"
-      onClick={() => onSelect(address.id)}
+    <div
       className={cn(
-        'w-full rounded-[var(--radius-card)] border p-4 text-left transition-colors',
+        'rounded-[var(--radius-card)] border p-4 transition-colors',
         selected
           ? 'border-primary bg-primary/5 shadow-sm'
           : 'border-gray-200 bg-surface hover:border-primary/30',
       )}
     >
       <div className="flex items-start gap-3">
-        <span
-          className={cn(
-            'mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border',
-            selected ? 'border-primary' : 'border-gray-300',
-          )}
-          aria-hidden="true"
+        <button
+          type="button"
+          onClick={() => onSelect(address.id)}
+          className="flex min-w-0 flex-1 items-start gap-3 text-left"
+          aria-pressed={selected}
         >
-          {selected && <span className="h-2 w-2 rounded-full bg-primary" />}
-        </span>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-semibold text-text-primary">
-              {address.full_name}
-            </span>
-            <Badge variant="default">{address.address_type}</Badge>
-            {address.is_default && <Badge variant="featured">Default</Badge>}
-            {!hasLocationPin(address) && (
-              <Badge variant="warning">Needs pin</Badge>
+          <span
+            className={cn(
+              'mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border',
+              selected ? 'border-primary' : 'border-gray-300',
             )}
-          </div>
-          <p className="mt-2 text-sm text-text-secondary">
-            {formatAddressLine(address)}
-          </p>
-          {address.landmark && (
-            <p className="mt-1 text-sm text-text-secondary">
-              Near: {address.landmark}
-            </p>
-          )}
-          <p className="mt-1 text-sm text-text-secondary">
-            Pincode {address.pincode} · {address.phone}
-          </p>
-        </div>
+            aria-hidden="true"
+          >
+            {selected && <span className="h-2 w-2 rounded-full bg-primary" />}
+          </span>
 
-        <MapPin
-          className={cn(
-            'h-5 w-5 shrink-0',
-            selected ? 'text-primary' : 'text-text-secondary',
-          )}
-          aria-hidden="true"
-        />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-semibold text-text-primary">
+                {address.full_name}
+              </span>
+              <Badge variant="default">{address.address_type}</Badge>
+              {address.is_default && <Badge variant="featured">Default</Badge>}
+              {!hasLocationPin(address) && (
+                <Badge variant="warning">Needs pin</Badge>
+              )}
+            </div>
+            <p className="mt-2 text-sm text-text-secondary">
+              {formatAddressLine(address)}
+            </p>
+            {address.landmark && (
+              <p className="mt-1 text-sm text-text-secondary">
+                Near: {address.landmark}
+              </p>
+            )}
+            <p className="mt-1 text-sm text-text-secondary">
+              Pincode {address.pincode} · {address.phone}
+            </p>
+          </div>
+
+          <MapPin
+            className={cn(
+              'h-5 w-5 shrink-0',
+              selected ? 'text-primary' : 'text-text-secondary',
+            )}
+            aria-hidden="true"
+          />
+        </button>
+
+        {onEdit ? (
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="shrink-0"
+            onClick={() => onEdit(address)}
+          >
+            <Pencil className="h-4 w-4" aria-hidden="true" />
+            {hasLocationPin(address) ? 'Edit' : 'Add pin'}
+          </Button>
+        ) : null}
       </div>
-    </button>
+    </div>
   )
 }

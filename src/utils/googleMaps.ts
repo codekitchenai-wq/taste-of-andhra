@@ -205,12 +205,35 @@ function placeFromGeocodeResult(
   }
 }
 
+export type GeocodeLookupResult =
+  | { ok: true; place: ResolvedPlace }
+  | { ok: false; message: string }
+
+function geocodeFailureMessage(error: unknown): string {
+  const text =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : ''
+
+  if (/REQUEST_DENIED|ApiNotActivated|not authorized|API_KEY/i.test(text)) {
+    return 'Address lookup is blocked for this Maps key. Enable Geocoding API, or type the address below.'
+  }
+
+  if (/OVER_QUERY_LIMIT|RESOURCE_EXHAUSTED/i.test(text)) {
+    return 'Address lookup is temporarily limited. Type the address below, or try again shortly.'
+  }
+
+  return 'Could not look up this pin. Type your house, street, city and pincode below.'
+}
+
 /** Fills in the pincode and city after the pin is dragged off the search result. */
 export async function reverseGeocode(
   maps: typeof google.maps,
   latitude: number,
   longitude: number,
-): Promise<ResolvedPlace | null> {
+): Promise<GeocodeLookupResult> {
   const geocoder = new maps.Geocoder()
 
   try {
@@ -219,11 +242,20 @@ export async function reverseGeocode(
     })
 
     const best = pickBestGeocodeResult(results)
-    if (!best) return null
+    if (!best) {
+      return {
+        ok: false,
+        message:
+          'No address found for this pin. Type your house, street, city and pincode below.',
+      }
+    }
 
-    return placeFromGeocodeResult(best, latitude, longitude)
-  } catch {
-    return null
+    return {
+      ok: true,
+      place: placeFromGeocodeResult(best, latitude, longitude),
+    }
+  } catch (error: unknown) {
+    return { ok: false, message: geocodeFailureMessage(error) }
   }
 }
 
@@ -231,9 +263,11 @@ export async function reverseGeocode(
 export async function geocodeQuery(
   maps: typeof google.maps,
   query: string,
-): Promise<ResolvedPlace | null> {
+): Promise<GeocodeLookupResult> {
   const trimmed = query.trim()
-  if (!trimmed) return null
+  if (!trimmed) {
+    return { ok: false, message: 'Enter a place name to search.' }
+  }
 
   const geocoder = new maps.Geocoder()
 
@@ -245,11 +279,20 @@ export async function geocodeQuery(
 
     const best = pickBestGeocodeResult(results)
     const location = best?.geometry?.location
-    if (!best || !location) return null
+    if (!best || !location) {
+      return {
+        ok: false,
+        message:
+          'We could not find that place. Pick a suggestion from the list or tap the map.',
+      }
+    }
 
-    return placeFromGeocodeResult(best, location.lat(), location.lng())
-  } catch {
-    return null
+    return {
+      ok: true,
+      place: placeFromGeocodeResult(best, location.lat(), location.lng()),
+    }
+  } catch (error: unknown) {
+    return { ok: false, message: geocodeFailureMessage(error) }
   }
 }
 
