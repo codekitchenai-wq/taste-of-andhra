@@ -19,12 +19,12 @@ const HOMEPAGE_OPTIONS: Array<{
   {
     mode: 'platform_subdomain',
     title: 'Platform subdomain',
-    hint: `Add now: {slug}.${PLATFORM_ROOT_DOMAIN}`,
+    hint: `Add now: {slug}.${PLATFORM_ROOT_DOMAIN} (also www.{slug}.${PLATFORM_ROOT_DOMAIN})`,
   },
   {
     mode: 'custom_domain',
     title: 'Custom domain',
-    hint: 'Add now: their own domain, e.g. order.chopsticks.com',
+    hint: 'Add now: their own domain, e.g. www.thetasteofandhra.com — shown instead of the platform subdomain',
   },
   {
     mode: 'external_link',

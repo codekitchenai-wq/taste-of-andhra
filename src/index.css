@@ -19,6 +19,30 @@
   --radius-input: 10px;
 }
 
+/* DirectApp marketing site (www.directapp.in) — scoped tokens */
+.platform-site {
+  /* Matched to brand logo: teal, bronze, navy */
+  --platform-ink: #1a2744;
+  --platform-bg: #f4f6f8;
+  --platform-text: #1a2744;
+  --platform-muted: #5a6578;
+  --platform-accent: #2a9d8f;
+  --platform-accent-hot: #238b7f;
+  --platform-bronze: #c4a484;
+  --platform-display: 'Syne', 'Poppins', system-ui, sans-serif;
+  font-family: var(--font-body);
+}
+
+.platform-site .platform-display {
+  font-family: var(--platform-display);
+}
+
+.platform-site h1,
+.platform-site h2,
+.platform-site h3 {
+  font-family: var(--platform-display);
+}
+
 @layer base {
   html {
     @apply scroll-smooth;

@@ -5,6 +5,8 @@ interface ImportMetaEnv {
   readonly VITE_SUPABASE_ANON_KEY: string
   readonly VITE_RAZORPAY_KEY_ID?: string
   readonly VITE_PLATFORM_ROOT_DOMAIN?: string
+  /** Force DirectApp marketing site (useful on localhost). */
+  readonly VITE_FORCE_PLATFORM_SITE?: string
   readonly VITE_ENABLE_HOST_TENANT_RESOLUTION?: string
   readonly VITE_ENABLE_SCOPED_ORG_ADMIN_AUTH?: string
   readonly VITE_ENABLE_RAZORPAY_ROUTE?: string

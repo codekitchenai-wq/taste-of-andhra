@@ -55,4 +55,8 @@ export const ROUTES = {
     DASHBOARD: '/delivery',
     ORDER: (deliveryId: string) => `/delivery/${deliveryId}`,
   },
+  PLATFORM: {
+    HOME: '/',
+    DEMO: '/demo',
+  },
 } as const

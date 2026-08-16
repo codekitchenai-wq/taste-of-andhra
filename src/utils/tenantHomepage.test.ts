@@ -10,7 +10,7 @@ import {
 describe('platformSubdomainUrl', () => {
   it('builds a subdomain from the slug', () => {
     expect(platformSubdomainUrl('Chopsticks')).toBe(
-      'https://chopsticks.thetasteofandhra.com',
+      'https://chopsticks.directapp.in',
     )
   })
 })
@@ -44,7 +44,7 @@ describe('resolveTenantHomepage', () => {
     })
     expect(result.error).toBeNull()
     expect(result.homepage.homepageUrl).toBe(
-      'https://chopsticks.thetasteofandhra.com',
+      'https://chopsticks.directapp.in',
     )
   })
 

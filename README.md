@@ -37,8 +37,13 @@ cp .env.example .env.local
 | `VITE_SUPABASE_URL` | Supabase project URL (Dashboard → Project Settings → API) |
 | `VITE_SUPABASE_ANON_KEY` | Supabase anonymous/public key |
 | `VITE_RAZORPAY_KEY_ID` | Optional — Razorpay key for live online payments (demo mode without it) |
+| `VITE_PLATFORM_ROOT_DOMAIN` | Apex domain for tenant subdomains (default `directapp.in`). Example: slug `thetasteofandhra` → `https://thetasteofandhra.directapp.in` |
+| `VITE_ENABLE_HOST_TENANT_RESOLUTION` | Set `true` in production so each subdomain / custom domain maps to its restaurant |
 
 > Only variables prefixed with `VITE_` are included in the client bundle. Never commit real credentials — `.env.local` is gitignored.
+
+Multi-tenant domains (`directapp.in` subdomains + custom domains): see [docs/DOMAIN_SETUP.md](docs/DOMAIN_SETUP.md).  
+Marketing site (`www.directapp.in`): editable copy in `src/constants/PLATFORM_SITE.ts`. Local preview: `VITE_FORCE_PLATFORM_SITE=true`.
 
 ### 3. Supabase database
 
@@ -62,7 +67,7 @@ Optional: run `supabase/seed_menu.sql` to load sample categories and dishes with
 
 ### 4. Email / password auth (testing)
 
-All personas (customer, admin, delivery) sign in with **email + password**. OTP is disabled for easier QA.
+Staff personas (admin, delivery, master) sign in with **email + password**. Customers can also use **WhatsApp OTP** or Google.
 
 1. In Supabase Dashboard → **Authentication** → **Providers** → **Email**, enable Email.
 2. Turn **off** “Confirm email” so new accounts can sign in immediately during testing.
@@ -80,7 +85,7 @@ npm run seed:demo-users
 
 Credentials are also shown under each login form. Use **Create one** on any login screen to register an additional user for that persona.
 
-Customers can also **Continue with Google** on `/login` and `/register`.
+Customers can **Continue with WhatsApp** (OTP to their +91 number) or **Continue with Google** on `/login` and `/register`. WhatsApp OTP needs the restaurant WhatsApp connection plus an approved Meta Authentication template named `login_otp` — see `docs/WHATSAPP_META_SETUP.md`. In mock WhatsApp mode the login screen shows the code.
 
 #### Enable Google sign-in (customers)
 
@@ -228,7 +233,7 @@ npm test
 ### Customer
 - Public menu with search, category/diet/spice filters, and dish detail pages
 - Email/password auth for customer, admin, and delivery (demo accounts for testing)
-- Google sign-in for customers
+- WhatsApp OTP and Google sign-in for customers
 - Coupon codes at checkout
 - Saved addresses, order history, order tracking, and cancellation
 - Dish reviews and ratings

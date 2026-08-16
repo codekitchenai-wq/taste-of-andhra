@@ -17,7 +17,7 @@ describe('canonicalHostRedirectUrl', () => {
   it('does not redirect the custom domain, previews, or localhost', () => {
     expect(
       canonicalHostRedirectUrl({
-        hostname: 'www.thetasteofandhra.com',
+        hostname: 'www.directapp.in',
         pathname: '/menu',
       }),
     ).toBeNull()

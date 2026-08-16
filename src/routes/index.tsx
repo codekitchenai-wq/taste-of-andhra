@@ -2,6 +2,7 @@ import { lazy } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { ROUTES } from '@/constants/ROUTES'
 import { MainLayout } from '@/layouts/MainLayout'
+import { PlatformLayout } from '@/layouts/PlatformLayout'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import { AdminLayout } from '@/layouts/AdminLayout'
 import { DeliveryLayout } from '@/layouts/DeliveryLayout'
@@ -13,6 +14,7 @@ import {
   MasterLayout,
   MasterRoute,
 } from '@/components/routing/MasterRoute'
+import { isPlatformMarketingHost } from '@/utils/platformHost'
 
 const HomePage = lazy(() => import('@/pages/public/HomePage'))
 const AboutPage = lazy(() => import('@/pages/public/AboutPage'))
@@ -24,6 +26,13 @@ const ContactPage = lazy(() => import('@/pages/public/ContactPage'))
 const PartyOrderPage = lazy(() => import('@/pages/public/PartyOrderPage'))
 const QrMenuPage = lazy(() => import('@/pages/public/QrMenuPage'))
 const BranchMenuPage = lazy(() => import('@/pages/public/BranchMenuPage'))
+
+const PlatformLandingPage = lazy(
+  () => import('@/pages/platform/PlatformLandingPage'),
+)
+const PlatformDemoPage = lazy(
+  () => import('@/pages/platform/PlatformDemoPage'),
+)
 
 const LoginPage = lazy(() => import('@/pages/customer/LoginPage'))
 const RegisterPage = lazy(() => import('@/pages/customer/RegisterPage'))
@@ -106,53 +115,7 @@ const MasterFeaturesPage = lazy(
   () => import('@/pages/master/MasterFeaturesPage'),
 )
 
-export const router = createBrowserRouter([
-  {
-    element: <MainLayout />,
-    children: [
-      { index: true, element: <HomePage /> },
-      { path: ROUTES.ABOUT, element: <AboutPage /> },
-      { path: ROUTES.MENU, element: <MenuPage /> },
-      { path: ROUTES.LIGHT_MENU, element: <LightMenuPage /> },
-      { path: `${ROUTES.MENU}/:slug`, element: <DishDetailsPage /> },
-      { path: ROUTES.GALLERY, element: <GalleryPage /> },
-      { path: ROUTES.CONTACT, element: <ContactPage /> },
-      { path: ROUTES.PARTY_ORDER, element: <PartyOrderPage /> },
-      { path: 'qr/:tableCode', element: <QrMenuPage /> },
-      { path: 'b/:slug', element: <BranchMenuPage /> },
-      { path: 'pay/:token', element: <OrderPaymentSharePage /> },
-      { path: ROUTES.CART, element: <CartPage /> },
-      {
-        element: <ProtectedRoute />,
-        children: [
-          { path: ROUTES.PROFILE, element: <ProfilePage /> },
-          { path: ROUTES.ORDERS, element: <MyOrdersPage /> },
-          { path: `${ROUTES.ORDERS}/:orderId`, element: <OrderDetailsPage /> },
-          {
-            path: `${ROUTES.ORDERS}/:orderId/invoice`,
-            element: <InvoicePage />,
-          },
-          { path: ROUTES.CHECKOUT, element: <CheckoutPage /> },
-          { path: ROUTES.ORDER_SUCCESS, element: <OrderSuccessPage /> },
-          { path: ROUTES.ADDRESSES, element: <SavedAddressesPage /> },
-          { path: ROUTES.FAVORITES, element: <FavoritesPage /> },
-          { path: ROUTES.NOTIFICATIONS, element: <NotificationsPage /> },
-        ],
-      },
-    ],
-  },
-  {
-    element: <GuestRoute />,
-    children: [
-      {
-        element: <AuthLayout />,
-        children: [
-          { path: ROUTES.LOGIN, element: <LoginPage /> },
-          { path: ROUTES.REGISTER, element: <RegisterPage /> },
-        ],
-      },
-    ],
-  },
+const sharedStaffRoutes = [
   { path: ROUTES.ADMIN.LOGIN, element: <AdminLoginPage /> },
   { path: ROUTES.DELIVERY.LOGIN, element: <DeliveryLoginPage /> },
   { path: ROUTES.MASTER.LOGIN, element: <MasterLoginPage /> },
@@ -231,5 +194,73 @@ export const router = createBrowserRouter([
       },
     ],
   },
+]
+
+const platformMarketingRoutes = [
+  {
+    element: <PlatformLayout />,
+    children: [
+      { index: true, element: <PlatformLandingPage /> },
+      { path: ROUTES.PLATFORM.DEMO, element: <PlatformDemoPage /> },
+    ],
+  },
+  ...sharedStaffRoutes,
   { path: '*', element: <Navigate to={ROUTES.HOME} replace /> },
-])
+]
+
+const restaurantStorefrontRoutes = [
+  {
+    element: <MainLayout />,
+    children: [
+      { index: true, element: <HomePage /> },
+      { path: ROUTES.ABOUT, element: <AboutPage /> },
+      { path: ROUTES.MENU, element: <MenuPage /> },
+      { path: ROUTES.LIGHT_MENU, element: <LightMenuPage /> },
+      { path: `${ROUTES.MENU}/:slug`, element: <DishDetailsPage /> },
+      { path: ROUTES.GALLERY, element: <GalleryPage /> },
+      { path: ROUTES.CONTACT, element: <ContactPage /> },
+      { path: ROUTES.PARTY_ORDER, element: <PartyOrderPage /> },
+      { path: 'qr/:tableCode', element: <QrMenuPage /> },
+      { path: 'b/:slug', element: <BranchMenuPage /> },
+      { path: 'pay/:token', element: <OrderPaymentSharePage /> },
+      { path: ROUTES.CART, element: <CartPage /> },
+      {
+        element: <ProtectedRoute />,
+        children: [
+          { path: ROUTES.PROFILE, element: <ProfilePage /> },
+          { path: ROUTES.ORDERS, element: <MyOrdersPage /> },
+          { path: `${ROUTES.ORDERS}/:orderId`, element: <OrderDetailsPage /> },
+          {
+            path: `${ROUTES.ORDERS}/:orderId/invoice`,
+            element: <InvoicePage />,
+          },
+          { path: ROUTES.CHECKOUT, element: <CheckoutPage /> },
+          { path: ROUTES.ORDER_SUCCESS, element: <OrderSuccessPage /> },
+          { path: ROUTES.ADDRESSES, element: <SavedAddressesPage /> },
+          { path: ROUTES.FAVORITES, element: <FavoritesPage /> },
+          { path: ROUTES.NOTIFICATIONS, element: <NotificationsPage /> },
+        ],
+      },
+    ],
+  },
+  {
+    element: <GuestRoute />,
+    children: [
+      {
+        element: <AuthLayout />,
+        children: [
+          { path: ROUTES.LOGIN, element: <LoginPage /> },
+          { path: ROUTES.REGISTER, element: <RegisterPage /> },
+        ],
+      },
+    ],
+  },
+  ...sharedStaffRoutes,
+  { path: '*', element: <Navigate to={ROUTES.HOME} replace /> },
+]
+
+export const router = createBrowserRouter(
+  isPlatformMarketingHost()
+    ? platformMarketingRoutes
+    : restaurantStorefrontRoutes,
+)
