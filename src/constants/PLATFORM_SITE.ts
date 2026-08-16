@@ -20,7 +20,7 @@ export const PLATFORM_SITE = {
   /** Live product demo (Taste of Andhra storefront on the same stack). */
   liveDemo: {
     label: 'See live restaurant demo',
-    url: 'https://tasteofandhra.directapp.in',
+    url: 'https://thetasteofandhra.directapp.in',
     hint: 'Explore a real storefront built on DirectApp — menu, cart, orders, and more.',
   },
 
@@ -36,7 +36,7 @@ export const PLATFORM_SITE = {
     supporting:
       'DirectApp gives restaurants and small & medium industries a ready platform to take orders, manage operations, and grow — so local enterprise can scale and strengthen the nation.',
     primaryCta: { label: 'Request a demo', href: '/demo' },
-    secondaryCta: { label: 'Explore live demo', href: 'https://tasteofandhra.directapp.in' },
+    secondaryCta: { label: 'Explore live demo', href: 'https://thetasteofandhra.directapp.in' },
   },
 
   mission: {

@@ -10,11 +10,56 @@ Restaurant tenants: `{slug}.directapp.in` or a custom domain.
 |------|---------|-------------------|
 | Platform marketing | `https://www.directapp.in` | DirectApp landing, plans, demo/enroll |
 | Platform subdomain | `https://thetasteofandhra.directapp.in` | Restaurant storefront |
-| Custom domain | `https://www.thetasteofandhra.com` | Restaurant brand (not the subdomain) |
+| Custom domain (whitelabel) | `https://www.thetasteofandhra.com` | Same restaurant, brand domain |
+
+**Both can be active at once.** Host resolution checks:
+
+1. `{slug}.directapp.in` → org by `slug`
+2. Otherwise `custom_domain` (with/without `www`)
+
+So Taste of Andhra can use **both** `thetasteofandhra.directapp.in` and `www.thetasteofandhra.com`. Prefer **not** `www.thetasteofandhra.directapp.in` (wildcard `*.directapp.in` does not cover that).
 
 Editable marketing copy/plans/contact: `src/constants/PLATFORM_SITE.ts`.
 
-Live product demo link on the landing page points at the Taste of Andhra storefront (`https://www.thetasteofandhra.com`).
+## Whitelabel for any tenant (checklist)
+
+1. **Master Console** → tenant → set URL slug (e.g. `chopsticks`) → storefront at `https://chopsticks.directapp.in`.
+2. If they bring their own domain (e.g. `www.order.chopsticks.com`):
+   - Add that hostname in **Vercel → taste-of-andhra → Domains**
+   - At **their** DNS provider: **CNAME** `www` (or the host they use) → `cname.vercel-dns.com` (or the value Vercel shows)
+   - In Master → tenant homepage: mode **Custom domain**, value `www.order.chopsticks.com`
+3. Keep the platform subdomain — it continues to work as a backup / internal URL.
+
+## Taste of Andhra dual URLs
+
+| URL | Where to configure |
+|-----|-------------------|
+| `https://www.thetasteofandhra.com` | Already on Vercel; org `custom_domain` = `www.thetasteofandhra.com` |
+| `https://thetasteofandhra.directapp.in` | Org `slug` = `thetasteofandhra`; needs `*.directapp.in` **Valid** on Vercel |
+
+In Supabase (production), ensure:
+
+```sql
+UPDATE public.organizations
+SET
+  slug = 'thetasteofandhra',
+  custom_domain = 'www.thetasteofandhra.com',
+  homepage_mode = 'custom_domain',
+  homepage_url = 'https://www.thetasteofandhra.com'
+WHERE id = 'a0000000-0000-4000-8000-000000000001';
+```
+
+For wildcard SSL on `*.directapp.in`, prefer GoDaddy:
+
+| Type | Name | Value |
+|------|------|--------|
+| A | `@` | `76.76.21.21` |
+| CNAME | `www` | `cname.vercel-dns.com` |
+| CNAME | `*` | `cname.vercel-dns.com` |
+
+(If `*` is an A record, switch it to CNAME as above, then Refresh in Vercel Domains.)
+
+Editable marketing copy/plans/contact: `src/constants/PLATFORM_SITE.ts`.
 
 ## App env (Vercel + local)
 

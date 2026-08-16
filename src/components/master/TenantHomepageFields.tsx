@@ -19,12 +19,12 @@ const HOMEPAGE_OPTIONS: Array<{
   {
     mode: 'platform_subdomain',
     title: 'Platform subdomain',
-    hint: `Add now: {slug}.${PLATFORM_ROOT_DOMAIN} (also www.{slug}.${PLATFORM_ROOT_DOMAIN})`,
+    hint: `Always available: {slug}.${PLATFORM_ROOT_DOMAIN}. Optional: also add their own domain (whitelabel) below — both stay active.`,
   },
   {
     mode: 'custom_domain',
-    title: 'Custom domain',
-    hint: 'Add now: their own domain, e.g. www.thetasteofandhra.com — shown instead of the platform subdomain',
+    title: 'Custom domain (whitelabel)',
+    hint: 'Their brand domain, e.g. www.thetasteofandhra.com — customers see this URL; platform subdomain still works too',
   },
   {
     mode: 'external_link',

@@ -25,7 +25,7 @@ export const DEMO_PASSWORD = 'Test@123'
 export const TENANT_TASTE_OF_ANDHRA = {
   id: 'a0000000-0000-4000-8000-000000000001',
   name: 'The Taste of Andhra',
-  slug: 'tasteofandhra',
+  slug: 'thetasteofandhra',
 } as const
 
 /**
