@@ -130,51 +130,65 @@ export async function getWhatsAppConfig(
   return createSuccessResponse(mapConfig(data as Record<string, unknown>))
 }
 
+async function readFunctionsErrorMessage(
+  error: { message?: string; context?: Response } | null,
+  fallback: string,
+): Promise<string> {
+  if (!error) return fallback
+  try {
+    const context = error.context
+    if (context) {
+      const body = (await context.json()) as { error?: string; message?: string }
+      if (body?.error) return body.error
+      if (body?.message) return body.message
+    }
+  } catch {
+    // ignore parse failures
+  }
+  return error.message || fallback
+}
+
 export async function saveWhatsAppConfig(
   input: SaveWhatsAppConfigInput,
   organizationId: string = DEFAULT_ORGANIZATION_ID,
 ): Promise<ServiceResponse<OrganizationWhatsAppConfig>> {
-  const existing = await getWhatsAppConfig(organizationId)
-  if (!existing.success) return existing
+  // Prefer Edge Function (service role) so client RLS recursion cannot block saves.
+  const { data, error } = await supabase.functions.invoke<{
+    config?: Record<string, unknown>
+    error?: string
+  }>('whatsapp-connect', {
+    body: {
+      action: 'save_preferences',
+      organizationId,
+      provider: input.provider,
+      wabaId: input.wabaId,
+      phoneNumberId: input.phoneNumberId,
+      displayPhoneNumber: input.displayPhoneNumber,
+      enabledStatuses: input.enabledStatuses,
+      connectionStatus: input.connectionStatus,
+    },
+  })
 
-  const payload: Record<string, unknown> = {
-    organization_id: organizationId,
-    provider: input.provider ?? existing.data?.provider ?? 'meta_cloud',
-    enabled_statuses:
-      input.enabledStatuses ??
-      existing.data?.enabled_statuses ??
-      DEFAULT_WHATSAPP_ENABLED_STATUSES,
-    template_map:
-      input.templateMap ??
-      existing.data?.template_map ??
-      DEFAULT_WHATSAPP_TEMPLATE_MAP,
-  }
-
-  if (input.wabaId !== undefined) payload.waba_id = input.wabaId
-  if (input.phoneNumberId !== undefined) {
-    payload.phone_number_id = input.phoneNumberId
-  }
-  if (input.displayPhoneNumber !== undefined) {
-    payload.display_phone_number = input.displayPhoneNumber
-  }
-  if (input.connectionStatus !== undefined) {
-    payload.connection_status = input.connectionStatus
-  }
-
-  const { data, error } = await supabase
-    .from('organization_whatsapp_configs')
-    .upsert(payload, { onConflict: 'organization_id' })
-    .select(WHATSAPP_CONFIG_SAFE_COLUMNS)
-    .single()
-
-  if (error || !data) {
+  if (error) {
+    const detail = await readFunctionsErrorMessage(
+      error,
+      'Edge Function returned a non-2xx status code',
+    )
     return createErrorResponse(
-      'Unable to save WhatsApp settings.',
-      error?.message,
+      `Unable to save WhatsApp settings: ${detail}`,
+      detail,
     )
   }
 
-  return createSuccessResponse(mapConfig(data as Record<string, unknown>))
+  if (data?.error) {
+    return createErrorResponse(`Unable to save WhatsApp settings: ${data.error}`)
+  }
+
+  if (!data?.config) {
+    return createErrorResponse('Unable to save WhatsApp settings.')
+  }
+
+  return createSuccessResponse(mapConfig(data.config))
 }
 
 /**
@@ -201,10 +215,11 @@ export async function connectWhatsAppCredentials(
   })
 
   if (error) {
-    return createErrorResponse(
+    const detail = await readFunctionsErrorMessage(
+      error,
       'Unable to connect WhatsApp.',
-      error.message,
     )
+    return createErrorResponse(detail, error.message)
   }
 
   if (data?.error) {

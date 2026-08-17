@@ -48,7 +48,6 @@ import {
   isRazorpayConfigured,
   processOnlinePayment,
 } from '@/services/paymentService'
-import { supabase } from '@/services/supabaseClient'
 import type { Address } from '@/types/Address'
 import type { LoyaltyAccount } from '@/types/Loyalty'
 import type { PaymentMethod } from '@/types/enums'
@@ -86,8 +85,6 @@ export default function CheckoutPage() {
   const [onlineChannel, setOnlineChannel] =
     useState<OnlinePaymentChannel>('upi')
   const [specialInstructions, setSpecialInstructions] = useState('')
-  const [whatsappUpdatesOptIn, setWhatsappUpdatesOptIn] = useState(false)
-  const [whatsappEntitled, setWhatsappEntitled] = useState(false)
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false)
   const [addressToEdit, setAddressToEdit] = useState<Address | null>(null)
   const [hasPromptedForAddress, setHasPromptedForAddress] = useState(false)
@@ -140,23 +137,6 @@ export default function CheckoutPage() {
     setIsAddressModalOpen(true)
     setHasPromptedForAddress(true)
   }, [addresses.length, hasPromptedForAddress, isAddressesLoading])
-
-  useEffect(() => {
-    let cancelled = false
-    void (async () => {
-      const { data } = await supabase.rpc('has_feature', {
-        target_org_id: DEFAULT_ORGANIZATION_ID,
-        feature_key: 'whatsapp_notifications',
-      })
-      if (cancelled) return
-      const entitled = Boolean(data)
-      setWhatsappEntitled(entitled)
-      if (!entitled) setWhatsappUpdatesOptIn(false)
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [])
 
   useEffect(() => {
     void loyaltyService.getOrCreateAccount().then((result) => {
@@ -384,7 +364,7 @@ export default function CheckoutPage() {
       deliveryQuoteId: deliveryQuote?.quoteId ?? null,
       loyaltyPointsToRedeem:
         loyaltyPointsToRedeem > 0 ? loyaltyPointsToRedeem : undefined,
-      whatsappUpdatesOptIn,
+      whatsappUpdatesOptIn: true,
     })
 
     setIsPlacingOrder(false)
@@ -717,28 +697,6 @@ export default function CheckoutPage() {
               rows={3}
             />
           </section>
-
-          {whatsappEntitled && (
-            <section className="rounded-[var(--radius-card)] bg-surface p-5 shadow-md">
-              <label className="flex cursor-pointer items-start gap-3 text-sm text-text-primary">
-                <input
-                  type="checkbox"
-                  checked={whatsappUpdatesOptIn}
-                  onChange={(event) =>
-                    setWhatsappUpdatesOptIn(event.target.checked)
-                  }
-                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                />
-                <span>
-                  <span className="font-medium">Order updates on WhatsApp</span>
-                  <span className="mt-1 block text-xs text-text-secondary">
-                    Get status messages on your profile phone number. Reply STOP
-                    anytime to unsubscribe from this restaurant.
-                  </span>
-                </span>
-              </label>
-            </section>
-          )}
 
           <Link
             to={ROUTES.CART}

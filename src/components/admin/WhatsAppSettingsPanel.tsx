@@ -4,7 +4,12 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
 import { ORDER_STATUS } from '@/constants/ORDER_STATUS'
-import { WHATSAPP_TOGGLEABLE_STATUSES } from '@/constants/WHATSAPP'
+import {
+  DEFAULT_WHATSAPP_ENABLED_STATUSES,
+  META_SANDBOX_WHATSAPP_CONNECT_DEFAULTS,
+  MOCK_WHATSAPP_CONNECT_DEFAULTS,
+  WHATSAPP_TOGGLEABLE_STATUSES,
+} from '@/constants/WHATSAPP'
 import * as whatsappService from '@/services/whatsappService'
 import { supabase } from '@/services/supabaseClient'
 import type { OrderStatus } from '@/types/enums'
@@ -13,6 +18,12 @@ import type {
   WhatsAppEnabledStatuses,
   WhatsAppProvider,
 } from '@/types/WhatsApp'
+import {
+  mergeWhatsAppConnectDraft,
+  readWhatsAppConnectDraft,
+  writeWhatsAppConnectDraft,
+  type WhatsAppConnectDraft,
+} from '@/utils/whatsappConnectDraft'
 
 const PROVIDER_OPTIONS: { value: WhatsAppProvider; label: string }[] = [
   { value: 'meta_cloud', label: 'Meta Cloud API' },
@@ -20,6 +31,49 @@ const PROVIDER_OPTIONS: { value: WhatsAppProvider; label: string }[] = [
   { value: 'bsp_interakt', label: 'BSP · Interakt' },
   { value: 'bsp_other', label: 'BSP · Other' },
 ]
+
+function buildDefaultDraft(): WhatsAppConnectDraft {
+  const saved = readWhatsAppConnectDraft()
+  const base: WhatsAppConnectDraft = {
+    provider: META_SANDBOX_WHATSAPP_CONNECT_DEFAULTS.provider,
+    displayPhone: META_SANDBOX_WHATSAPP_CONNECT_DEFAULTS.displayPhone,
+    wabaId: META_SANDBOX_WHATSAPP_CONNECT_DEFAULTS.wabaId,
+    phoneNumberId: META_SANDBOX_WHATSAPP_CONNECT_DEFAULTS.phoneNumberId,
+    accessToken: saved?.accessToken ?? '',
+    verifyToken: saved?.verifyToken ?? '',
+    testPhone: saved?.testPhone ?? '',
+    enabledStatuses: { ...DEFAULT_WHATSAPP_ENABLED_STATUSES },
+  }
+  return mergeWhatsAppConnectDraft(base, saved)
+}
+
+function draftFromConfig(
+  row: OrganizationWhatsAppConfig,
+  saved: Partial<WhatsAppConnectDraft> | null,
+): WhatsAppConnectDraft {
+  const base: WhatsAppConnectDraft = {
+    provider: row.provider,
+    displayPhone:
+      row.display_phone_number ??
+      META_SANDBOX_WHATSAPP_CONNECT_DEFAULTS.displayPhone,
+    wabaId: row.waba_id ?? META_SANDBOX_WHATSAPP_CONNECT_DEFAULTS.wabaId,
+    phoneNumberId:
+      row.phone_number_id ??
+      META_SANDBOX_WHATSAPP_CONNECT_DEFAULTS.phoneNumberId,
+    accessToken: row.has_access_token ? '' : (saved?.accessToken ?? ''),
+    verifyToken: row.webhook_verify_token ?? saved?.verifyToken ?? '',
+    testPhone: saved?.testPhone ?? '',
+    enabledStatuses: {
+      ...DEFAULT_WHATSAPP_ENABLED_STATUSES,
+      ...row.enabled_statuses,
+    },
+  }
+  const merged = mergeWhatsAppConnectDraft(base, saved)
+  return {
+    ...merged,
+    enabledStatuses: base.enabledStatuses,
+  }
+}
 
 function statusBadgeClass(status: OrganizationWhatsAppConfig['connection_status']) {
   switch (status) {
@@ -41,51 +95,129 @@ export function WhatsAppSettingsPanel() {
   const [isSavingStatuses, setIsSavingStatuses] = useState(false)
   const [isConnecting, setIsConnecting] = useState(false)
   const [isTesting, setIsTesting] = useState(false)
-  const [enabledStatuses, setEnabledStatuses] =
-    useState<WhatsAppEnabledStatuses | null>(null)
 
-  const [provider, setProvider] = useState<WhatsAppProvider>('meta_cloud')
-  const [wabaId, setWabaId] = useState('')
-  const [phoneNumberId, setPhoneNumberId] = useState('')
-  const [displayPhone, setDisplayPhone] = useState('')
-  const [accessToken, setAccessToken] = useState('')
-  const [verifyToken, setVerifyToken] = useState('')
-  const [testPhone, setTestPhone] = useState('')
+  const initialDraft = buildDefaultDraft()
+  const [enabledStatuses, setEnabledStatuses] = useState<WhatsAppEnabledStatuses>(
+    initialDraft.enabledStatuses,
+  )
+  const [provider, setProvider] = useState<WhatsAppProvider>(initialDraft.provider)
+  const [wabaId, setWabaId] = useState(initialDraft.wabaId)
+  const [phoneNumberId, setPhoneNumberId] = useState(initialDraft.phoneNumberId)
+  const [displayPhone, setDisplayPhone] = useState(initialDraft.displayPhone)
+  const [accessToken, setAccessToken] = useState(initialDraft.accessToken)
+  const [verifyToken, setVerifyToken] = useState(initialDraft.verifyToken)
+  const [testPhone, setTestPhone] = useState(initialDraft.testPhone)
+
+  const persistDraft = (overrides?: Partial<WhatsAppConnectDraft>) => {
+    writeWhatsAppConnectDraft({
+      provider,
+      displayPhone,
+      wabaId,
+      phoneNumberId,
+      accessToken,
+      verifyToken,
+      testPhone,
+      enabledStatuses,
+      ...overrides,
+    })
+  }
+
+  const applyDraft = (draft: WhatsAppConnectDraft) => {
+    setProvider(draft.provider)
+    setDisplayPhone(draft.displayPhone)
+    setWabaId(draft.wabaId)
+    setPhoneNumberId(draft.phoneNumberId)
+    setAccessToken(draft.accessToken)
+    setVerifyToken(draft.verifyToken)
+    setTestPhone(draft.testPhone)
+    setEnabledStatuses(draft.enabledStatuses)
+    writeWhatsAppConnectDraft(draft)
+  }
+
+  const applyMetaSandboxDefaults = () => {
+    const saved = readWhatsAppConnectDraft()
+    applyDraft(
+      mergeWhatsAppConnectDraft(buildDefaultDraft(), {
+        ...META_SANDBOX_WHATSAPP_CONNECT_DEFAULTS,
+        accessToken: saved?.accessToken ?? '',
+        verifyToken: saved?.verifyToken ?? '',
+        testPhone: saved?.testPhone ?? '',
+        enabledStatuses: { ...DEFAULT_WHATSAPP_ENABLED_STATUSES },
+      }),
+    )
+    toast.success(
+      'Meta sandbox values filled. Paste your access token, then Connect / save.',
+    )
+  }
+
+  const applyMockTestDefaults = () => {
+    applyDraft({
+      provider: MOCK_WHATSAPP_CONNECT_DEFAULTS.provider,
+      displayPhone: MOCK_WHATSAPP_CONNECT_DEFAULTS.displayPhone,
+      wabaId: MOCK_WHATSAPP_CONNECT_DEFAULTS.wabaId,
+      phoneNumberId: MOCK_WHATSAPP_CONNECT_DEFAULTS.phoneNumberId,
+      accessToken: MOCK_WHATSAPP_CONNECT_DEFAULTS.accessToken,
+      verifyToken: '',
+      testPhone,
+      enabledStatuses: { ...DEFAULT_WHATSAPP_ENABLED_STATUSES },
+    })
+    toast.success(
+      'Mock test values filled. Click Connect / save, then Save status preferences.',
+    )
+  }
 
   const load = async () => {
     setIsLoading(true)
+    const savedDraft = readWhatsAppConnectDraft()
     const [featureOn, configResult] = await Promise.all([
       whatsappService.hasWhatsAppNotifications(),
       whatsappService.getWhatsAppConfig(),
     ])
     setEntitled(featureOn)
+
     if (configResult.success) {
       setConfig(configResult.data)
       if (configResult.data) {
-        setEnabledStatuses(configResult.data.enabled_statuses)
-        setProvider(configResult.data.provider)
-        setWabaId(configResult.data.waba_id ?? '')
-        setPhoneNumberId(configResult.data.phone_number_id ?? '')
-        setDisplayPhone(configResult.data.display_phone_number ?? '')
-        setVerifyToken(configResult.data.webhook_verify_token ?? '')
+        applyDraft(draftFromConfig(configResult.data, savedDraft))
+      } else {
+        applyDraft(mergeWhatsAppConnectDraft(buildDefaultDraft(), savedDraft))
       }
     }
+
     setIsLoading(false)
   }
 
   useEffect(() => {
     void load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once on mount
   }, [])
 
+  useEffect(() => {
+    if (isLoading) return
+    persistDraft()
+  }, [
+    isLoading,
+    provider,
+    displayPhone,
+    wabaId,
+    phoneNumberId,
+    accessToken,
+    verifyToken,
+    testPhone,
+    enabledStatuses,
+  ])
+
   const handleToggleStatus = (status: OrderStatus) => {
-    setEnabledStatuses((prev) => {
-      if (!prev) return prev
-      return { ...prev, [status]: !prev[status] }
-    })
+    setEnabledStatuses((prev) => ({ ...prev, [status]: !prev[status] }))
   }
 
   const handleSaveStatuses = async () => {
-    if (!enabledStatuses) return
+    if (!config) {
+      toast.error(
+        'Connect WhatsApp first (paste Meta access token → Connect / save), then save status preferences.',
+      )
+      return
+    }
     setIsSavingStatuses(true)
     const result = await whatsappService.saveWhatsAppConfig({
       enabledStatuses,
@@ -96,7 +228,11 @@ export function WhatsAppSettingsPanel() {
       return
     }
     setConfig(result.data)
-    setEnabledStatuses(result.data.enabled_statuses)
+    setEnabledStatuses({
+      ...DEFAULT_WHATSAPP_ENABLED_STATUSES,
+      ...result.data.enabled_statuses,
+    })
+    persistDraft({ enabledStatuses: result.data.enabled_statuses })
     toast.success('WhatsApp status preferences saved')
   }
 
@@ -106,7 +242,9 @@ export function WhatsAppSettingsPanel() {
       return
     }
     if (!accessToken.trim() && !config?.has_access_token) {
-      toast.error('Access token is required for the first connection')
+      toast.error(
+        'Paste your Meta access token, then click Connect / save.',
+      )
       return
     }
 
@@ -128,10 +266,12 @@ export function WhatsAppSettingsPanel() {
       }
       setConfig(result.data)
       setAccessToken('')
+      persistDraft({ accessToken: '' })
       toast.success('WhatsApp connected')
       return
     }
 
+    // Token already saved server-side — update public fields only.
     const result = await whatsappService.saveWhatsAppConfig({
       provider,
       wabaId: wabaId.trim(),
@@ -158,6 +298,7 @@ export function WhatsAppSettingsPanel() {
     }
     setConfig(result.data)
     setAccessToken('')
+    persistDraft({ accessToken: '' })
     toast.success('WhatsApp disconnected')
   }
 
@@ -218,13 +359,9 @@ export function WhatsAppSettingsPanel() {
           can also text Hi / Menu to browse categories and dishes in chat.
         </p>
         <p className="mt-2 text-xs text-text-secondary">
-          Local mock (no Meta): set Phone Number ID to{' '}
-          <code className="font-mono">mock_phone</code>, Access token to{' '}
-          <code className="font-mono">mock</code>, any WABA / display values,
-          then Connect. Use the{' '}
-          <code className="font-mono">whatsapp-conversation-sim</code> edge
-          function to drive Hi → View Menu → category → dish without calling
-          Graph API. See{' '}
+          Meta sandbox IDs are prefilled for TOAapp. Your access token is kept
+          in this browser until you connect. Mock mode does not deliver real
+          WhatsApp — see{' '}
           <code className="font-mono">docs/WHATSAPP_META_SETUP.md</code>.
         </p>
       </div>
@@ -279,7 +416,7 @@ export function WhatsAppSettingsPanel() {
           label="Display phone number"
           value={displayPhone}
           onChange={(event) => setDisplayPhone(event.target.value)}
-          placeholder="+91 98XXXXXXXX"
+          placeholder="+15551997138"
           disabled={!entitled}
         />
         <Input
@@ -301,8 +438,8 @@ export function WhatsAppSettingsPanel() {
           onChange={(event) => setAccessToken(event.target.value)}
           placeholder={
             config?.has_access_token
-              ? '•••••••• (leave blank to keep)'
-              : 'Meta permanent token'
+              ? '•••••••• (leave blank to keep saved token)'
+              : 'Paste Meta access token from Step 1'
           }
           disabled={!entitled}
         />
@@ -321,6 +458,22 @@ export function WhatsAppSettingsPanel() {
           onClick={() => void handleConnect()}
         >
           {isConnecting ? 'Saving…' : 'Connect / save'}
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={!entitled || isConnecting}
+          onClick={applyMetaSandboxDefaults}
+        >
+          Fill Meta sandbox values
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={!entitled || isConnecting}
+          onClick={applyMockTestDefaults}
+        >
+          Fill mock test values
         </Button>
         <Button
           type="button"
@@ -345,7 +498,12 @@ export function WhatsAppSettingsPanel() {
           Statuses to share
         </h4>
         <p className="mt-1 text-xs text-text-secondary">
-          Only toggled statuses send an approved WhatsApp utility template.
+          Customers are opted in automatically. This restaurant only sends the
+          statuses you tick here — other restaurants have their own list. Save
+          after you change them. Customer login also needs an Authentication
+          template named{' '}
+          <code className="font-mono">login_otp</code> (copy-code / OTP) in
+          WhatsApp Manager — no TRAI DLT registration.
         </p>
         <ul className="mt-3 space-y-2">
           {WHATSAPP_TOGGLEABLE_STATUSES.map((status) => (
@@ -354,8 +512,8 @@ export function WhatsAppSettingsPanel() {
                 <input
                   type="checkbox"
                   className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                  checked={Boolean(enabledStatuses?.[status])}
-                  disabled={!entitled || !enabledStatuses}
+                  checked={Boolean(enabledStatuses[status])}
+                  disabled={!entitled}
                   onChange={() => handleToggleStatus(status)}
                 />
                 {ORDER_STATUS[status]}
@@ -366,7 +524,7 @@ export function WhatsAppSettingsPanel() {
         <Button
           type="button"
           className="mt-3"
-          disabled={!entitled || isSavingStatuses || !enabledStatuses}
+          disabled={!entitled || isSavingStatuses}
           onClick={() => void handleSaveStatuses()}
         >
           {isSavingStatuses ? 'Saving…' : 'Save status preferences'}
@@ -376,15 +534,17 @@ export function WhatsAppSettingsPanel() {
       <div className="border-t border-black/5 pt-4">
         <h4 className="text-sm font-semibold text-text-primary">Send test</h4>
         <p className="mt-1 text-xs text-text-secondary">
-          Sends the confirmed-order template to a number you control. Templates
-          must already be approved on the WABA.
+          Queues the <code className="font-mono">order_confirmed</code> template
+          to the recipient below. With a real Meta token, the message arrives on
+          this recipient number (must be on Meta&apos;s allow list for test
+          numbers).
         </p>
         <div className="mt-3 flex max-w-md flex-col gap-3 sm:flex-row sm:items-end">
           <Input
             label="Recipient phone"
             value={testPhone}
             onChange={(event) => setTestPhone(event.target.value)}
-            placeholder="9876543210"
+            placeholder="+919342540612"
             disabled={!entitled}
           />
           <Button

@@ -17,7 +17,7 @@ import * as offerService from '@/services/offerService'
 import * as settingsService from '@/services/settingsService'
 import { requestPidgeCancel } from '@/services/deliveryQuoteService'
 import { DEFAULT_ETA_MINUTES, ORDER_TAX_RATE } from '@/constants/ORDER'
-import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
+import { getCurrentOrganizationId } from '@/services/currentOrganization'
 import { calculateOrderTotals, defaultDeliveryCharge } from '@/utils/orderTotals'
 import { addMinutesToIso } from '@/utils/orderEta'
 import { getOrderStatusTransitionError } from '@/utils/orderStatusTransitions'
@@ -394,7 +394,11 @@ export async function getAdminOrderDetails(
 export async function createOrder(
   input: CreateOrderInput,
 ): Promise<ServiceResponse<Order>> {
-  if (input.paymentMethod !== 'cod' && input.paymentMethod !== 'razorpay') {
+  if (
+    input.paymentMethod !== 'cod' &&
+    input.paymentMethod !== 'razorpay' &&
+    input.paymentMethod !== 'pay_later'
+  ) {
     return createErrorResponse('Unsupported payment method.')
   }
 
@@ -516,8 +520,11 @@ export async function createOrder(
   const etaMinutes = etaResult.success ? etaResult.data : DEFAULT_ETA_MINUTES
   const estimatedDelivery = addMinutesToIso(new Date(), etaMinutes)
 
+  const paymentShareToken =
+    input.paymentMethod === 'pay_later' ? crypto.randomUUID() : null
+
   const orderPayload: Record<string, unknown> = {
-    organization_id: DEFAULT_ORGANIZATION_ID,
+    organization_id: getCurrentOrganizationId(),
     order_number: orderNumber,
     user_id: userId,
     address_id: input.addressId,
@@ -535,7 +542,11 @@ export async function createOrder(
     estimated_delivery: estimatedDelivery,
     delivery_provider: quote.provider,
     delivery_quote_id: quote.quoteId,
-    whatsapp_updates_opt_in: Boolean(input.whatsappUpdatesOptIn),
+    whatsapp_updates_opt_in: input.whatsappUpdatesOptIn !== false,
+  }
+
+  if (paymentShareToken) {
+    orderPayload.payment_share_token = paymentShareToken
   }
 
   if (branchId) {
@@ -627,13 +638,22 @@ export async function createOrder(
   }
 
   const paymentGateway =
-    input.paymentMethod === 'razorpay' ? 'razorpay' : 'cod'
+    input.paymentMethod === 'razorpay'
+      ? 'razorpay'
+      : input.paymentMethod === 'pay_later'
+        ? 'upi_qr'
+        : 'cod'
   const { error: paymentError } = await supabase.from('payments').insert({
     order_id: order.id,
     organization_id:
-      (order.organization_id as string | undefined) ?? DEFAULT_ORGANIZATION_ID,
+      (order.organization_id as string | undefined) ?? getCurrentOrganizationId(),
     payment_gateway: paymentGateway,
-    provider: paymentGateway === 'razorpay' ? 'razorpay' : 'cod',
+    provider:
+      paymentGateway === 'razorpay'
+        ? 'razorpay'
+        : paymentGateway === 'upi_qr'
+          ? 'upi_qr'
+          : 'cod',
     payment_mode: 'DIRECT',
     amount: totals.total,
     status: 'pending',
@@ -792,7 +812,7 @@ export async function createPhoneOrder(
   const paymentMethod: PaymentMethod = 'pay_later'
 
   const orderPayload: Record<string, unknown> = {
-    organization_id: DEFAULT_ORGANIZATION_ID,
+    organization_id: getCurrentOrganizationId(),
     order_number: orderNumber,
     user_id: input.userId?.trim() || null,
     address_id:
@@ -838,7 +858,7 @@ export async function createPhoneOrder(
     special_instructions: input.specialInstructions?.trim() || null,
     estimated_delivery: estimatedDelivery,
     delivery_provider: 'own',
-    whatsapp_updates_opt_in: false,
+    whatsapp_updates_opt_in: true,
   }
 
   if (branchId) {
@@ -910,7 +930,7 @@ export async function createPhoneOrder(
   const { error: paymentError } = await supabase.from('payments').insert({
     order_id: order.id,
     organization_id:
-      (order.organization_id as string | undefined) ?? DEFAULT_ORGANIZATION_ID,
+      (order.organization_id as string | undefined) ?? getCurrentOrganizationId(),
     payment_gateway: 'pay_later',
     provider: 'pay_later',
     payment_mode: 'DIRECT',
@@ -931,7 +951,7 @@ export async function createPhoneOrder(
       input.userId,
       order.id as string,
       orderNumber,
-      'confirmed',
+      'pending',
     )
   }
 

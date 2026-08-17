@@ -76,15 +76,11 @@ async function enqueueChannelIfAllowed(args: {
   channel: 'whatsapp' | 'sms'
   orderNumber: string
   restaurantName: string
-  etaLabel: string | null
   optedIn: boolean
 }): Promise<'queued' | 'skipped' | 'stub'> {
   const phone = await resolveRecipientPhone(args.userId)
 
   const params: string[] = [args.restaurantName, args.orderNumber]
-  if (args.orderStatus === 'confirmed' && args.etaLabel) {
-    params.push(args.etaLabel)
-  }
 
   return communicationService.enqueueChannelCommunication({
     organizationId: args.organizationId,
@@ -283,7 +279,7 @@ export async function notifyOrderStatus(
 
   const { data: order } = await supabase
     .from('orders')
-    .select('organization_id, whatsapp_updates_opt_in, estimated_delivery')
+    .select('organization_id, whatsapp_updates_opt_in')
     .eq('id', orderId)
     .maybeSingle()
 
@@ -298,19 +294,6 @@ export async function notifyOrderStatus(
     .eq('id', organizationId)
     .maybeSingle()
   if (org?.name) restaurantName = org.name as string
-
-  let etaLabel: string | null = null
-  const eta = order?.estimated_delivery as string | null | undefined
-  if (eta) {
-    try {
-      etaLabel = new Date(eta).toLocaleTimeString('en-IN', {
-        hour: 'numeric',
-        minute: '2-digit',
-      })
-    } catch {
-      etaLabel = null
-    }
-  }
 
   const eventType = orderStatusToCommunicationEvent(status)
 
@@ -357,7 +340,6 @@ export async function notifyOrderStatus(
       channel,
       orderNumber,
       restaurantName,
-      etaLabel,
       optedIn,
     })
 
