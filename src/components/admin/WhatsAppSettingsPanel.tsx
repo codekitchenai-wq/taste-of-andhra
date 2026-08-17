@@ -498,10 +498,10 @@ export function WhatsAppSettingsPanel() {
           Statuses to share
         </h4>
         <p className="mt-1 text-xs text-text-secondary">
-          Customers are opted in automatically. This restaurant only sends the
-          statuses you tick here — other restaurants have their own list. Save
-          after you change them. Customer login also needs an Authentication
-          template named{' '}
+          Only ticked statuses send WhatsApp for this restaurant. Automatic
+          customer opt-in is on for Taste of Andhra only. Save after you
+          change them. Customer login also needs an Authentication template
+          named{' '}
           <code className="font-mono">login_otp</code> (copy-code / OTP) in
           WhatsApp Manager — no TRAI DLT registration.
         </p>

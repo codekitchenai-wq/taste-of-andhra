@@ -17,6 +17,7 @@ import * as offerService from '@/services/offerService'
 import * as settingsService from '@/services/settingsService'
 import { requestPidgeCancel } from '@/services/deliveryQuoteService'
 import { DEFAULT_ETA_MINUTES, ORDER_TAX_RATE } from '@/constants/ORDER'
+import { TASTE_OF_ANDHRA_ORG_ID } from '@/constants/ORGANIZATION'
 import { getCurrentOrganizationId } from '@/services/currentOrganization'
 import { calculateOrderTotals, defaultDeliveryCharge } from '@/utils/orderTotals'
 import { addMinutesToIso } from '@/utils/orderEta'
@@ -542,7 +543,9 @@ export async function createOrder(
     estimated_delivery: estimatedDelivery,
     delivery_provider: quote.provider,
     delivery_quote_id: quote.quoteId,
-    whatsapp_updates_opt_in: input.whatsappUpdatesOptIn !== false,
+    whatsapp_updates_opt_in:
+      getCurrentOrganizationId() === TASTE_OF_ANDHRA_ORG_ID ||
+      Boolean(input.whatsappUpdatesOptIn),
   }
 
   if (paymentShareToken) {
@@ -858,7 +861,8 @@ export async function createPhoneOrder(
     special_instructions: input.specialInstructions?.trim() || null,
     estimated_delivery: estimatedDelivery,
     delivery_provider: 'own',
-    whatsapp_updates_opt_in: true,
+    whatsapp_updates_opt_in:
+      getCurrentOrganizationId() === TASTE_OF_ANDHRA_ORG_ID,
   }
 
   if (branchId) {

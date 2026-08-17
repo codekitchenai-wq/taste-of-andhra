@@ -32,7 +32,8 @@ import {
   type OnlinePaymentChannel,
 } from '@/constants/PAYMENT_METHOD'
 import { ROUTES } from '@/constants/ROUTES'
-import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
+import { DEFAULT_ORGANIZATION_ID, TASTE_OF_ANDHRA_ORG_ID } from '@/constants/ORGANIZATION'
+import { getCurrentOrganizationId } from '@/services/currentOrganization'
 import { useAddresses } from '@/hooks/useAddresses'
 import { useAuth } from '@/hooks/useAuth'
 import { useCart } from '@/hooks/useCart'
@@ -364,7 +365,8 @@ export default function CheckoutPage() {
       deliveryQuoteId: deliveryQuote?.quoteId ?? null,
       loyaltyPointsToRedeem:
         loyaltyPointsToRedeem > 0 ? loyaltyPointsToRedeem : undefined,
-      whatsappUpdatesOptIn: true,
+      whatsappUpdatesOptIn:
+        getCurrentOrganizationId() === TASTE_OF_ANDHRA_ORG_ID,
     })
 
     setIsPlacingOrder(false)
