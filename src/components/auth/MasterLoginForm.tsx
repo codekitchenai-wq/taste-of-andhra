@@ -9,6 +9,7 @@ export function MasterLoginForm() {
       initialMode="login"
       allowModeToggle={false}
       allowGoogle={false}
+      allowWhatsApp={false}
       redirectTo={ROUTES.MASTER.DASHBOARD}
       submitLabel={{
         login: 'Sign In as Superuser',

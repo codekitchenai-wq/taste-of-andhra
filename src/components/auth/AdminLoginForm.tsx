@@ -8,6 +8,7 @@ export function AdminLoginForm() {
       role="admin"
       initialMode="login"
       allowModeToggle
+      allowWhatsApp={false}
       redirectTo={ROUTES.ADMIN.DASHBOARD}
       submitLabel={{
         login: 'Sign In to Admin',

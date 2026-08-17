@@ -6,6 +6,9 @@
 // Body (connect):
 //   { organizationId, provider, wabaId, phoneNumberId, displayPhoneNumber,
 //     accessToken, webhookVerifyToken? }
+// Body (save_preferences):
+//   { organizationId, action: "save_preferences", enabledStatuses?, provider?,
+//     wabaId?, phoneNumberId?, displayPhoneNumber?, connectionStatus? }
 // Body (disconnect):
 //   { organizationId, action: "disconnect" }
 
@@ -14,6 +17,16 @@ import { corsHeaders, errorResponse, jsonResponse } from '../_shared/cors.ts'
 
 const SAFE_COLUMNS =
   'id, organization_id, provider, connection_status, waba_id, phone_number_id, display_phone_number, token_configured, webhook_verify_token, enabled_statuses, template_map, last_error, connected_at, created_at, updated_at'
+
+const DEFAULT_ENABLED_STATUSES = {
+  pending: false,
+  confirmed: true,
+  preparing: true,
+  ready: true,
+  out_for_delivery: true,
+  delivered: true,
+  cancelled: true,
+}
 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
@@ -113,6 +126,52 @@ Deno.serve(async (request) => {
     return jsonResponse({ config: data })
   }
 
+  if (body.action === 'save_preferences') {
+    const { data: existing } = await admin
+      .from('organization_whatsapp_configs')
+      .select('provider, enabled_statuses, template_map, connection_status')
+      .eq('organization_id', organizationId)
+      .maybeSingle()
+
+    const payload: Record<string, unknown> = {
+      organization_id: organizationId,
+      provider:
+        (body.provider as string | undefined) ??
+        existing?.provider ??
+        'meta_cloud',
+      enabled_statuses:
+        body.enabledStatuses ??
+        existing?.enabled_statuses ??
+        DEFAULT_ENABLED_STATUSES,
+      template_map: existing?.template_map ?? {},
+    }
+
+    if (typeof body.wabaId === 'string') payload.waba_id = body.wabaId.trim()
+    if (typeof body.phoneNumberId === 'string') {
+      payload.phone_number_id = body.phoneNumberId.trim()
+    }
+    if (typeof body.displayPhoneNumber === 'string') {
+      payload.display_phone_number = body.displayPhoneNumber.trim()
+    }
+    if (typeof body.connectionStatus === 'string') {
+      payload.connection_status = body.connectionStatus
+    } else if (!existing) {
+      payload.connection_status = 'disconnected'
+    }
+
+    const { data, error } = await admin
+      .from('organization_whatsapp_configs')
+      .upsert(payload, { onConflict: 'organization_id' })
+      .select(SAFE_COLUMNS)
+      .single()
+
+    if (error) {
+      return errorResponse(error.message)
+    }
+
+    return jsonResponse({ config: data })
+  }
+
   const provider = (body.provider as string) || 'meta_cloud'
   const wabaId = String(body.wabaId ?? '').trim()
   const phoneNumberId = String(body.phoneNumberId ?? '').trim()
@@ -129,6 +188,12 @@ Deno.serve(async (request) => {
     )
   }
 
+  const { data: existingForConnect } = await admin
+    .from('organization_whatsapp_configs')
+    .select('enabled_statuses')
+    .eq('organization_id', organizationId)
+    .maybeSingle()
+
   const { data, error } = await admin
     .from('organization_whatsapp_configs')
     .upsert(
@@ -144,6 +209,8 @@ Deno.serve(async (request) => {
         connection_status: 'connected',
         connected_at: new Date().toISOString(),
         last_error: null,
+        enabled_statuses:
+          existingForConnect?.enabled_statuses ?? DEFAULT_ENABLED_STATUSES,
       },
       { onConflict: 'organization_id' },
     )

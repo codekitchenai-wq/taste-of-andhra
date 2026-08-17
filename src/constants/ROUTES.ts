@@ -7,6 +7,7 @@ export const ROUTES = {
   GALLERY: '/gallery',
   CONTACT: '/contact',
   PARTY_ORDER: '/party-order',
+  ONAM: '/onam',
   LOGIN: '/login',
   REGISTER: '/register',
   PROFILE: '/profile',

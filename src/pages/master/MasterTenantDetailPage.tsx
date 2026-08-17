@@ -5,6 +5,7 @@ import { MenuCsvImport } from '@/components/master/MenuCsvImport'
 import { OnboardingPack } from '@/components/master/OnboardingPack'
 import { RestaurantSetupImport } from '@/components/master/RestaurantSetupImport'
 import { TenantHomepageFields } from '@/components/master/TenantHomepageFields'
+import { MasterSubscriptionPanel } from '@/components/master/MasterSubscriptionPanel'
 import { Button } from '@/components/ui/Button'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { LoadingState } from '@/components/ui/LoadingState'
@@ -90,8 +91,7 @@ export default function MasterTenantDetailPage() {
           {org.slug} · {org.status}
         </p>
         <p className="mt-2 max-w-2xl text-sm text-text-secondary">
-          Add anything skipped at create: setup sheet, menu sheet, and public
-          homepage.
+          Manage subscription, setup sheet, menu sheet, and public homepage.
         </p>
         {org.homepage.homepageUrl ? (
           <p className="mt-2 text-sm">
@@ -111,6 +111,21 @@ export default function MasterTenantDetailPage() {
           </p>
         )}
       </div>
+
+      <MasterSubscriptionPanel
+        organizationId={org.id}
+        organizationStatus={org.status}
+        onOrganizationStatusChange={(status) =>
+          setOrg((current) =>
+            current
+              ? {
+                  ...current,
+                  status: status as MasterOrganizationDetail['status'],
+                }
+              : current,
+          )
+        }
+      />
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">Templates</h2>

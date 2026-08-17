@@ -146,7 +146,7 @@ export const CartMobileCheckoutBar = forwardRef<
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <Link to={ROUTES.MENU} className="shrink-0">
             <Button type="button" variant="secondary" size="sm" className="px-3">
-              Menu
+              Back to Menu
             </Button>
           </Link>
 

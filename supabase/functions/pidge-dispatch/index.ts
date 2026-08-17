@@ -4,14 +4,69 @@
 // would wait through the whole cook time, which is how food orders get
 // cancelled. Admin-only.
 //
+// Actions (POST body):
+//   { action: 'status' }                 — whether secrets are set
+//   { action: 'dispatch', orderId }      — book a rider (default when orderId is sent)
+//   { action: 'cancel', orderId }        — cancel the Pidge job if one exists
+//
 // Deploy: supabase functions deploy pidge-dispatch
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { corsHeaders, errorResponse, jsonResponse } from '../_shared/cors.ts'
-import { createJob, isPidgeConfigured } from '../_shared/pidge.ts'
+import {
+  cancelJob,
+  createJob,
+  getPidgeConfigStatus,
+  isPidgeConfigured,
+} from '../_shared/pidge.ts'
 
 const GRAMS_PER_ITEM = 400
 const MIN_PACKAGE_GRAMS = 500
+
+type DispatchAction = 'dispatch' | 'status' | 'cancel'
+
+async function cancelPidgeJob(
+  admin: ReturnType<typeof createClient>,
+  orderId: string,
+): Promise<Response> {
+  const { data: delivery } = await admin
+    .from('delivery')
+    .select('id, external_job_id')
+    .eq('order_id', orderId)
+    .maybeSingle()
+
+  if (!delivery?.external_job_id) {
+    return jsonResponse({ ok: true, cancelled: false, reason: 'No Pidge job.' })
+  }
+
+  if (!isPidgeConfigured) {
+    return errorResponse(
+      'Pidge is not configured. Set PIDGE_API_TOKEN to cancel through Pidge.',
+      503,
+    )
+  }
+
+  const result = await cancelJob(delivery.external_job_id as string)
+
+  await admin
+    .from('delivery')
+    .update({
+      ...(result.ok ? { external_status: 'cancelled' } : {}),
+      dispatch_error: result.ok
+        ? null
+        : (result.error ?? 'Pidge cancel failed.'),
+    })
+    .eq('id', delivery.id)
+
+  if (!result.ok) {
+    return jsonResponse(
+      { error: result.error ?? 'Pidge could not cancel this job.' },
+      502,
+    )
+  }
+
+  return jsonResponse({ ok: true, cancelled: true })
+}
 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
@@ -60,11 +115,26 @@ Deno.serve(async (request) => {
     return errorResponse('Only admins can dispatch deliveries.', 403)
   }
 
-  let body: { orderId?: string }
+  let body: { action?: DispatchAction; orderId?: string }
   try {
     body = await request.json()
   } catch {
     return errorResponse('Invalid request body.')
+  }
+
+  const action: DispatchAction =
+    body.action ?? (body.orderId ? 'dispatch' : 'status')
+
+  if (action === 'status') {
+    return jsonResponse(getPidgeConfigStatus())
+  }
+
+  if (action === 'cancel') {
+    if (!body.orderId) {
+      return errorResponse('orderId is required.')
+    }
+
+    return cancelPidgeJob(admin, body.orderId)
   }
 
   if (!body.orderId) {

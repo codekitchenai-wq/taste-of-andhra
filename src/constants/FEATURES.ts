@@ -16,6 +16,8 @@ export const FEATURE_REQUIREMENTS: Record<string, readonly string[]> = {
   delivery_pidge: ['delivery_own'],
   qr_tables: ['menu', 'orders'],
   loyalty: ['customers'],
+  payments_razorpay: ['orders'],
+  payments_direct_upi: ['orders'],
 }
 
 export function isCoreFeature(key: string): boolean {

@@ -11,17 +11,29 @@ import { useAuth } from '@/hooks/useAuth'
 import { useCart } from '@/hooks/useCart'
 import type { Dish } from '@/types/Dish'
 import { LazyImage } from '@/components/ui/LazyImage'
+import { useOrganization } from '@/contexts/OrganizationContext'
+import { dishImageFallback } from '@/utils/storefrontCopy'
 import { formatPrice } from '@/utils/format'
 import { cn } from '@/utils/cn'
 
 interface MenuDishCardProps {
   dish: Dish
   categoryName?: string
+  fallbackImage?: string | null
 }
 
 const DESC_COLLAPSE_LEN = 72
 
-export function MenuDishCard({ dish, categoryName }: MenuDishCardProps) {
+export function MenuDishCard({
+  dish,
+  categoryName,
+  fallbackImage,
+}: MenuDishCardProps) {
+  const org = useOrganization()
+  const imageSrc = dishImageFallback(
+    dish.image_url || fallbackImage || null,
+    org.slug,
+  )
   const navigate = useNavigate()
   const { isAuthenticated } = useAuth()
   const { addItem, isUpdating } = useCart()
@@ -65,8 +77,9 @@ export function MenuDishCard({ dish, categoryName }: MenuDishCardProps) {
         {/* ~160–180px image height reads well for food grids at 5-up */}
         <div className="relative aspect-[4/3] overflow-hidden bg-background sm:aspect-[5/4]">
           <LazyImage
-            src={dish.image_url ?? undefined}
+            src={imageSrc}
             alt={dish.name}
+            imageWidth={360}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
           <div className="absolute left-2 top-2 flex flex-wrap gap-1">

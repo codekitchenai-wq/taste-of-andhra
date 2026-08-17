@@ -168,6 +168,78 @@ export async function sendWhatsAppTemplate(
   return postWhatsAppMessage(input.phoneNumberId, input.accessToken, body)
 }
 
+export interface SendAuthenticationOtpInput {
+  phoneNumberId: string
+  accessToken: string
+  toE164: string
+  templateName: string
+  languageCode: string
+  otpCode: string
+}
+
+/**
+ * Sends a Meta Authentication template (OTP + copy-code / one-tap button).
+ * Falls back to a utility-style body-only template if the button component
+ * is rejected (custom utility `login_otp` templates).
+ */
+export async function sendWhatsAppAuthenticationOtp(
+  input: SendAuthenticationOtpInput,
+): Promise<SendTemplateResult> {
+  const to = digitsOnlyPhone(input.toE164)
+  if (!to) {
+    return { ok: false, error: 'Invalid recipient phone.' }
+  }
+
+  const otp = input.otpCode.trim()
+  const authBody: Record<string, unknown> = {
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to,
+    type: 'template',
+    template: {
+      name: input.templateName,
+      language: { code: input.languageCode || 'en' },
+      components: [
+        {
+          type: 'body',
+          parameters: [{ type: 'text', text: otp }],
+        },
+        {
+          type: 'button',
+          sub_type: 'url',
+          index: '0',
+          parameters: [{ type: 'text', text: otp }],
+        },
+      ],
+    },
+  }
+
+  const authResult = await postWhatsAppMessage(
+    input.phoneNumberId,
+    input.accessToken,
+    authBody,
+  )
+  if (authResult.ok) return authResult
+
+  const message = (authResult.error ?? '').toLowerCase()
+  const shouldFallback =
+    message.includes('button') ||
+    message.includes('parameter') ||
+    message.includes('component') ||
+    message.includes('template')
+
+  if (!shouldFallback) return authResult
+
+  return sendWhatsAppTemplate({
+    phoneNumberId: input.phoneNumberId,
+    accessToken: input.accessToken,
+    toE164: input.toE164,
+    templateName: input.templateName,
+    languageCode: input.languageCode,
+    bodyParams: [otp],
+  })
+}
+
 export async function sendWhatsAppText(
   input: SendTextInput,
 ): Promise<SendTemplateResult> {

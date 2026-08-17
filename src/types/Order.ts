@@ -39,6 +39,9 @@ export interface Order {
   estimated_delivery: string | null
   /** Public token for /pay/:token (phone/counter payment share). */
   payment_share_token?: string | null
+  /** Customer tapped I’ve paid (pending staff confirm). */
+  payment_claimed_at?: string | null
+  payment_claim_note?: string | null
   /** Customer consented to WhatsApp order-status updates at checkout. */
   whatsapp_updates_opt_in: boolean
   created_at: string

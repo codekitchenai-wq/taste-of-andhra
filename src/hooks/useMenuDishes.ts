@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useOrganization } from '@/contexts/OrganizationContext'
 import * as dishService from '@/services/dishService'
 import type { DishFilters } from '@/services/dishService'
 import type { Dish } from '@/types/Dish'
@@ -42,6 +43,7 @@ function toDishFilters(
 }
 
 export function useMenuDishes(filters: MenuFilterState) {
+  const { organizationId, isLoading: orgLoading } = useOrganization()
   const [dishes, setDishes] = useState<Dish[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -62,6 +64,7 @@ export function useMenuDishes(filters: MenuFilterState) {
   )
 
   const refetch = useCallback(async () => {
+    if (orgLoading) return
     setIsLoading(true)
     setError(null)
 
@@ -75,7 +78,7 @@ export function useMenuDishes(filters: MenuFilterState) {
     }
 
     setIsLoading(false)
-  }, [dishFilters])
+  }, [dishFilters, organizationId, orgLoading])
 
   useEffect(() => {
     void refetch()

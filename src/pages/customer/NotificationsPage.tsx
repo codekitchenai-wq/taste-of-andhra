@@ -12,10 +12,13 @@ import { ROUTES } from '@/constants/ROUTES'
 import * as notificationService from '@/services/notificationService'
 import type { AppNotification } from '@/types/Notification'
 import { formatDateTime } from '@/utils/format'
+import { storefrontContact } from '@/utils/storefrontCopy'
+import { useOrganization } from '@/contexts/OrganizationContext'
 import { cn } from '@/utils/cn'
 
 export default function NotificationsPage() {
   const navigate = useNavigate()
+  const contact = storefrontContact(useOrganization())
   const [notifications, setNotifications] = useState<AppNotification[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -83,7 +86,7 @@ export default function NotificationsPage() {
         <div>
           <PageHeader
             title="Notifications"
-            description="Order updates and alerts from The Taste of Andhra."
+            description={`Order updates and alerts from ${contact.name}.`}
           />
         </div>
         {unreadCount > 0 && (

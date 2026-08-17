@@ -80,7 +80,7 @@ export default function MasterTenantsPage() {
                     to={ROUTES.MASTER.tenant(org.id)}
                     className="text-primary hover:underline"
                   >
-                    Additional details
+                    Subscription & details
                   </Link>
                   <Link
                     to={ROUTES.MASTER.featuresForOrg(org.id)}

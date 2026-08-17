@@ -8,6 +8,8 @@ import { ErrorState } from '@/components/ui/ErrorState'
 import { LoadingState } from '@/components/ui/LoadingState'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { usePublicCategories } from '@/hooks/usePublicCategories'
+import { useMenuImageFallbacks } from '@/hooks/useMenuImageFallbacks'
+import { useOrganization } from '@/contexts/OrganizationContext'
 import * as dishService from '@/services/dishService'
 import * as qrTableService from '@/services/qrTableService'
 import type { QrTableWithBranch } from '@/services/qrTableService'
@@ -15,11 +17,13 @@ import type { Dish } from '@/types/Dish'
 
 export default function QrMenuPage() {
   const { tableCode } = useParams<{ tableCode: string }>()
+  const { organizationId, isLoading: orgLoading } = useOrganization()
   const { categories } = usePublicCategories()
   const [qrTable, setQrTable] = useState<QrTableWithBranch | null>(null)
   const [dishes, setDishes] = useState<Dish[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const categoryImages = useMenuImageFallbacks(categories, dishes)
 
   const categoryNames = useMemo(
     () =>
@@ -28,6 +32,7 @@ export default function QrMenuPage() {
   )
 
   const refetch = useCallback(async () => {
+    if (orgLoading) return
     if (!tableCode) {
       setError('Invalid table code.')
       setIsLoading(false)
@@ -59,7 +64,7 @@ export default function QrMenuPage() {
     }
 
     setIsLoading(false)
-  }, [tableCode])
+  }, [tableCode, organizationId, orgLoading])
 
   useEffect(() => {
     void refetch()
@@ -106,6 +111,7 @@ export default function QrMenuPage() {
                 key={dish.id}
                 dish={dish}
                 categoryName={categoryNames[dish.category_id]}
+                fallbackImage={categoryImages.get(dish.category_id)}
               />
             ))}
           </div>

@@ -9,6 +9,10 @@ import { AUTH_REDIRECT_STORAGE_KEY, MIN_PASSWORD_LENGTH } from '@/constants/AUTH
 import { ROUTES } from '@/constants/ROUTES'
 import { supabase } from '@/services/supabaseClient'
 import { mapProfile } from '@/utils/mapProfile'
+import {
+  googleOAuthPreflightUrl,
+  googleOAuthRedirectTo,
+} from '@/utils/oauthRedirect'
 import { normalizeIndianPhone } from '@/utils/phone'
 import { isValidEmail, isValidPassword, isValidPhone } from '@/utils/validation'
 
@@ -33,7 +37,7 @@ function mapAuthError(message: string): string {
   }
 
   if (normalized.includes('user already registered')) {
-    return 'This email is already registered. Sign in instead.'
+    return 'This email already has a login. Sign in or continue with Google to join this restaurant.'
   }
 
   if (normalized.includes('duplicate key') && normalized.includes('phone')) {
@@ -81,6 +85,8 @@ async function fetchProfile(userId: string): Promise<ServiceResponse<Profile>> {
   }
 
   if (!data) {
+    const created = await createProfileFromSession(userId)
+    if (created.success) return created
     return createErrorResponse('Profile not found.')
   }
 
@@ -92,6 +98,56 @@ async function fetchProfile(userId: string): Promise<ServiceResponse<Profile>> {
   }
 
   return createSuccessResponse(profile)
+}
+
+async function createProfileFromSession(
+  userId: string,
+): Promise<ServiceResponse<Profile>> {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
+
+  if (userError || !user || user.id !== userId) {
+    return createErrorResponse('Profile not found.')
+  }
+
+  const metadata = user.user_metadata ?? {}
+  const fullName =
+    (typeof metadata.full_name === 'string' && metadata.full_name.trim()) ||
+    (typeof metadata.name === 'string' && metadata.name.trim()) ||
+    'Customer'
+  const avatar =
+    (typeof metadata.avatar_url === 'string' && metadata.avatar_url) ||
+    (typeof metadata.picture === 'string' && metadata.picture) ||
+    null
+
+  const { error } = await supabase.from('profiles').upsert(
+    {
+      id: userId,
+      full_name: fullName,
+      email: user.email ?? null,
+      role: 'customer',
+      avatar_url: avatar,
+    },
+    { onConflict: 'id' },
+  )
+
+  if (error) {
+    return createErrorResponse('Profile not found.', error.message)
+  }
+
+  const { data, error: reloadError } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (reloadError || !data) {
+    return createErrorResponse('Profile not found.')
+  }
+
+  return createSuccessResponse(mapProfile(data))
 }
 
 /** Email/password login for all personas. */
@@ -171,6 +227,17 @@ export async function register(
   })
 
   if (error) {
+    if (
+      input.role === 'customer' &&
+      error.message.toLowerCase().includes('user already registered')
+    ) {
+      const existing = await login({ email, password })
+      if (existing.success) return existing
+      return createErrorResponse(
+        'This email already has a login. Sign in or continue with Google to join this restaurant.',
+        error.message,
+      )
+    }
     return createErrorResponse(mapAuthError(error.message), error.message)
   }
 
@@ -187,6 +254,165 @@ export async function register(
   return fetchProfile(data.user.id)
 }
 
+async function readFunctionsErrorMessage(
+  error: { message?: string; context?: Response } | null,
+  fallback: string,
+): Promise<string> {
+  if (!error) return fallback
+  try {
+    const context = error.context
+    if (context) {
+      const body = (await context.json()) as { error?: string; message?: string }
+      if (body?.error) return body.error
+      if (body?.message) return body.message
+    }
+  } catch {
+    // ignore parse failures
+  }
+  return error.message || fallback
+}
+
+export interface WhatsAppOtpRequestResult {
+  resendAfterSeconds: number
+  /** Present only in mock / local WhatsApp mode. */
+  devCode?: string
+}
+
+export interface WhatsAppOtpVerifyInput {
+  phone: string
+  code: string
+  fullName?: string
+}
+
+/** Send a 6-digit login code to the customer's WhatsApp. */
+export async function requestWhatsAppOtp(
+  phone: string,
+): Promise<ServiceResponse<WhatsAppOtpRequestResult>> {
+  const normalized = normalizeIndianPhone(phone)
+
+  if (!normalized || !isValidPhone(normalized)) {
+    return createErrorResponse('Enter a valid 10-digit mobile number.')
+  }
+
+  const { data, error } = await supabase.functions.invoke<{
+    ok?: boolean
+    error?: string
+    resendAfterSeconds?: number
+    devCode?: string
+  }>('whatsapp-otp', {
+    body: { action: 'send', phone: normalized },
+  })
+
+  if (error) {
+    const detail = await readFunctionsErrorMessage(
+      error,
+      'Unable to send the WhatsApp code.',
+    )
+    return createErrorResponse(detail, error.message)
+  }
+
+  if (data?.error) {
+    return createErrorResponse(data.error)
+  }
+
+  if (!data?.ok) {
+    return createErrorResponse('Unable to send the WhatsApp code.')
+  }
+
+  return createSuccessResponse({
+    resendAfterSeconds: data.resendAfterSeconds ?? 45,
+    devCode: data.devCode,
+  })
+}
+
+/**
+ * Verify the WhatsApp OTP, establish a Supabase session, and load the profile.
+ * New numbers are registered as customers.
+ */
+export async function loginWithWhatsAppOtp(
+  input: WhatsAppOtpVerifyInput,
+): Promise<ServiceResponse<Profile>> {
+  const normalized = normalizeIndianPhone(input.phone)
+  const code = input.code.replace(/\D/g, '')
+
+  if (!normalized || !isValidPhone(normalized)) {
+    return createErrorResponse('Enter a valid 10-digit mobile number.')
+  }
+
+  if (!/^\d{6}$/.test(code)) {
+    return createErrorResponse('Enter the 6-digit code sent on WhatsApp.')
+  }
+
+  const fullName = input.fullName?.trim()
+
+  const { data, error } = await supabase.functions.invoke<{
+    ok?: boolean
+    error?: string
+    access_token?: string
+    refresh_token?: string
+    token_hash?: string
+    type?: 'email' | 'magiclink'
+  }>('whatsapp-otp', {
+    body: {
+      action: 'verify',
+      phone: normalized,
+      code,
+      fullName: fullName || undefined,
+    },
+  })
+
+  if (error) {
+    const detail = await readFunctionsErrorMessage(
+      error,
+      'Unable to verify the WhatsApp code.',
+    )
+    return createErrorResponse(detail, error.message)
+  }
+
+  if (data?.error) {
+    return createErrorResponse(data.error)
+  }
+
+  if (!data?.ok) {
+    return createErrorResponse('Unable to verify the WhatsApp code.')
+  }
+
+  if (data.token_hash) {
+    const { data: otpData, error: otpError } = await supabase.auth.verifyOtp({
+      token_hash: data.token_hash,
+      type: 'email',
+    })
+
+    if (otpError || !otpData.user) {
+      return createErrorResponse(
+        'Code verified, but the session could not be saved. Please try again.',
+        otpError?.message,
+      )
+    }
+
+    return fetchProfile(otpData.user.id)
+  }
+
+  if (!data.access_token || !data.refresh_token) {
+    return createErrorResponse('Unable to verify the WhatsApp code.')
+  }
+
+  const { data: sessionData, error: sessionError } =
+    await supabase.auth.setSession({
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+    })
+
+  if (sessionError || !sessionData.user) {
+    return createErrorResponse(
+      'Code verified, but the session could not be saved. Please try again.',
+      sessionError?.message,
+    )
+  }
+
+  return fetchProfile(sessionData.user.id)
+}
+
 /**
  * Start Google OAuth for customers. Redirects the browser to Google;
  * on return, Supabase restores the session and GuestRoute finishes navigation.
@@ -200,10 +426,16 @@ export async function loginWithGoogle(
     // Private browsing may block sessionStorage; fall back to home.
   }
 
+  const preflight = googleOAuthPreflightUrl(ROUTES.LOGIN, redirectPath)
+  if (preflight) {
+    window.location.assign(preflight)
+    return createSuccessResponse(null)
+  }
+
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${window.location.origin}${ROUTES.LOGIN}`,
+      redirectTo: googleOAuthRedirectTo(ROUTES.LOGIN),
       queryParams: {
         access_type: 'offline',
         prompt: 'select_account',

@@ -170,9 +170,30 @@ export function OrderDetailsPanel({
       <OrderPaymentQr order={order} onMarkedPaid={onOrderUpdated} />
       <OrderRazorpayCollect order={order} onMarkedPaid={onOrderUpdated} />
 
+      {order.payment_status === 'pending' &&
+        order.payment_claimed_at &&
+        order.payment_method === 'pay_later' ? (
+        <section className={sectionClass}>
+          <h3 className={headingClass}>Customer claimed payment</h3>
+          <p
+            className={cn(
+              'text-sm text-text-secondary',
+              compact ? 'mt-2' : 'mt-3',
+            )}
+          >
+            Customer tapped “I’ve paid”
+            {order.payment_claim_note
+              ? ` · note: ${order.payment_claim_note}`
+              : ''}
+            . Confirm in your UPI app, then mark payment collected.
+          </p>
+        </section>
+      ) : null}
+
       {order.payment_share_token &&
       order.payment_status === 'pending' &&
-      order.order_source === 'phone' ? (
+      (order.order_source === 'phone' ||
+        order.payment_method === 'pay_later') ? (
         <section className={sectionClass}>
           <h3 className={headingClass}>Share payment link</h3>
           <p

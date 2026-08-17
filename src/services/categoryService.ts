@@ -4,7 +4,7 @@ import {
   type ServiceResponse,
 } from '@/types/api'
 import type { Category } from '@/types/Category'
-import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
+import { getCurrentOrganizationId } from '@/services/currentOrganization'
 import { supabase } from '@/services/supabaseClient'
 import { mapCategory } from '@/utils/mapCategory'
 import { generateSlug } from '@/utils/slug'
@@ -38,6 +38,7 @@ export async function getCategories(): Promise<ServiceResponse<Category[]>> {
   const { data, error } = await supabase
     .from('categories')
     .select('*')
+    .eq('organization_id', getCurrentOrganizationId())
     .eq('is_active', true)
     .order('display_order', { ascending: true })
 
@@ -52,6 +53,7 @@ export async function getAllCategories(): Promise<ServiceResponse<Category[]>> {
   const { data, error } = await supabase
     .from('categories')
     .select('*')
+    .eq('organization_id', getCurrentOrganizationId())
     .order('display_order', { ascending: true })
     .order('created_at', { ascending: true })
 
@@ -92,7 +94,7 @@ export async function createCategory(
   }
 
   const { data, error } = await insertWithOrgFallback(supabase, 'categories', {
-    organization_id: DEFAULT_ORGANIZATION_ID,
+    organization_id: getCurrentOrganizationId(),
     name,
     slug: generateSlug(name),
     description: input.description?.trim() || null,

@@ -28,6 +28,7 @@ import {
 } from '@/utils/supabaseSchema'
 import { getStoreOpenStatus } from '@/utils/storeHours'
 import { effectiveOrderTaxRate } from '@/utils/gstSettings'
+import { isFutureOnamSchedule } from '@/utils/onamPrebook'
 
 export interface CreateOrderInput {
   addressId: string
@@ -40,6 +41,8 @@ export interface CreateOrderInput {
   deliveryQuoteId?: string | null
   /** Customer opted in to WhatsApp order-status updates. */
   whatsappUpdatesOptIn?: boolean
+  /** Future slot (ISO) for pre-booked delivery, e.g. Onam Sadhya. */
+  scheduledFor?: string | null
 }
 
 async function assertStoreAcceptingOrders(): Promise<ServiceResponse<true>> {
@@ -491,9 +494,15 @@ export async function createOrder(
     }
   }
 
-  const openResult = await assertStoreAcceptingOrders()
-  if (!openResult.success) {
-    return openResult
+  const scheduledFor = isFutureOnamSchedule(input.scheduledFor)
+    ? input.scheduledFor
+    : null
+
+  if (!scheduledFor) {
+    const openResult = await assertStoreAcceptingOrders()
+    if (!openResult.success) {
+      return openResult
+    }
   }
 
   const quote = await resolveDeliveryQuote(
@@ -519,7 +528,8 @@ export async function createOrder(
 
   const etaResult = await settingsService.getDefaultEtaMinutes()
   const etaMinutes = etaResult.success ? etaResult.data : DEFAULT_ETA_MINUTES
-  const estimatedDelivery = addMinutesToIso(new Date(), etaMinutes)
+  const estimatedDelivery =
+    scheduledFor ?? addMinutesToIso(new Date(), etaMinutes)
 
   const paymentShareToken =
     input.paymentMethod === 'pay_later' ? crypto.randomUUID() : null

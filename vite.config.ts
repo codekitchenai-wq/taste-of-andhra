@@ -10,6 +10,10 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  server: {
+    host: true,
+    allowedHosts: ['.directapp.in', '.localhost', 'localhost'],
+  },
   build: {
     outDir: 'dist',
     sourcemap: false,

@@ -11,6 +11,18 @@ export function isMissingColumnError(message: string): boolean {
   )
 }
 
+/** PostgREST error when a table has not been migrated yet. */
+export function isMissingRelationError(message: string): boolean {
+  const normalized = message.toLowerCase()
+  return (
+    (normalized.includes('does not exist') &&
+      (normalized.includes('relation') || normalized.includes('table'))) ||
+    (normalized.includes('schema cache') &&
+      (normalized.includes('could not find') ||
+        normalized.includes('organization_customers')))
+  )
+}
+
 /** Attach tenant id for SaaS schema; safe to strip on pre-migration DBs. */
 export function withOrganizationId<T extends Record<string, unknown>>(
   payload: T,

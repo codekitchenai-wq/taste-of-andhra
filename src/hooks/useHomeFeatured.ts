@@ -1,45 +1,66 @@
 import { useCallback, useEffect, useState } from 'react'
-import { LOCAL_IMAGES } from '@/constants/IMAGES'
+import { useOrganization } from '@/contexts/OrganizationContext'
 import type { HomeCategory, HomeDish } from '@/data/home'
 import * as categoryService from '@/services/categoryService'
 import * as dishService from '@/services/dishService'
 import type { Dish } from '@/types/Dish'
+import { isAndhraLocalAsset } from '@/utils/menuImage'
+import {
+  categoryImageFallback,
+  dishImageFallback,
+} from '@/utils/storefrontCopy'
 
-const CATEGORY_IMAGE_FALLBACKS: Record<string, string> = {
-  starters: LOCAL_IMAGES.categories.starters,
-  biryani: LOCAL_IMAGES.categories.biryani,
-  curries: LOCAL_IMAGES.categories.curries,
-  breads: LOCAL_IMAGES.categories.breads,
-  beverages: LOCAL_IMAGES.categories.beverages,
-  desserts: LOCAL_IMAGES.categories.desserts,
-}
-
-function toHomeDish(dish: Dish): HomeDish {
+function toHomeDish(dish: Dish, orgSlug: string | null): HomeDish {
   return {
     id: dish.id,
     name: dish.name,
     slug: dish.slug,
-    description: dish.description?.trim() || 'Authentic Andhra specialty.',
+    description: dish.description?.trim() || 'Chef special.',
     price: dish.price,
-    imageUrl: dish.image_url || LOCAL_IMAGES.hero,
+    imageUrl: dishImageFallback(dish.image_url, orgSlug),
     isVeg: dish.is_veg,
     rating: dish.rating ?? 0,
     prepTime: dish.preparation_time ?? 0,
   }
 }
 
-function categoryImage(slug: string, imageUrl: string | null): string {
-  if (imageUrl) return imageUrl
-  return CATEGORY_IMAGE_FALLBACKS[slug] ?? LOCAL_IMAGES.hero
+function categoryDisplayImage(
+  slug: string,
+  categoryImage: string | null,
+  dishes: Dish[],
+  categoryId: string,
+  orgSlug: string | null,
+): string {
+  if (categoryImage && !isAndhraLocalAsset(categoryImage)) {
+    return categoryImageFallback(slug, categoryImage, orgSlug)
+  }
+
+  const fromDish = dishes.find(
+    (dish) =>
+      dish.category_id === categoryId &&
+      dish.image_url &&
+      !isAndhraLocalAsset(dish.image_url),
+  )
+  if (fromDish?.image_url) {
+    return categoryImageFallback(slug, fromDish.image_url, orgSlug)
+  }
+
+  return categoryImageFallback(slug, null, orgSlug)
 }
 
 export function useHomeFeatured() {
+  const {
+    organizationId,
+    slug: orgSlug,
+    isLoading: orgLoading,
+  } = useOrganization()
   const [categories, setCategories] = useState<HomeCategory[]>([])
   const [dishes, setDishes] = useState<HomeDish[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const refetch = useCallback(async () => {
+    if (orgLoading) return
     setIsLoading(true)
     setError(null)
 
@@ -69,30 +90,55 @@ export function useHomeFeatured() {
       counts.set(dish.category_id, (counts.get(dish.category_id) ?? 0) + 1)
     }
 
-    const homeCategories = categoryResult.data
+    const activeCategories = categoryResult.data
       .filter((category) => category.is_active)
       .sort((a, b) => a.display_order - b.display_order)
+
+    const withOwnPhoto = activeCategories.filter(
+      (category) =>
+        (category.image_url && !isAndhraLocalAsset(category.image_url)) ||
+        dishResult.data.some(
+          (dish) =>
+            dish.category_id === category.id &&
+            dish.image_url &&
+            !isAndhraLocalAsset(dish.image_url),
+        ),
+    )
+
+    const featuredCategories = (
+      withOwnPhoto.length >= 4 ? withOwnPhoto : activeCategories
+    )
       .slice(0, 4)
       .map((category) => ({
         id: category.id,
         name: category.name,
         slug: category.slug,
-        imageUrl: categoryImage(category.slug, category.image_url),
+        imageUrl: categoryDisplayImage(
+          category.slug,
+          category.image_url,
+          dishResult.data,
+          category.id,
+          orgSlug,
+        ),
         dishCount: counts.get(category.id) ?? 0,
       }))
 
-    const featured = dishResult.data.filter((dish) => dish.is_featured)
+    const featured = dishResult.data.filter(
+      (dish) => dish.is_featured && dish.image_url && !isAndhraLocalAsset(dish.image_url),
+    )
     const featuredSource =
       featured.length > 0
         ? featured
-        : [...dishResult.data].sort(
-            (a, b) => (b.rating ?? 0) - (a.rating ?? 0),
-          )
+        : [...dishResult.data]
+            .filter((dish) => dish.image_url && !isAndhraLocalAsset(dish.image_url))
+            .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
 
-    setCategories(homeCategories)
-    setDishes(featuredSource.slice(0, 4).map(toHomeDish))
+    setCategories(featuredCategories)
+    setDishes(
+      featuredSource.slice(0, 4).map((dish) => toHomeDish(dish, orgSlug)),
+    )
     setIsLoading(false)
-  }, [])
+  }, [organizationId, orgLoading, orgSlug])
 
   useEffect(() => {
     void refetch()

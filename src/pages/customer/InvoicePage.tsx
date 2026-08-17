@@ -6,7 +6,6 @@ import { Container } from '@/components/ui/Container'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { LoadingState } from '@/components/ui/LoadingState'
 import { OrderNumberDisplay } from '@/components/orders/OrderNumberDisplay'
-import { APP_NAME } from '@/constants/APP'
 import { GST_INVOICES_DISABLED_MESSAGE } from '@/constants/GST'
 import { ROUTES } from '@/constants/ROUTES'
 import * as gstInvoiceService from '@/services/gstInvoiceService'
@@ -14,8 +13,11 @@ import type { InvoiceViewModel } from '@/services/gstInvoiceService'
 import * as orderService from '@/services/orderService'
 import { formatBranchAddress } from '@/utils/mapBranch'
 import { formatDateTimeFull, formatPrice } from '@/utils/format'
+import { storefrontContact } from '@/utils/storefrontCopy'
+import { useOrganization } from '@/contexts/OrganizationContext'
 
 export default function InvoicePage() {
+  const contact = storefrontContact(useOrganization())
   const { orderId } = useParams<{ orderId: string }>()
   const [invoiceView, setInvoiceView] = useState<InvoiceViewModel | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -105,7 +107,7 @@ export default function InvoicePage() {
           <article className="rounded-[var(--radius-card)] bg-surface p-6 shadow-md print:rounded-none print:shadow-none md:p-8">
             <header className="border-b border-black/10 pb-6">
               <h2 className="font-heading text-2xl font-bold text-primary">
-                {APP_NAME}
+                {contact.name}
               </h2>
               <p className="mt-1 text-sm text-text-secondary">
                 {formatBranchAddress(invoiceView.branch)}

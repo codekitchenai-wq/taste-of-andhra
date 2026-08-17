@@ -7,7 +7,8 @@ import { Container } from '@/components/ui/Container'
 import { Input } from '@/components/ui/Input'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Textarea } from '@/components/ui/Textarea'
-import { APP_NAME, CONTACT, OPENING_HOURS } from '@/constants/APP'
+import { useOrganization } from '@/contexts/OrganizationContext'
+import { storefrontContact } from '@/utils/storefrontCopy'
 
 interface ContactFormValues {
   name: string
@@ -17,6 +18,7 @@ interface ContactFormValues {
 }
 
 export default function ContactPage() {
+  const contact = storefrontContact(useOrganization())
   const [submitted, setSubmitted] = useState(false)
 
   const {
@@ -38,8 +40,14 @@ export default function ContactPage() {
       `From: ${values.name}\nEmail: ${values.email}\n\n${values.message}`,
     )
     const subject = encodeURIComponent(values.subject || 'Contact enquiry')
-    window.location.href = `mailto:${CONTACT.email}?subject=${subject}&body=${body}`
-    toast.success('Opening your email app to send the message')
+    const mailbox = contact.email
+    if (mailbox) {
+      window.location.href = `mailto:${mailbox}?subject=${subject}&body=${body}`
+      toast.success('Opening your email app to send the message')
+    } else {
+      window.location.href = `tel:${contact.phone.replace(/\s/g, '')}`
+      toast.success('Please call us — email is not listed for this restaurant.')
+    }
     setSubmitted(true)
     reset()
   }
@@ -55,10 +63,25 @@ export default function ContactPage() {
         <section className="rounded-[var(--radius-card)] bg-surface p-4 shadow-md sm:p-6 md:p-8">
           {submitted && (
             <p className="mb-6 rounded-[var(--radius-button)] bg-success/10 px-4 py-3 text-sm text-success">
-              Thank you! If your email app did not open, please write to us at{' '}
-              <a href={`mailto:${CONTACT.email}`} className="font-medium underline">
-                {CONTACT.email}
+              Thank you! Call us at{' '}
+              <a
+                href={`tel:${contact.phone.replace(/\s/g, '')}`}
+                className="font-medium underline"
+              >
+                {contact.phone}
               </a>
+              {contact.email ? (
+                <>
+                  {' '}
+                  or write to{' '}
+                  <a
+                    href={`mailto:${contact.email}`}
+                    className="font-medium underline"
+                  >
+                    {contact.email}
+                  </a>
+                </>
+              ) : null}
               .
             </p>
           )}
@@ -114,10 +137,8 @@ export default function ContactPage() {
 
         <aside className="space-y-4 lg:sticky lg:top-24">
           <div className="rounded-[var(--radius-card)] bg-primary p-5 text-white shadow-md md:p-6">
-            <h2 className="font-heading text-xl font-semibold">{APP_NAME}</h2>
-            <p className="mt-2 text-sm text-white/85">
-              Authentic Andhra cuisine, delivered fresh to your doorstep.
-            </p>
+            <h2 className="font-heading text-xl font-semibold">{contact.name}</h2>
+            <p className="mt-2 text-sm text-white/85">{contact.description}</p>
           </div>
 
           <div className="space-y-4 rounded-[var(--radius-card)] border border-black/5 bg-surface p-5 shadow-sm md:p-6">
@@ -126,15 +147,15 @@ export default function ContactPage() {
               <div>
                 <p className="font-medium text-text-primary">Address</p>
                 <a
-                  href={CONTACT.mapsDirectionsUrl}
+                  href={contact.mapsUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="mt-1 block text-sm text-text-secondary transition-colors hover:text-primary"
                 >
-                  {CONTACT.address}
+                  {contact.address}
                 </a>
                 <a
-                  href={CONTACT.mapsDirectionsUrl}
+                  href={contact.mapsUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="mt-2 inline-flex text-sm font-medium text-primary hover:text-primary-dark"
@@ -143,39 +164,43 @@ export default function ContactPage() {
                 </a>
               </div>
             </div>
-            <div className="flex gap-3">
-              <Phone className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-              <div>
-                <p className="font-medium text-text-primary">Phone</p>
-                <a
-                  href={`tel:${CONTACT.phone.replace(/\s/g, '')}`}
-                  className="mt-1 block text-sm text-primary hover:text-primary-dark"
-                >
-                  {CONTACT.phone}
-                </a>
+            {contact.phones.map((phone) => (
+              <div key={phone} className="flex gap-3">
+                <Phone className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                <div>
+                  <p className="font-medium text-text-primary">Phone</p>
+                  <a
+                    href={`tel:${phone.replace(/\s/g, '')}`}
+                    className="mt-1 block text-sm text-primary hover:text-primary-dark"
+                  >
+                    {phone}
+                  </a>
+                </div>
               </div>
-            </div>
-            <div className="flex gap-3">
-              <Mail className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-              <div>
-                <p className="font-medium text-text-primary">Email</p>
-                <a
-                  href={`mailto:${CONTACT.email}`}
-                  className="mt-1 block text-sm text-primary hover:text-primary-dark"
-                >
-                  {CONTACT.email}
-                </a>
+            ))}
+            {contact.email ? (
+              <div className="flex gap-3">
+                <Mail className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                <div>
+                  <p className="font-medium text-text-primary">Email</p>
+                  <a
+                    href={`mailto:${contact.email}`}
+                    className="mt-1 block text-sm text-primary hover:text-primary-dark"
+                  >
+                    {contact.email}
+                  </a>
+                </div>
               </div>
-            </div>
+            ) : null}
             <div className="flex gap-3">
               <Clock className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
               <div>
                 <p className="font-medium text-text-primary">Hours</p>
                 <p className="mt-1 text-sm text-text-secondary">
-                  Mon–Fri: {OPENING_HOURS.weekdays}
+                  Mon–Fri: {contact.weekdayHours}
                 </p>
                 <p className="text-sm text-text-secondary">
-                  Sat–Sun: {OPENING_HOURS.weekends}
+                  Sat–Sun: {contact.weekendHours}
                 </p>
               </div>
             </div>

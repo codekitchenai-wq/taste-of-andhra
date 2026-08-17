@@ -28,6 +28,7 @@ supabase functions deploy whatsapp-dispatch
 supabase functions deploy communication-dispatch
 supabase functions deploy whatsapp-webhook --no-verify-jwt
 supabase functions deploy whatsapp-conversation-sim
+supabase functions deploy whatsapp-otp --no-verify-jwt
 ```
 
 ## 3. Connect mock credentials in Admin

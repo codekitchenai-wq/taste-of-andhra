@@ -23,6 +23,7 @@ export interface PaymentShareView {
   fulfillmentType: 'delivery' | 'pickup'
   paymentStatus: string
   orderStatus: string
+  paymentMethod: string
   subtotal: number
   tax: number
   deliveryCharge: number
@@ -31,6 +32,8 @@ export interface PaymentShareView {
   items: PaymentShareItem[]
   upiVpa: string
   upiPayeeName: string
+  paymentClaimedAt: string | null
+  paymentClaimNote: string | null
 }
 
 function mapShare(raw: Record<string, unknown>): PaymentShareView {
@@ -43,6 +46,7 @@ function mapShare(raw: Record<string, unknown>): PaymentShareView {
       raw.fulfillment_type === 'pickup' ? 'pickup' : 'delivery',
     paymentStatus: String(raw.payment_status ?? 'pending'),
     orderStatus: String(raw.order_status ?? ''),
+    paymentMethod: String(raw.payment_method ?? ''),
     subtotal: Number(raw.subtotal ?? 0),
     tax: Number(raw.tax ?? 0),
     deliveryCharge: Number(raw.delivery_charge ?? 0),
@@ -59,6 +63,8 @@ function mapShare(raw: Record<string, unknown>): PaymentShareView {
     }),
     upiVpa: String(raw.upi_vpa ?? '').trim(),
     upiPayeeName: String(raw.upi_payee_name ?? '').trim() || APP_NAME,
+    paymentClaimedAt: (raw.payment_claimed_at as string | null) ?? null,
+    paymentClaimNote: (raw.payment_claim_note as string | null) ?? null,
   }
 }
 
@@ -86,6 +92,49 @@ export async function getPaymentShareByToken(
   }
 
   return createSuccessResponse(mapShare(data as Record<string, unknown>))
+}
+
+export async function claimPaymentShare(
+  token: string,
+  note?: string,
+): Promise<
+  ServiceResponse<{
+    alreadyPaid: boolean
+    paymentClaimedAt: string | null
+    paymentClaimNote: string | null
+  }>
+> {
+  const trimmed = token.trim()
+  if (!trimmed) {
+    return createErrorResponse('Payment link is invalid.')
+  }
+
+  const { data, error } = await supabase.rpc('claim_payment_share', {
+    p_token: trimmed,
+    p_note: note?.trim() || null,
+  })
+
+  if (error) {
+    return createErrorResponse(
+      'Unable to record payment claim.',
+      error.message,
+    )
+  }
+
+  const row = (data ?? {}) as Record<string, unknown>
+  if (row.ok === false) {
+    const code = String(row.error ?? 'failed')
+    if (code === 'not_found') {
+      return createErrorResponse('This payment link is invalid or expired.')
+    }
+    return createErrorResponse('Unable to record payment claim.')
+  }
+
+  return createSuccessResponse({
+    alreadyPaid: Boolean(row.already_paid),
+    paymentClaimedAt: (row.payment_claimed_at as string | null) ?? null,
+    paymentClaimNote: (row.payment_claim_note as string | null) ?? null,
+  })
 }
 
 export function paymentSharePath(token: string): string {

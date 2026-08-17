@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Direct UPI + WhatsApp payment — Executive Review</title>
+    <style>
+      :root {
+        --primary: #c62828;
+        --text: #1a1a1a;
+        --muted: #555;
+        --border: #ddd;
+        --surface: #fafafa;
+        --ok: #1b5e20;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+        color: var(--text);
+        line-height: 1.55;
+        margin: 0;
+        padding: 0;
+        background: #fff;
+        font-size: 10.5pt;
+      }
+
+      .page {
+        max-width: 780px;
+        margin: 0 auto;
+        padding: 24px 28px 32px;
+      }
+
+      header.doc-header {
+        border-bottom: 3px solid var(--primary);
+        padding-bottom: 14px;
+        margin-bottom: 22px;
+      }
+
+      header.doc-header h1 {
+        margin: 0 0 6px;
+        font-size: 18pt;
+        color: var(--primary);
+        font-weight: 700;
+      }
+
+      header.doc-header p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 10pt;
+      }
+
+      .meta {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px 16px;
+        margin-top: 12px;
+        padding: 10px 12px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 9.5pt;
+      }
+
+      .meta strong {
+        color: var(--muted);
+        font-weight: 600;
+      }
+
+      h2 {
+        margin: 22px 0 8px;
+        font-size: 13pt;
+        color: var(--primary);
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 4px;
+        page-break-after: avoid;
+      }
+
+      h3 {
+        margin: 14px 0 6px;
+        font-size: 11pt;
+        color: #333;
+        page-break-after: avoid;
+      }
+
+      p,
+      li {
+        margin: 0 0 8px;
+      }
+
+      ul,
+      ol {
+        margin: 0 0 10px;
+        padding-left: 1.25rem;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 8px 0 14px;
+        font-size: 9.5pt;
+        page-break-inside: avoid;
+      }
+
+      th,
+      td {
+        border: 1px solid var(--border);
+        padding: 6px 8px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: var(--surface);
+        font-weight: 600;
+      }
+
+      .callout {
+        background: #fff8e1;
+        border-left: 4px solid #f9a825;
+        padding: 10px 12px;
+        margin: 10px 0 14px;
+        font-size: 9.5pt;
+      }
+
+      .summary {
+        background: #e8f5e9;
+        border-left: 4px solid var(--ok);
+        padding: 10px 12px;
+        margin: 10px 0 14px;
+        font-size: 10pt;
+      }
+
+      pre.flow {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 12px 14px;
+        font-family: Consolas, "Courier New", monospace;
+        font-size: 8.5pt;
+        line-height: 1.45;
+        white-space: pre;
+        overflow-x: auto;
+        page-break-inside: avoid;
+      }
+
+      .sign {
+        margin-top: 18px;
+        padding-top: 10px;
+        border-top: 1px dashed var(--border);
+        font-size: 10pt;
+      }
+
+      @media print {
+        .page {
+          max-width: none;
+          padding: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header class="doc-header">
+        <h1>Direct UPI + WhatsApp payment — executive review</h1>
+        <p>Taste of Andhra / multi-tenant restaurant SaaS</p>
+        <div class="meta">
+          <div><strong>Audience:</strong> Leadership / ops / product (go / no-go)</div>
+          <div><strong>Date:</strong> 2026-08-16</div>
+          <div><strong>Status:</strong> Proposal for review — not yet fully productized</div>
+          <div><strong>Related:</strong> WhatsApp Meta setup · Features &amp; flow · Architecture gates</div>
+        </div>
+      </header>
+
+      <h2>1. Decision needed</h2>
+      <p>Approve a <strong>zero / near-zero cost payment path</strong> for small restaurants that:</p>
+      <ol>
+        <li>Lets the restaurant receive money on <strong>their own UPI ID</strong> (no Razorpay / gateway fee on food orders).</li>
+        <li>Optionally sends a <strong>WhatsApp payment link</strong> when the order is placed (Cloud API).</li>
+        <li>Relies on <strong>restaurant confirmation</strong> (or customer “I’ve paid” + staff verify) to mark the order paid.</li>
+      </ol>
+      <p><strong>Optional later:</strong> Razorpay (or similar) as a paid add-on for restaurants that want auto-confirmation, cards, and wallets.</p>
+
+      <h2>2. Why this path</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Goal</th>
+            <th>How this helps</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Onboard margin-sensitive restaurants</td>
+            <td>No 1.5–2%+ gateway fee on every order</td>
+          </tr>
+          <tr>
+            <td>Go live online quickly</td>
+            <td>Restaurant already has a UPI ID / bank QR</td>
+          </tr>
+          <tr>
+            <td>Low order volume</td>
+            <td>WhatsApp Utility cost is typically a few paise per message in India</td>
+          </tr>
+          <tr>
+            <td>Keep SaaS credible</td>
+            <td>Clear payment status in admin; kitchen/dispatch rules still enforced</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="callout">
+        <strong>Hard limit:</strong> UPI alone does <strong>not</strong> notify our app when money arrives. Auto “paid” without a PSP is not possible. Confirmation is an <strong>ops step</strong>, not a bank webhook.
+      </div>
+
+      <h2>3. Recommended product package</h2>
+      <h3>Default (recommended for small restaurants)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Capability</th>
+            <th>Included</th>
+            <th>Cost to restaurant</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Save restaurant UPI ID + payee name</td>
+            <td>Yes</td>
+            <td>₹0</td>
+          </tr>
+          <tr>
+            <td>Checkout: <strong>Pay by UPI</strong> (dynamic QR / intent on order / pay page)</td>
+            <td>Yes</td>
+            <td>₹0</td>
+          </tr>
+          <tr>
+            <td>Optional: WhatsApp Utility message with <strong>Pay now</strong> (HTTPS pay page)</td>
+            <td>Yes (toggle)</td>
+            <td>~₹0.12 / delivered Utility msg outside free window*</td>
+          </tr>
+          <tr>
+            <td>Customer “I’ve paid” (optional UTR)</td>
+            <td>Yes</td>
+            <td>₹0</td>
+          </tr>
+          <tr>
+            <td>Admin / staff <strong>Confirm payment</strong> / Reject</td>
+            <td>Yes</td>
+            <td>₹0</td>
+          </tr>
+          <tr>
+            <td>COD / pay at counter</td>
+            <td>Yes</td>
+            <td>₹0</td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="font-size: 9pt; color: var(--muted)">
+        *India Utility template rates are set by Meta and change over time; Utility inside an open 24-hour customer-care window is often free.
+      </p>
+
+      <h3>Optional add-on (later)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Capability</th>
+            <th>When</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Razorpay / other PSP (auto paid via webhook, cards, wallets)</td>
+            <td>Restaurant accepts gateway fees</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>4. End-to-end flow (for review)</h2>
+      <pre class="flow">Customer places order
+        │
+        ▼
+Order created · payment_status = pending
+        │
+        ├──► In-app / pay page: show UPI QR + amount + order note
+        │
+        └──► [If WhatsApp enabled + customer opted in]
+                    Send Utility template:
+                    “Order #… · ₹… · Pay now” → HTTPS pay page
+        │
+        ▼
+Customer pays on their UPI app (money → restaurant VPA)
+        │
+        ▼
+Customer taps “I’ve paid” (optional UTR)
+   and/or restaurant sees credit in UPI / bank app
+        │
+        ▼
+Staff: Confirm payment  →  payment_status = paid
+   or Reject / keep pending
+        │
+        ▼
+Kitchen / dispatch follows restaurant policy
+(e.g. prep only after paid for delivery; or prep anytime, dispatch after paid)</pre>
+
+      <h3>What this is not</h3>
+      <ul>
+        <li>Not “customer shares order on WhatsApp and we scrape confirmation.”</li>
+        <li>Not automatic bank verification.</li>
+        <li>Not a replacement for Razorpay when the restaurant wants auto-settled online status.</li>
+      </ul>
+
+      <h2>5. Actor responsibilities</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Actor</th>
+            <th>Responsibility</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Platform (us)</strong></td>
+            <td>Host pay page + QR; enqueue WhatsApp template; store pending/paid; admin confirm UI; opt-in checks</td>
+          </tr>
+          <tr>
+            <td><strong>Restaurant admin</strong></td>
+            <td>Connect WhatsApp Business (Meta); save UPI ID; decide prep/dispatch rules; confirm payments</td>
+          </tr>
+          <tr>
+            <td><strong>Customer</strong></td>
+            <td>Pay via UPI; optionally mark “I’ve paid”; receive WhatsApp only if opted in</td>
+          </tr>
+          <tr>
+            <td><strong>Kitchen / counter</strong></td>
+            <td>Trust payment status (and printer tickets) before treating order as paid</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>6. WhatsApp specifics (exec summary)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Topic</th>
+            <th>Detail</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Channel</td>
+            <td>WhatsApp <strong>Business Platform (Cloud API)</strong> — already in product for order-status templates</td>
+          </tr>
+          <tr>
+            <td>Trigger</td>
+            <td>Order created with UPI / pay-later pending (not a manual “share order” action)</td>
+          </tr>
+          <tr>
+            <td>Message type</td>
+            <td>Approved <strong>Utility</strong> template (transactional: order + amount + pay link)</td>
+          </tr>
+          <tr>
+            <td>Link in message</td>
+            <td><strong>HTTPS</strong> pay page on our domain (shows QR). Raw upi:// is unreliable as a template button URL</td>
+          </tr>
+          <tr>
+            <td>Opt-in</td>
+            <td>Only if customer opted into WhatsApp updates</td>
+          </tr>
+          <tr>
+            <td>Reminders</td>
+            <td>At most <strong>one</strong> gentle reminder if still unpaid (quality / spam risk)</td>
+          </tr>
+          <tr>
+            <td>Payment truth</td>
+            <td>Delivery of WhatsApp ≠ money received</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Restrictions / risks to acknowledge</h3>
+      <ol>
+        <li>Meta must <strong>approve</strong> the payment template; promo-like wording can be rejected or billed as Marketing (higher cost).</li>
+        <li>New WhatsApp numbers have <strong>messaging limits</strong> until quality/usage grows.</li>
+        <li>Misuse (broadcast payment spam) hurts <strong>quality rating</strong> and can throttle the number.</li>
+        <li>Restaurant must complete Meta Business / WABA setup (one-time ops effort).</li>
+      </ol>
+
+      <h2>7. Ops policy choices (need exec preference)</h2>
+      <p>Pick defaults for v1; restaurants can override later if needed.</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Policy question</th>
+            <th>Option A (safer)</th>
+            <th>Option B (faster kitchen)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>When to start cooking (delivery)</td>
+            <td>Only after paid</td>
+            <td>Immediately; block <strong>dispatch</strong> until paid</td>
+          </tr>
+          <tr>
+            <td>When to start cooking (pickup)</td>
+            <td>After paid or at counter</td>
+            <td>Allow unpaid; settle at pickup</td>
+          </tr>
+          <tr>
+            <td>Unpaid timeout</td>
+            <td>Auto-cancel after N minutes</td>
+            <td>Keep pending; staff cancels</td>
+          </tr>
+          <tr>
+            <td>First-time customers</td>
+            <td>Must pay before prep</td>
+            <td>Same as regulars</td>
+          </tr>
+        </tbody>
+      </table>
+      <p><strong>Recommendation for small delivery-first restaurants:</strong> Option A for delivery; Option B for pickup/COD mix.</p>
+
+      <h2>8. Cost illustration (low volume)</h2>
+      <p>Assumptions: India recipients, Utility template ~₹0.115 when billed, 50 UPI orders/day, 1 payment WhatsApp per order, no reminder.</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Estimate</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Gateway fee on UPI via restaurant VPA</td>
+            <td>₹0</td>
+          </tr>
+          <tr>
+            <td>WhatsApp Utility (50 × ₹0.115)</td>
+            <td>~₹6 / day (~₹180 / month)</td>
+          </tr>
+          <tr>
+            <td>If many customers already in 24h chat window</td>
+            <td>Often lower / free for those sends</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>Compare: 2% gateway on ₹50,000 GMV/day ≈ ₹1,000 / day. For margin-sensitive tenants, WhatsApp + manual confirm is usually far cheaper.</p>
+
+      <h2>9. Fraud / ops risk</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Risk</th>
+            <th>Mitigation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Fake “I’ve paid”</td>
+            <td>Staff confirm against UPI app / UTR before paid</td>
+          </tr>
+          <tr>
+            <td>Wrong amount / wrong note</td>
+            <td>Dynamic QR with exact amount + order # in note</td>
+          </tr>
+          <tr>
+            <td>Order cooked then no payment</td>
+            <td>Policy: prep or dispatch only after confirm</td>
+          </tr>
+          <tr>
+            <td>Staff delay confirming</td>
+            <td>WhatsApp alert to restaurant + pending queue in admin</td>
+          </tr>
+          <tr>
+            <td>Personal UPI limits / KYC</td>
+            <td>Prefer restaurant <strong>business</strong> UPI / bank merchant QR</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>10. Implementation snapshot (current vs proposed)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Piece</th>
+            <th>Today (approx.)</th>
+            <th>Proposed</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Restaurant UPI ID in setup</td>
+            <td>Exists</td>
+            <td>Keep</td>
+          </tr>
+          <tr>
+            <td>UPI QR / pay-later helpers</td>
+            <td>Exists</td>
+            <td>Use as primary online path for free tier</td>
+          </tr>
+          <tr>
+            <td>Razorpay</td>
+            <td>Exists / gated</td>
+            <td>Optional paid upgrade</td>
+          </tr>
+          <tr>
+            <td>WhatsApp order-status templates</td>
+            <td>Exists</td>
+            <td>Add payment_pending (or similar) Utility template</td>
+          </tr>
+          <tr>
+            <td>Auto mark paid from UPI</td>
+            <td>Not possible without PSP</td>
+            <td>Do not promise</td>
+          </tr>
+          <tr>
+            <td>Admin confirm paid</td>
+            <td>Needed / extend</td>
+            <td>Required for this model</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>11. Phased rollout</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Phase</th>
+            <th>Scope</th>
+            <th>Outcome</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>P0</strong></td>
+            <td>UPI QR on pay page + admin Confirm paid + clear pending queue</td>
+            <td>Zero-cost live path</td>
+          </tr>
+          <tr>
+            <td><strong>P1</strong></td>
+            <td>WhatsApp Utility “Pay now” on order create (opt-in + toggle)</td>
+            <td>Better conversion when customer leaves site</td>
+          </tr>
+          <tr>
+            <td><strong>P2</strong></td>
+            <td>Optional single reminder; kitchen/dispatch gates by policy</td>
+            <td>Tighter ops</td>
+          </tr>
+          <tr>
+            <td><strong>P3</strong></td>
+            <td>Optional Razorpay add-on for tenants who want auto-paid</td>
+            <td>Upsell, not blocker</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>12. Confirmation checklist (executives)</h2>
+      <p>Please mark and return:</p>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Decision</th>
+            <th>Approve? (Y/N)</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>Offer <strong>Direct UPI + manual confirm</strong> as default for small restaurants</td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>Keep <strong>Razorpay optional</strong> (not required to go live)</td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>Allow <strong>WhatsApp payment link</strong> on order create (Utility + HTTPS pay page)</td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td>Default kitchen policy for delivery: <strong>prep only after paid</strong> / <strong>dispatch only after paid</strong> (circle one)</td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td>Cap unpaid WhatsApp nudges to <strong>1 reminder</strong></td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>6</td>
+            <td>Platform may bill tenants a small <strong>comms pass-through</strong> for Meta WhatsApp (optional commercial model)</td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>7</td>
+            <td>Target first pilot restaurants: _______________________</td>
+            <td></td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="sign"><strong>Signed / dated:</strong> _______________________</div>
+
+      <h2>13. One-line summary for stakeholders</h2>
+      <div class="summary">
+        Small restaurants receive payment on their own UPI; we send an optional WhatsApp pay link and keep order payment pending until staff confirms the credit—near zero cost, no gateway margin hit, with Razorpay available later if they want full automation.
+      </div>
+    </div>
+  </body>
+</html>

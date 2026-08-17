@@ -8,6 +8,8 @@ import { ErrorState } from '@/components/ui/ErrorState'
 import { LoadingState } from '@/components/ui/LoadingState'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { usePublicCategories } from '@/hooks/usePublicCategories'
+import { useMenuImageFallbacks } from '@/hooks/useMenuImageFallbacks'
+import { useOrganization } from '@/contexts/OrganizationContext'
 import * as branchService from '@/services/branchService'
 import * as dishService from '@/services/dishService'
 import type { Branch } from '@/types/Branch'
@@ -16,11 +18,13 @@ import { formatBranchAddress } from '@/utils/mapBranch'
 
 export default function BranchMenuPage() {
   const { slug } = useParams<{ slug: string }>()
+  const { organizationId, isLoading: orgLoading } = useOrganization()
   const { categories } = usePublicCategories()
   const [branch, setBranch] = useState<Branch | null>(null)
   const [dishes, setDishes] = useState<Dish[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const categoryImages = useMenuImageFallbacks(categories, dishes)
 
   const categoryNames = useMemo(
     () =>
@@ -29,6 +33,7 @@ export default function BranchMenuPage() {
   )
 
   const refetch = useCallback(async () => {
+    if (orgLoading) return
     if (!slug) {
       setError('Branch not found.')
       setIsLoading(false)
@@ -60,7 +65,7 @@ export default function BranchMenuPage() {
     }
 
     setIsLoading(false)
-  }, [slug])
+  }, [slug, organizationId, orgLoading])
 
   useEffect(() => {
     void refetch()
@@ -111,6 +116,7 @@ export default function BranchMenuPage() {
                 key={dish.id}
                 dish={dish}
                 categoryName={categoryNames[dish.category_id]}
+                fallbackImage={categoryImages.get(dish.category_id)}
               />
             ))}
           </div>

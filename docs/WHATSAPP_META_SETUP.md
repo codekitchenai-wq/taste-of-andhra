@@ -66,12 +66,20 @@ Create **Utility** templates on the WABA (WhatsApp Manager → Message templates
 | `order_out_for_delivery` | order number |
 | `order_delivered` | order number |
 | `order_cancelled` | order number |
+| `login_otp` | **Authentication** template (not Utility). One variable: the 6-digit OTP. Enable copy-code or one-tap. Used for customer WhatsApp login. |
 
 Notes:
 
 - Exact variable count/order must match what `whatsapp-dispatch` / notification enqueue sends — after first live send, check outbox `last_error` if Meta rejects parameter mismatch.
 - Wait until status is **Approved** before relying on Send test.
 - Conversational **buttons/lists** for Phase 2 menu browse do **not** need templates (session messages within the 24h customer-care window). Templates are for outbound status pushes.
+- **WhatsApp OTP login** does not use TRAI DLT. Create `login_otp` as category **Authentication**. Deploy `whatsapp-otp` with JWT verification off:
+
+```bash
+supabase functions deploy whatsapp-otp --no-verify-jwt
+```
+
+Optional secrets: `WHATSAPP_OTP_TEMPLATE_NAME` (default `login_otp`), `WHATSAPP_OTP_TEMPLATE_LANGUAGE` (default `en`), `WHATSAPP_OTP_ORGANIZATION_ID`.
 
 ---
 
@@ -162,6 +170,8 @@ Apply migrations if not already applied (see `.env.example`).
 - [ ] Permanent System User token created  
 - [ ] Production number verified (when leaving test)  
 - [ ] Six utility templates approved  
+- [ ] `login_otp` Authentication template approved  
+- [ ] `whatsapp-otp` function deployed (`--no-verify-jwt`)  
 - [ ] Webhook verified (`whatsapp-webhook`, no JWT)  
 - [ ] Migrations applied  
 - [ ] Secrets set (`WHATSAPP_PROVIDER=meta_cloud`, verify token, storefront URL)  

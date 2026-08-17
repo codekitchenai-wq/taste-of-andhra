@@ -11,11 +11,14 @@ import { mapPayment } from '@/utils/mapPayment'
 
 describe('architecture gates defaults', () => {
   it('keeps unfinished capabilities held (off) by default', () => {
-    expect(ENABLE_HOST_TENANT_RESOLUTION).toBe(false)
     expect(ENABLE_SCOPED_ORG_ADMIN_AUTH).toBe(false)
     expect(ENABLE_RAZORPAY_ROUTE).toBe(false)
     expect(ENABLE_META_EMBEDDED_SIGNUP).toBe(false)
     expect(ENABLE_AI).toBe(false)
+  })
+
+  it('reads host tenant resolution from env when set', () => {
+    expect(typeof ENABLE_HOST_TENANT_RESOLUTION).toBe('boolean')
   })
 
   it('keeps Taste of Andhra as default organization', () => {

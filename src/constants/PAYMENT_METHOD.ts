@@ -3,7 +3,7 @@ import type { PaymentMethod } from '@/types/enums'
 export const PAYMENT_METHOD: Record<PaymentMethod, string> = {
   cod: 'Cash on Delivery',
   razorpay: 'Pay Online',
-  pay_later: 'Pay Later (UPI QR)',
+  pay_later: 'Pay by UPI',
 }
 
 export type OnlinePaymentChannel = 'upi' | 'card' | 'netbanking' | 'wallet'

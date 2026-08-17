@@ -9,6 +9,7 @@ import { LoadingState } from '@/components/ui/LoadingState'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { ROUTES } from '@/constants/ROUTES'
 import { usePublicCategories } from '@/hooks/usePublicCategories'
+import { useMenuImageFallbacks } from '@/hooks/useMenuImageFallbacks'
 import * as favoriteService from '@/services/favoriteService'
 import type { FavoriteWithDish } from '@/services/favoriteService'
 
@@ -24,6 +25,11 @@ export default function FavoritesPage() {
       Object.fromEntries(categories.map((category) => [category.id, category.name])),
     [categories],
   )
+  const favoriteDishes = useMemo(
+    () => favorites.map((favorite) => favorite.dish),
+    [favorites],
+  )
+  const categoryImages = useMenuImageFallbacks(categories, favoriteDishes)
 
   const refetch = useCallback(async () => {
     setIsLoading(true)
@@ -75,6 +81,7 @@ export default function FavoritesPage() {
               key={favorite.id}
               dish={favorite.dish}
               categoryName={categoryNames[favorite.dish.category_id]}
+              fallbackImage={categoryImages.get(favorite.dish.category_id)}
             />
           ))}
         </div>

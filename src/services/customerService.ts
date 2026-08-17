@@ -5,9 +5,11 @@ import {
 } from '@/types/api'
 import type { Address } from '@/types/Address'
 import type { Profile } from '@/types/Profile'
+import { getCurrentOrganizationId } from '@/services/currentOrganization'
 import { supabase } from '@/services/supabaseClient'
 import { mapAddress } from '@/utils/mapAddress'
 import { mapProfile } from '@/utils/mapProfile'
+import { isMissingRelationError } from '@/utils/supabaseSchema'
 
 export interface CustomerSearchParams {
   search?: string
@@ -20,13 +22,51 @@ export interface CustomerDetails extends Profile {
   orderCount: number
 }
 
+async function customerIdsForCurrentOrg(): Promise<string[] | null> {
+  const orgId = getCurrentOrganizationId()
+  const { data, error } = await supabase
+    .from('organization_customers')
+    .select('user_id')
+    .eq('organization_id', orgId)
+
+  if (!error) {
+    return (data ?? []).map((row) => row.user_id as string)
+  }
+
+  if (
+    !isMissingRelationError(error.message) &&
+    !error.message.toLowerCase().includes('organization_customers')
+  ) {
+    return null
+  }
+
+  const { data: orders, error: orderError } = await supabase
+    .from('orders')
+    .select('user_id')
+    .eq('organization_id', orgId)
+    .not('user_id', 'is', null)
+
+  if (orderError) return []
+
+  return [...new Set((orders ?? []).map((row) => row.user_id as string))]
+}
+
 export async function getCustomers(
   params?: CustomerSearchParams,
 ): Promise<ServiceResponse<Profile[]>> {
+  const enrolledIds = await customerIdsForCurrentOrg()
+  if (enrolledIds && enrolledIds.length === 0) {
+    return createSuccessResponse([])
+  }
+  if (enrolledIds === null) {
+    return createErrorResponse('Unable to load customers.')
+  }
+
   let query = supabase
     .from('profiles')
     .select('*')
     .eq('role', 'customer')
+    .in('id', enrolledIds)
     .order('created_at', { ascending: false })
 
   if (params?.search?.trim()) {
@@ -90,10 +130,19 @@ export async function getCustomerDetails(
 }
 
 export async function getCustomerCount(): Promise<ServiceResponse<number>> {
+  const enrolledIds = await customerIdsForCurrentOrg()
+  if (enrolledIds && enrolledIds.length === 0) {
+    return createSuccessResponse(0)
+  }
+  if (enrolledIds === null) {
+    return createErrorResponse('Unable to count customers.')
+  }
+
   const { count, error } = await supabase
     .from('profiles')
     .select('*', { count: 'exact', head: true })
     .eq('role', 'customer')
+    .in('id', enrolledIds)
 
   if (error) {
     return createErrorResponse('Unable to count customers.', error.message)

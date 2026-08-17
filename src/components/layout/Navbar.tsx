@@ -11,9 +11,10 @@ import {
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
-import { APP_NAME } from '@/constants/APP'
 import { ROUTES } from '@/constants/ROUTES'
-import { mainNavLinks } from '@/data/navigation'
+import { useOrganization } from '@/contexts/OrganizationContext'
+import { storefrontContact, isSpiceMalabarStorefront } from '@/utils/storefrontCopy'
+import { mainNavLinks, onamSpecialNavLink } from '@/data/navigation'
 import { Container } from '@/components/ui/Container'
 import { MobileMenu } from '@/components/layout/MobileMenu'
 import { useAuth } from '@/hooks/useAuth'
@@ -25,7 +26,12 @@ interface NavbarProps {
 }
 
 export function Navbar({ transparent = false }: NavbarProps) {
+  const org = useOrganization()
   const { isAuthenticated, user, logout } = useAuth()
+  const contact = storefrontContact(org)
+  const navLinks = isSpiceMalabarStorefront(org)
+    ? [mainNavLinks[0], onamSpecialNavLink, ...mainNavLinks.slice(1)]
+    : mainNavLinks
   const { itemCount } = useCart()
   const navigate = useNavigate()
   const [isScrolled, setIsScrolled] = useState(false)
@@ -69,14 +75,14 @@ export function Navbar({ transparent = false }: NavbarProps) {
               isSolid ? 'text-primary' : 'text-white',
             )}
           >
-            {APP_NAME}
+            {contact.name}
           </Link>
 
           <nav
-            className="hidden items-center gap-8 lg:flex"
+            className="hidden items-center gap-5 xl:gap-8 lg:flex"
             aria-label="Main navigation"
           >
-            {mainNavLinks.map((link) => (
+            {navLinks.map((link) => (
               <NavLink
                 key={link.to}
                 to={link.to}
@@ -93,7 +99,16 @@ export function Navbar({ transparent = false }: NavbarProps) {
                   )
                 }
               >
-                {link.label}
+                {link.to === ROUTES.ONAM ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    {link.label}
+                    <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-text-primary">
+                      Festive
+                    </span>
+                  </span>
+                ) : (
+                  link.label
+                )}
               </NavLink>
             ))}
           </nav>
@@ -229,7 +244,7 @@ export function Navbar({ transparent = false }: NavbarProps) {
       <MobileMenu
         isOpen={isMobileOpen}
         onClose={() => setIsMobileOpen(false)}
-        links={mainNavLinks}
+        links={navLinks}
         onLogout={handleLogout}
       />
     </>

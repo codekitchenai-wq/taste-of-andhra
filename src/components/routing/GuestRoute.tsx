@@ -1,10 +1,11 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate, Outlet } from 'react-router-dom'
 import { LoadingState } from '@/components/ui/LoadingState'
 import { AUTH_REDIRECT_STORAGE_KEY } from '@/constants/AUTH'
 import { ROUTES } from '@/constants/ROUTES'
 import { useAuth } from '@/hooks/useAuth'
 import { isPlatformMasterUser } from '@/utils/platformMaster'
+import { resolveCustomerPostAuthRedirect } from '@/utils/postAuthRedirect'
 
 function readAuthRedirect(): string {
   try {
@@ -19,27 +20,42 @@ function readAuthRedirect(): string {
   return ROUTES.HOME
 }
 
+function clearAuthRedirect() {
+  try {
+    sessionStorage.removeItem(AUTH_REDIRECT_STORAGE_KEY)
+  } catch {
+    // ignore
+  }
+}
+
 export function GuestRoute() {
   const { isAuthenticated, isLoading, role, user } = useAuth()
-  const customerRedirect = useMemo(() => readAuthRedirect(), [])
+  const [customerPath, setCustomerPath] = useState<string | null>(null)
+
+  const isCustomer =
+    isAuthenticated &&
+    role === 'customer' &&
+    !isPlatformMasterUser(user)
 
   useEffect(() => {
-    if (
-      !isAuthenticated ||
-      role === 'admin' ||
-      role === 'delivery' ||
-      role === 'platform_master' ||
-      isPlatformMasterUser(user)
-    ) {
+    if (!isCustomer) {
+      setCustomerPath(null)
       return
     }
 
-    try {
-      sessionStorage.removeItem(AUTH_REDIRECT_STORAGE_KEY)
-    } catch {
-      // ignore
+    let cancelled = false
+    const intended = readAuthRedirect()
+
+    void resolveCustomerPostAuthRedirect(intended).then((path) => {
+      if (cancelled) return
+      clearAuthRedirect()
+      setCustomerPath(path)
+    })
+
+    return () => {
+      cancelled = true
     }
-  }, [isAuthenticated, role, user])
+  }, [isCustomer])
 
   if (isLoading) {
     return <LoadingState fullPage variant="inline" />
@@ -58,7 +74,11 @@ export function GuestRoute() {
       return <Navigate to={ROUTES.DELIVERY.DASHBOARD} replace />
     }
 
-    return <Navigate to={customerRedirect} replace />
+    if (!customerPath) {
+      return <LoadingState fullPage variant="inline" />
+    }
+
+    return <Navigate to={customerPath} replace />
   }
 
   return <Outlet />

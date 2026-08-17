@@ -3,18 +3,19 @@ import {
   ALL_TEST_ACCOUNTS,
   DEMO_PASSWORD,
   MASTER_ACCOUNT,
-  SHOW_TEST_HELPERS,
 } from '@/constants/DEMO_ACCOUNTS'
 import { footerTestPersonaLinks } from '@/data/navigation'
 import { USER_ROLE } from '@/constants/USER_ROLE'
+import { useOrganization } from '@/contexts/OrganizationContext'
+import { showStorefrontQaHelpers } from '@/utils/storefrontCopy'
 
 /**
- * TEMPORARY QA panel for the public footer.
- * Remove this component (and its Footer import) when testing is complete,
- * or set SHOW_TEST_HELPERS = false in DEMO_ACCOUNTS.ts.
+ * TEMPORARY QA panel for the Taste of Andhra public footer.
+ * Hidden on other restaurant storefronts (e.g. Spice Malabar).
  */
 export function FooterTestHelpers() {
-  if (!SHOW_TEST_HELPERS) return null
+  const org = useOrganization()
+  if (!showStorefrontQaHelpers(org)) return null
 
   return (
     <div className="mt-10 rounded-[var(--radius-card)] border border-dashed border-amber-500/40 bg-amber-50/80 p-5">

@@ -1,17 +1,43 @@
 import { PLATFORM_ROOT_DOMAIN } from '@/constants/PLATFORM'
 
+const LOCAL_TENANT_STORAGE_KEY = 'toa_tenant_slug'
+
+export function isLocalDevHostname(hostname: string): boolean {
+  const host = hostname.trim().toLowerCase()
+  return (
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host.endsWith('.localhost')
+  )
+}
+
+function slugFromLocalhost(hostname: string): string | null {
+  const host = hostname.trim().toLowerCase()
+  if (!host.endsWith('.localhost')) return null
+  const prefix = host.slice(0, -'.localhost'.length)
+  if (!prefix) return null
+  const parts = prefix.split('.')
+  if (parts.length === 1 && parts[0]) return parts[0]
+  if (parts.length === 2 && parts[0] === 'www' && parts[1]) return parts[1]
+  return null
+}
+
 /**
  * Extract tenant slug from a platform hostname.
  * Supports:
  * - `{slug}.{root}` → slug
  * - `www.{slug}.{root}` → slug
- * Returns null for apex, www apex, localhost, or unrelated hosts.
+ * - `{slug}.localhost` → slug (local Vite, no hosts file)
+ * Returns null for apex, www apex, bare localhost, or unrelated hosts.
  */
 export function slugFromHostname(
   hostname: string,
   rootDomain: string = PLATFORM_ROOT_DOMAIN,
 ): string | null {
   const host = hostname.trim().toLowerCase()
+  const fromLocal = slugFromLocalhost(host)
+  if (fromLocal) return fromLocal
+
   const root = rootDomain.trim().toLowerCase().replace(/^www\./, '')
   if (!host || !root) return null
 
@@ -27,6 +53,67 @@ export function slugFromHostname(
   const parts = prefix.split('.')
   if (parts.length === 1 && parts[0]) return parts[0]
   if (parts.length === 2 && parts[0] === 'www' && parts[1]) return parts[1]
+
+  return null
+}
+
+/** Local-only: `?tenant=spice-malabar` (persisted for in-app navigation). */
+export function slugFromSearchParams(
+  search: string,
+  hostname: string,
+): string | null {
+  if (!isLocalDevHostname(hostname)) return null
+  const params = new URLSearchParams(search.startsWith('?') ? search : `?${search}`)
+  if (!params.has('tenant') && !params.has('org')) return null
+  const raw = (params.get('tenant') || params.get('org') || '').trim().toLowerCase()
+  return raw || null
+}
+
+export function persistLocalTenantSlug(slug: string | null): void {
+  if (typeof sessionStorage === 'undefined') return
+  try {
+    if (slug) sessionStorage.setItem(LOCAL_TENANT_STORAGE_KEY, slug)
+    else sessionStorage.removeItem(LOCAL_TENANT_STORAGE_KEY)
+  } catch {
+    // Private mode / blocked storage
+  }
+}
+
+export function readPersistedLocalTenantSlug(): string | null {
+  if (typeof sessionStorage === 'undefined') return null
+  try {
+    const value = sessionStorage.getItem(LOCAL_TENANT_STORAGE_KEY)
+    return value?.trim() ? value.trim().toLowerCase() : null
+  } catch {
+    return null
+  }
+}
+
+export function resolveTenantSlugFromLocation(input?: {
+  hostname?: string
+  search?: string
+  persist?: boolean
+}): string | null {
+  const hostname =
+    input?.hostname ??
+    (typeof window !== 'undefined' ? window.location.hostname : '')
+  const search =
+    input?.search ??
+    (typeof window !== 'undefined' ? window.location.search : '')
+  const persist = input?.persist !== false
+
+  const fromQuery = slugFromSearchParams(search, hostname)
+  if (fromQuery) {
+    if (persist) persistLocalTenantSlug(fromQuery)
+    return fromQuery
+  }
+
+  const fromHost = slugFromHostname(hostname)
+  if (fromHost) return fromHost
+
+  if (isLocalDevHostname(hostname)) {
+    return readPersistedLocalTenantSlug()
+  }
 
   return null
 }

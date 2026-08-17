@@ -1,8 +1,9 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton'
+import { WhatsAppOtpForm } from '@/components/auth/WhatsAppOtpForm'
 import { TestCredentialsHint } from '@/components/auth/TestCredentialsHint'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -12,6 +13,11 @@ import { ROUTES } from '@/constants/ROUTES'
 import { useAuth } from '@/hooks/useAuth'
 import type { UserRole } from '@/types/enums'
 import { canAccessPortal } from '@/utils/platformMaster'
+import { shouldContinueGoogleOAuth } from '@/utils/oauthRedirect'
+import {
+  isAddressSetupPath,
+  resolveCustomerPostAuthRedirect,
+} from '@/utils/postAuthRedirect'
 
 type AuthMode = 'login' | 'register'
 
@@ -30,6 +36,8 @@ interface EmailAuthFormProps {
   allowModeToggle?: boolean
   /** When false, hide Google OAuth (staff / master portals). */
   allowGoogle?: boolean
+  /** When false, hide WhatsApp OTP (staff / master portals). */
+  allowWhatsApp?: boolean
   redirectTo?: string
   submitLabel?: {
     login: string
@@ -43,23 +51,33 @@ const DEFAULT_SUBMIT = {
   register: 'Create Account',
 }
 
+let googleContinueStarted = false
+
 export function EmailAuthForm({
   role,
   initialMode = 'login',
   allowModeToggle = true,
   allowGoogle = role === 'customer',
+  allowWhatsApp = role === 'customer',
   redirectTo,
   submitLabel = DEFAULT_SUBMIT,
   footer,
 }: EmailAuthFormProps) {
-  const { login, register: registerAccount, logout } = useAuth()
+  const { login, register: registerAccount, logout, loginWithGoogle } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [mode, setMode] = useState<AuthMode>(initialMode)
   const labels = submitLabel ?? DEFAULT_SUBMIT
 
+  const nextFromQuery = new URLSearchParams(location.search).get('next')
+  const safeNext =
+    nextFromQuery?.startsWith('/') && !nextFromQuery.startsWith('//')
+      ? nextFromQuery
+      : null
+
   const resolvedRedirect =
     redirectTo ??
+    safeNext ??
     (location.state as { from?: string } | null)?.from ??
     (role === 'platform_master'
       ? ROUTES.MASTER.DASHBOARD
@@ -70,6 +88,33 @@ export function EmailAuthForm({
           : ROUTES.HOME)
 
   const demo = primaryAccountForRole(role)
+
+  useEffect(() => {
+    if (!allowGoogle || googleContinueStarted) return
+    if (!shouldContinueGoogleOAuth(location.search)) return
+    googleContinueStarted = true
+
+    const params = new URLSearchParams(location.search)
+    params.delete('continue')
+    const cleaned = params.toString()
+    navigate(
+      { pathname: location.pathname, search: cleaned ? `?${cleaned}` : '' },
+      { replace: true },
+    )
+
+    void loginWithGoogle(resolvedRedirect).then((result) => {
+      if (!result.success) {
+        toast.error(result.message)
+      }
+    })
+  }, [
+    allowGoogle,
+    location.pathname,
+    location.search,
+    loginWithGoogle,
+    navigate,
+    resolvedRedirect,
+  ])
 
   const {
     register,
@@ -105,8 +150,16 @@ export function EmailAuthForm({
         return
       }
 
-      toast.success('Welcome back!')
-      navigate(resolvedRedirect, { replace: true })
+      const next =
+        role === 'customer'
+          ? await resolveCustomerPostAuthRedirect(resolvedRedirect)
+          : resolvedRedirect
+      toast.success(
+        isAddressSetupPath(next)
+          ? 'Welcome! Add a delivery address to finish setup.'
+          : 'Welcome back!',
+      )
+      navigate(next, { replace: true })
       return
     }
 
@@ -131,8 +184,16 @@ export function EmailAuthForm({
       return
     }
 
-    toast.success('Account created successfully!')
-    navigate(resolvedRedirect, { replace: true })
+    const next =
+      role === 'customer'
+        ? await resolveCustomerPostAuthRedirect(resolvedRedirect)
+        : resolvedRedirect
+    toast.success(
+      isAddressSetupPath(next)
+        ? 'Account created. Add a delivery address to finish setup.'
+        : 'Account created successfully!',
+    )
+    navigate(next, { replace: true })
   }
 
   const fillDemoCredentials = (email: string, password: string) => {
@@ -147,6 +208,21 @@ export function EmailAuthForm({
 
   return (
     <div>
+      {allowWhatsApp ? (
+        <div className="mb-6 space-y-4">
+          <WhatsAppOtpForm
+            role={role}
+            redirectTo={resolvedRedirect}
+            collectName
+          />
+          <div className="flex items-center gap-3 text-xs text-text-secondary">
+            <span className="h-px flex-1 bg-black/10" />
+            <span>or continue another way</span>
+            <span className="h-px flex-1 bg-black/10" />
+          </div>
+        </div>
+      ) : null}
+
       {allowGoogle ? (
         <div className="mb-6 space-y-4">
           <GoogleSignInButton redirectTo={resolvedRedirect} />
@@ -182,7 +258,7 @@ export function EmailAuthForm({
               error={errors.phone?.message}
               {...register('phone', {
                 pattern: {
-                  value: /^\d{10}$/,
+                  value: /^[6-9]\d{9}$/,
                   message: 'Enter a valid 10-digit mobile number',
                 },
               })}
@@ -231,7 +307,7 @@ export function EmailAuthForm({
           <p className="text-center text-sm text-text-secondary">
             {mode === 'login' ? (
               <>
-                Need a new {role} account?{' '}
+                Need {role === 'customer' ? 'an account at this restaurant' : `a new ${role} account`}?{' '}
                 <button
                   type="button"
                   onClick={() => setMode('register')}

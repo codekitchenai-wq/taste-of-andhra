@@ -7,3 +7,10 @@ export const TASTE_OF_ANDHRA_ORG_ID =
  * All writes to tenant-owned tables should use this.
  */
 export const DEFAULT_ORGANIZATION_ID = TASTE_OF_ANDHRA_ORG_ID
+
+/**
+ * Host asked for a tenant slug that did not match a row.
+ * Do not fall back to Taste of Andhra catalog/photos.
+ */
+export const UNMATCHED_ORGANIZATION_ID =
+  '00000000-0000-0000-0000-000000000000' as const

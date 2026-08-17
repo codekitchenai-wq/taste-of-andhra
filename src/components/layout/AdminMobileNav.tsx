@@ -1,8 +1,9 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, X } from 'lucide-react'
-import { APP_NAME } from '@/constants/APP'
 import { ROUTES } from '@/constants/ROUTES'
+import { useOrganization } from '@/contexts/OrganizationContext'
+import { storefrontContact } from '@/utils/storefrontCopy'
 import {
   adminPrimaryNavItems,
   adminSecondaryNavItems,
@@ -19,6 +20,7 @@ interface AdminMobileNavProps {
 export function AdminMobileNav({ isOpen, onClose }: AdminMobileNavProps) {
   const asideRef = useRef<HTMLElement>(null)
   const { pathname } = useLocation()
+  const contact = storefrontContact(useOrganization())
   const secondaryActive = isAdminSecondaryRoute(pathname)
   const [moreOpen, setMoreOpen] = useState(secondaryActive)
 
@@ -45,7 +47,7 @@ export function AdminMobileNav({ isOpen, onClose }: AdminMobileNavProps) {
       >
         <div className="flex h-[72px] items-center justify-between border-b border-black/5 px-4">
           <span className="font-heading text-lg font-bold text-primary">
-            {APP_NAME}
+            {contact.name}
           </span>
           <button
             type="button"

@@ -2,9 +2,12 @@ import { Star } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Container } from '@/components/ui/Container'
 import { SectionHeader } from '@/components/home/SectionHeader'
-import { testimonials } from '@/data/home'
+import { useOrganization } from '@/contexts/OrganizationContext'
+import { storefrontTestimonials } from '@/utils/storefrontCopy'
 
 export function Testimonials() {
+  const org = useOrganization()
+  const items = storefrontTestimonials(org)
   return (
     <section className="bg-surface py-12 md:py-16 lg:py-20">
       <Container as="div">
@@ -14,7 +17,7 @@ export function Testimonials() {
         />
 
         <div className="mt-10 grid gap-6 md:grid-cols-3">
-          {testimonials.map((testimonial) => (
+          {items.map((testimonial) => (
             <Card key={testimonial.id} hoverable className="flex flex-col">
               <div
                 className="flex gap-1"

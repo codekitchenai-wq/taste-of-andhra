@@ -34,6 +34,10 @@ export function buildUpiQrImageUrl(upiUrl: string, size = 280): string {
   return `https://api.qrserver.com/v1/create-qr-code/?${params.toString()}`
 }
 
+/**
+ * Show UPI QR whenever pay-later is still unpaid (storefront + phone/counter).
+ * Cancelled / paid orders never show the collect QR.
+ */
 export function canShowPayLaterQr(input: {
   paymentMethod: string
   paymentStatus: string
@@ -42,13 +46,6 @@ export function canShowPayLaterQr(input: {
 }): boolean {
   if (input.paymentMethod !== 'pay_later') return false
   if (input.paymentStatus !== 'pending') return false
-
-  if (input.fulfillmentType === 'pickup') {
-    return input.orderStatus === 'ready' || input.orderStatus === 'delivered'
-  }
-
-  return (
-    input.orderStatus === 'out_for_delivery' ||
-    input.orderStatus === 'delivered'
-  )
+  if (input.orderStatus === 'cancelled') return false
+  return true
 }

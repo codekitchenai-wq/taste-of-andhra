@@ -1,4 +1,4 @@
-const INDIAN_PHONE_PATTERN = /^\d{10}$/
+const INDIAN_PHONE_PATTERN = /^[6-9]\d{9}$/
 
 /** Strip formatting and return 10-digit Indian mobile, or null if invalid. */
 export function normalizeIndianPhone(input: string): string | null {

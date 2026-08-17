@@ -8,6 +8,7 @@ export function DeliveryLoginForm() {
       role="delivery"
       initialMode="login"
       allowModeToggle
+      allowWhatsApp={false}
       redirectTo={ROUTES.DELIVERY.DASHBOARD}
       submitLabel={{
         login: 'Sign In',

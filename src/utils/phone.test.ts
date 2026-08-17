@@ -24,6 +24,11 @@ describe('normalizeIndianPhone', () => {
     expect(normalizeIndianPhone('98765432101')).toBeNull()
     expect(normalizeIndianPhone('')).toBeNull()
   })
+
+  it('rejects numbers that are not Indian mobiles', () => {
+    expect(normalizeIndianPhone('0123456789')).toBeNull()
+    expect(normalizeIndianPhone('1234567890')).toBeNull()
+  })
 })
 
 describe('toE164IndianPhone', () => {

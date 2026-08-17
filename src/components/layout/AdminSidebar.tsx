@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { ChevronDown } from 'lucide-react'
-import { APP_NAME } from '@/constants/APP'
 import { ROUTES } from '@/constants/ROUTES'
+import { useOrganization } from '@/contexts/OrganizationContext'
+import { storefrontContact } from '@/utils/storefrontCopy'
 import {
   adminPrimaryNavItems,
   adminSecondaryNavItems,
@@ -16,6 +17,8 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ collapsed = false }: AdminSidebarProps) {
   const { pathname } = useLocation()
+  const contact = storefrontContact(useOrganization())
+  const displayName = contact.name
   const secondaryActive = isAdminSecondaryRoute(pathname)
   const [moreOpen, setMoreOpen] = useState(secondaryActive)
 
@@ -37,7 +40,7 @@ export function AdminSidebar({ collapsed = false }: AdminSidebarProps) {
             collapsed && 'sr-only',
           )}
         >
-          {APP_NAME}
+          {displayName}
         </span>
         {collapsed && (
           <span className="font-heading text-lg font-bold text-primary">TA</span>

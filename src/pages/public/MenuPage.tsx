@@ -13,11 +13,13 @@ import {
   useMenuDishes,
 } from '@/hooks/useMenuDishes'
 import { usePublicCategories } from '@/hooks/usePublicCategories'
+import { useMenuImageFallbacks } from '@/hooks/useMenuImageFallbacks'
 
 export default function MenuPage() {
   const [filters, setFilters] = useState(DEFAULT_MENU_FILTERS)
   const { categories } = usePublicCategories()
   const { dishes, isLoading, error, refetch } = useMenuDishes(filters)
+  const categoryImages = useMenuImageFallbacks(categories, dishes)
 
   const categoryNames = useMemo(
     () => Object.fromEntries(categories.map((category) => [category.id, category.name])),
@@ -95,6 +97,7 @@ export default function MenuPage() {
                 key={dish.id}
                 dish={dish}
                 categoryName={categoryNames[dish.category_id]}
+                fallbackImage={categoryImages.get(dish.category_id)}
               />
             ))}
           </div>

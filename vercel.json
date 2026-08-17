@@ -4,6 +4,30 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "installCommand": "npm install",
+  "redirects": [
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "taste-of-andhra.vercel.app"
+        }
+      ],
+      "destination": "https://www.thetasteofandhra.com/",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "taste-of-andhra.vercel.app"
+        }
+      ],
+      "destination": "https://www.thetasteofandhra.com/:path*",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/(.*)",

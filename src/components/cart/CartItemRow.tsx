@@ -4,6 +4,8 @@ import { Badge } from '@/components/ui/Badge'
 import { ROUTES } from '@/constants/ROUTES'
 import type { CartItem } from '@/types/Cart'
 import { LazyImage } from '@/components/ui/LazyImage'
+import { useOrganization } from '@/contexts/OrganizationContext'
+import { dishImageFallback } from '@/utils/storefrontCopy'
 import { formatPrice } from '@/utils/format'
 
 interface CartItemRowProps {
@@ -19,6 +21,7 @@ export function CartItemRow({
   onUpdateQuantity,
   onRemove,
 }: CartItemRowProps) {
+  const org = useOrganization()
   const dish = item.dish
 
   if (!dish) return null
@@ -34,17 +37,12 @@ export function CartItemRow({
         to={ROUTES.DISH_DETAILS(dish.slug)}
         className="shrink-0 overflow-hidden rounded-[var(--radius-input)]"
       >
-        {dish.image_url ? (
-          <LazyImage
-            src={dish.image_url}
-            alt={dish.name}
-            className="h-20 w-20 object-cover sm:h-24 sm:w-24"
-          />
-        ) : (
-          <div className="flex h-20 w-20 items-center justify-center bg-primary/10 text-xl font-bold text-primary sm:h-24 sm:w-24">
-            {dish.name.charAt(0)}
-          </div>
-        )}
+        <LazyImage
+          src={dishImageFallback(dish.image_url, org.slug)}
+          alt={dish.name}
+          imageWidth={200}
+          className="h-20 w-20 object-cover sm:h-24 sm:w-24"
+        />
       </Link>
 
       <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

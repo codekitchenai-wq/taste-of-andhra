@@ -1,13 +1,17 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ImageOff } from 'lucide-react'
 import { cn } from '@/utils/cn'
+import { optimizeMenuImage } from '@/utils/menuImage'
 
 interface LazyImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   eager?: boolean
+  /** Target width sent to the image CDN (Swiggy/Cloudinary). */
+  imageWidth?: number
 }
 
 export function LazyImage({
   eager = false,
+  imageWidth,
   className,
   alt,
   src,
@@ -15,8 +19,16 @@ export function LazyImage({
   ...props
 }: LazyImageProps) {
   const [failed, setFailed] = useState(false)
+  const optimized = optimizeMenuImage(
+    typeof src === 'string' ? src : null,
+    imageWidth ?? (eager ? 1200 : 400),
+  )
 
-  if (!src || failed) {
+  useEffect(() => {
+    setFailed(false)
+  }, [optimized])
+
+  if (!optimized || failed) {
     return (
       <div
         className={cn(
@@ -34,9 +46,16 @@ export function LazyImage({
   return (
     <img
       alt={alt ?? ''}
-      src={src}
+      src={optimized}
       loading={eager ? 'eager' : 'lazy'}
       decoding="async"
+      fetchPriority={eager ? 'high' : 'low'}
+      referrerPolicy="no-referrer"
+      sizes={
+        eager
+          ? '100vw'
+          : '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw'
+      }
       className={cn(className)}
       onError={(event) => {
         setFailed(true)

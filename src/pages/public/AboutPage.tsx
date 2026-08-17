@@ -3,11 +3,11 @@ import { ChefHat, Heart, MapPin, Users } from 'lucide-react'
 import { WhyChooseUs } from '@/components/home/WhyChooseUs'
 import { Container } from '@/components/ui/Container'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { APP_NAME, APP_TAGLINE, CONTACT, OPENING_HOURS } from '@/constants/APP'
 import { ROUTES } from '@/constants/ROUTES'
-import { whyChooseUsItems } from '@/data/home'
+import { useOrganization } from '@/contexts/OrganizationContext'
+import { storefrontContact, storefrontWhyChooseUs } from '@/utils/storefrontCopy'
 
-const milestones = [
+const ANDHRA_MILESTONES = [
   {
     year: '2018',
     title: 'Our Beginning',
@@ -28,54 +28,84 @@ const milestones = [
   },
 ]
 
+const SPICE_MILESTONES = [
+  {
+    year: 'Kitchen',
+    title: 'Kerala speciality in Pune',
+    description:
+      'Chopsticks Spice Malabar cooks nadan curries, appam, pothichoru and Malabar biryani for Viman Nagar.',
+  },
+  {
+    year: 'Menu',
+    title: 'South, North and Indo-Chinese',
+    description:
+      'From Pomfret Tandoori to everyday thalis — a wide menu for families in and around Viman Nagar.',
+  },
+  {
+    year: 'Order',
+    title: 'Dine-in, takeaway and delivery',
+    description:
+      'Order online for pickup or delivery across nearby Pune pin codes, seven days a week.',
+  },
+]
+
 export default function AboutPage() {
+  const org = useOrganization()
+  const contact = storefrontContact(org)
+  const highlights = storefrontWhyChooseUs(org)
+  const milestones =
+    org.slug === 'spice-malabar' ? SPICE_MILESTONES : ANDHRA_MILESTONES
+
   return (
     <>
       <Container as="section" className="py-12 md:py-16 lg:py-20">
-        <PageHeader
-          title={`About ${APP_NAME}`}
-          description={APP_TAGLINE}
-        />
+        <PageHeader title={`About ${contact.name}`} description={contact.tagline} />
 
         <div className="mt-10 grid gap-8 lg:grid-cols-2 lg:items-center">
           <div className="space-y-4 text-text-secondary">
             <p className="text-lg leading-relaxed text-text-primary">
-              {APP_NAME} brings the bold, authentic flavors of Andhra Pradesh to
-              your table — from fiery Gongura curries to fragrant Dum Biryanis
-              prepared with traditional recipes and fresh ingredients.
+              {contact.description}
             </p>
             <p className="leading-relaxed">
-              Our chefs combine generations of culinary heritage with modern
-              hygiene standards. Every dish is cooked to order, packed with care,
-              and delivered hot so you experience restaurant-quality Andhra
-              cuisine at home.
+              Visit us at {contact.address}. Call {contact.phones.join(' / ')} for
+              table bookings, takeaway, or delivery.
             </p>
             <p className="leading-relaxed">
-              Whether you are craving a quick lunch, a family dinner, or catering
-              for a party, we are here to serve food that tastes like home.
+              Open {contact.weekdayHours} on weekdays and {contact.weekendHours}{' '}
+              on weekends.
             </p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-[var(--radius-card)] bg-primary p-6 text-white shadow-md">
               <ChefHat className="h-8 w-8 text-accent" aria-hidden="true" />
-              <p className="mt-3 text-2xl font-bold">50+</p>
+              <p className="mt-3 text-2xl font-bold">
+                {org.slug === 'spice-malabar' ? '500+' : '50+'}
+              </p>
               <p className="text-sm text-white/85">Dishes on our menu</p>
             </div>
             <div className="rounded-[var(--radius-card)] bg-surface p-6 shadow-md">
               <Users className="h-8 w-8 text-primary" aria-hidden="true" />
-              <p className="mt-3 text-2xl font-bold text-text-primary">10k+</p>
-              <p className="text-sm text-text-secondary">Happy customers</p>
+              <p className="mt-3 text-2xl font-bold text-text-primary">
+                {org.slug === 'spice-malabar' ? 'Viman Nagar' : '10k+'}
+              </p>
+              <p className="text-sm text-text-secondary">
+                {org.slug === 'spice-malabar' ? 'Pune kitchen' : 'Happy customers'}
+              </p>
             </div>
             <div className="rounded-[var(--radius-card)] bg-surface p-6 shadow-md">
               <Heart className="h-8 w-8 text-primary" aria-hidden="true" />
-              <p className="mt-3 text-2xl font-bold text-text-primary">4.8</p>
+              <p className="mt-3 text-2xl font-bold text-text-primary">
+                {org.slug === 'spice-malabar' ? '4.4' : '4.8'}
+              </p>
               <p className="text-sm text-text-secondary">Average rating</p>
             </div>
             <div className="rounded-[var(--radius-card)] bg-surface p-6 shadow-md">
               <MapPin className="h-8 w-8 text-primary" aria-hidden="true" />
-              <p className="mt-3 text-2xl font-bold text-text-primary">45 min</p>
-              <p className="text-sm text-text-secondary">Average delivery</p>
+              <p className="mt-3 text-2xl font-bold text-text-primary">
+                {org.slug === 'spice-malabar' ? '20 min' : '45 min'}
+              </p>
+              <p className="text-sm text-text-secondary">Typical wait</p>
             </div>
           </div>
         </div>
@@ -105,15 +135,15 @@ export default function AboutPage() {
         <section className="mt-16 rounded-[var(--radius-card)] bg-background p-6 md:p-8">
           <h2 className="text-2xl font-bold text-text-primary">Visit Us</h2>
           <a
-            href={CONTACT.mapsDirectionsUrl}
+            href={contact.mapsUrl}
             target="_blank"
             rel="noreferrer"
             className="mt-2 block text-text-secondary transition-colors hover:text-primary"
           >
-            {CONTACT.address}
+            {contact.address}
           </a>
           <a
-            href={CONTACT.mapsDirectionsUrl}
+            href={contact.mapsUrl}
             target="_blank"
             rel="noreferrer"
             className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary-dark"
@@ -121,14 +151,17 @@ export default function AboutPage() {
             <MapPin className="h-4 w-4" />
             Get directions on Google Maps
           </a>
+          <p className="mt-3 text-sm text-text-secondary">
+            {contact.phones.join(' / ')}
+          </p>
           <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
             <div>
               <dt className="font-medium text-text-primary">Weekdays</dt>
-              <dd className="text-text-secondary">{OPENING_HOURS.weekdays}</dd>
+              <dd className="text-text-secondary">{contact.weekdayHours}</dd>
             </div>
             <div>
               <dt className="font-medium text-text-primary">Weekends</dt>
-              <dd className="text-text-secondary">{OPENING_HOURS.weekends}</dd>
+              <dd className="text-text-secondary">{contact.weekendHours}</dd>
             </div>
           </dl>
           <Link
@@ -145,7 +178,7 @@ export default function AboutPage() {
       <Container as="section" className="pb-16">
         <h2 className="text-2xl font-bold text-text-primary">What Sets Us Apart</h2>
         <ul className="mt-6 grid gap-4 sm:grid-cols-2">
-          {whyChooseUsItems.map((item) => (
+          {highlights.map((item) => (
             <li
               key={item.title}
               className="rounded-[var(--radius-card)] border border-black/5 bg-surface p-5 shadow-sm"

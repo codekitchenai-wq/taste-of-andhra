@@ -15,14 +15,15 @@ describe('isValidEmail', () => {
 })
 
 describe('isValidPhone', () => {
-  it('accepts exactly 10 digits', () => {
+  it('accepts a 10-digit Indian mobile', () => {
     expect(isValidPhone('9876543210')).toBe(true)
   })
 
-  it('rejects non-10-digit values', () => {
+  it('rejects non-Indian or non-10-digit values', () => {
     expect(isValidPhone('987654321')).toBe(false)
     expect(isValidPhone('98765432101')).toBe(false)
     expect(isValidPhone('98765 43210')).toBe(false)
+    expect(isValidPhone('0123456789')).toBe(false)
   })
 })
 

@@ -5,12 +5,15 @@ import { LazyImage } from '@/components/ui/LazyImage'
 import { SectionHeader } from '@/components/home/SectionHeader'
 import type { HomeCategory } from '@/data/home'
 import { ROUTES } from '@/constants/ROUTES'
+import { useOrganization } from '@/contexts/OrganizationContext'
+import { storefrontCategoriesSubtitle } from '@/utils/storefrontCopy'
 
 interface FeaturedCategoriesProps {
   categories: HomeCategory[]
 }
 
 export function FeaturedCategories({ categories }: FeaturedCategoriesProps) {
+  const org = useOrganization()
   if (categories.length === 0) return null
 
   return (
@@ -18,7 +21,7 @@ export function FeaturedCategories({ categories }: FeaturedCategoriesProps) {
       <Container as="div">
         <SectionHeader
           title="Explore Categories"
-          subtitle="Browse our menu by your favorite Andhra specialties"
+          subtitle={storefrontCategoriesSubtitle(org)}
         />
 
         <div className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-6">
@@ -29,11 +32,12 @@ export function FeaturedCategories({ categories }: FeaturedCategoriesProps) {
               className="group overflow-hidden rounded-[var(--radius-card)] bg-surface shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
             >
               <div className="aspect-[4/3] overflow-hidden">
-                <LazyImage
-                  src={category.imageUrl}
-                  alt={category.name}
-                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                />
+                  <LazyImage
+                    src={category.imageUrl}
+                    alt={category.name}
+                    imageWidth={480}
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
               </div>
               <div className="p-4">
                 <h3 className="font-semibold text-text-primary">

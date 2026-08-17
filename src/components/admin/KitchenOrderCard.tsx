@@ -174,6 +174,24 @@ export function KitchenOrderCard({
             Pickup
           </span>
         )}
+        {order.payment_status === 'pending' &&
+          order.payment_method === 'pay_later' && (
+            <span
+              className={cn(
+                'rounded px-1 py-0.5 text-[10px] font-medium',
+                order.payment_claimed_at
+                  ? 'bg-amber-100 text-amber-900'
+                  : 'bg-warning/20 text-text-primary',
+              )}
+            >
+              {order.payment_claimed_at ? 'UPI claimed' : 'UPI unpaid'}
+            </span>
+          )}
+        {order.payment_status === 'paid' && (
+          <span className="rounded bg-success/15 px-1 py-0.5 text-[10px] font-medium text-success">
+            Paid
+          </span>
+        )}
       </div>
 
       {canEditEta && (

@@ -7,10 +7,11 @@ import { Container } from '@/components/ui/Container'
 import { Input } from '@/components/ui/Input'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Textarea } from '@/components/ui/Textarea'
-import { CONTACT } from '@/constants/APP'
+import { useOrganization } from '@/contexts/OrganizationContext'
 import * as partyInquiryService from '@/services/partyInquiryService'
 import type { PartyMealPreference } from '@/types/PartyInquiry'
 import { cn } from '@/utils/cn'
+import { storefrontContact } from '@/utils/storefrontCopy'
 
 interface PartyOrderFormValues {
   fullName: string
@@ -51,6 +52,7 @@ const MEAL_OPTIONS: {
 ]
 
 export default function PartyOrderPage() {
+  const contact = storefrontContact(useOrganization())
   const [submitted, setSubmitted] = useState(false)
 
   const {
@@ -111,7 +113,7 @@ export default function PartyOrderPage() {
     <Container as="div" className="py-8 md:py-12 lg:py-16">
       <PageHeader
         title="Party Order Enquiry"
-        description="Planning a gathering? Share your details and we’ll get back with a custom Andhra menu quote."
+        description={`Planning a gathering? Share your details and we’ll get back with a custom ${contact.name} menu quote.`}
       />
 
       <div className="grid gap-8 lg:grid-cols-[1fr_320px] lg:items-start">
@@ -376,7 +378,7 @@ export default function PartyOrderPage() {
             </h2>
             <p className="mt-2 text-sm text-white/85">
               Birthdays, office parties, family functions — we prepare fresh
-              Andhra meals for groups of all sizes.
+              meals for groups of all sizes.
             </p>
           </div>
           <div className="rounded-[var(--radius-card)] border border-black/5 bg-surface p-5 shadow-sm md:p-6">
@@ -385,17 +387,19 @@ export default function PartyOrderPage() {
               Speak with us directly for urgent party orders.
             </p>
             <a
-              href={`tel:${CONTACT.phone.replace(/\s/g, '')}`}
+              href={`tel:${contact.phone.replace(/\s/g, '')}`}
               className="mt-4 inline-flex text-sm font-medium text-primary hover:text-primary-dark"
             >
-              {CONTACT.phone}
+              {contact.phones.join(' / ')}
             </a>
-            <a
-              href={`mailto:${CONTACT.email}`}
-              className="mt-2 block text-sm font-medium text-primary hover:text-primary-dark"
-            >
-              {CONTACT.email}
-            </a>
+            {contact.email ? (
+              <a
+                href={`mailto:${contact.email}`}
+                className="mt-2 block text-sm font-medium text-primary hover:text-primary-dark"
+              >
+                {contact.email}
+              </a>
+            ) : null}
           </div>
         </aside>
       </div>

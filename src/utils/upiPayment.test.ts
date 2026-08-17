@@ -17,7 +17,15 @@ describe('upiPayment', () => {
     expect(url).toContain('am=250.50')
   })
 
-  it('shows QR after ready for pickup pay-later', () => {
+  it('shows QR for pending pay-later at any active kitchen status', () => {
+    expect(
+      canShowPayLaterQr({
+        paymentMethod: 'pay_later',
+        paymentStatus: 'pending',
+        orderStatus: 'pending',
+        fulfillmentType: 'delivery',
+      }),
+    ).toBe(true)
     expect(
       canShowPayLaterQr({
         paymentMethod: 'pay_later',
@@ -28,12 +36,12 @@ describe('upiPayment', () => {
     ).toBe(true)
   })
 
-  it('hides QR until out for delivery for delivery pay-later', () => {
+  it('hides QR when paid or cancelled', () => {
     expect(
       canShowPayLaterQr({
         paymentMethod: 'pay_later',
-        paymentStatus: 'pending',
-        orderStatus: 'ready',
+        paymentStatus: 'paid',
+        orderStatus: 'confirmed',
         fulfillmentType: 'delivery',
       }),
     ).toBe(false)
@@ -41,9 +49,9 @@ describe('upiPayment', () => {
       canShowPayLaterQr({
         paymentMethod: 'pay_later',
         paymentStatus: 'pending',
-        orderStatus: 'delivered',
+        orderStatus: 'cancelled',
         fulfillmentType: 'delivery',
       }),
-    ).toBe(true)
+    ).toBe(false)
   })
 })

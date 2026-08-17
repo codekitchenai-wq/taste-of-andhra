@@ -15,6 +15,15 @@ const CANCEL_PATH = Deno.env.get('PIDGE_CANCEL_ORDER_PATH') ?? '/v1.0/store/chan
 
 export const isPidgeConfigured = API_TOKEN.length > 0
 
+export function getPidgeConfigStatus() {
+  return {
+    configured: isPidgeConfigured,
+    webhookConfigured: (Deno.env.get('PIDGE_WEBHOOK_TOKEN') ?? '').length > 0,
+    channelName: Deno.env.get('PIDGE_CHANNEL_NAME') ?? 'taste-of-andhra',
+    apiBase: API_BASE,
+  }
+}
+
 export interface PidgeLocation {
   name: string
   phone: string

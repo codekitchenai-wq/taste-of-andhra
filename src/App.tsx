@@ -1,20 +1,27 @@
+import { useMemo } from 'react'
 import { RouterProvider } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
+import { CustomerEnrollmentSync } from '@/components/auth/CustomerEnrollmentSync'
 import { ConfigBanner } from '@/components/ui/ConfigBanner'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { BranchProvider } from '@/contexts/BranchContext'
 import { CartProvider } from '@/contexts/CartContext'
 import { FavoritesProvider } from '@/contexts/FavoritesContext'
 import { OrganizationProvider } from '@/contexts/OrganizationContext'
-import { router } from '@/routes'
+import { createAppRouter } from '@/routes'
+import { isPlatformMarketingHost } from '@/utils/platformHost'
 
 export default function App() {
+  const marketing = isPlatformMarketingHost()
+  const router = useMemo(() => createAppRouter(), [marketing])
+
   return (
     <AuthProvider>
       <OrganizationProvider>
         <BranchProvider>
           <CartProvider>
             <FavoritesProvider>
+              <CustomerEnrollmentSync />
               <ConfigBanner />
               <RouterProvider router={router} />
               <Toaster

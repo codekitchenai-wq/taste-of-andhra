@@ -1,9 +1,10 @@
 import {
   accountsForRole,
   primaryAccountForRole,
-  SHOW_TEST_HELPERS,
 } from '@/constants/DEMO_ACCOUNTS'
 import type { UserRole } from '@/types/enums'
+import { useOrganization } from '@/contexts/OrganizationContext'
+import { showStorefrontQaHelpers } from '@/utils/storefrontCopy'
 
 interface TestCredentialsHintProps {
   role: UserRole
@@ -21,7 +22,8 @@ export function TestCredentialsHint({
   role,
   onUseCredentials,
 }: TestCredentialsHintProps) {
-  if (!SHOW_TEST_HELPERS) return null
+  const org = useOrganization()
+  if (!showStorefrontQaHelpers(org)) return null
 
   const primary = primaryAccountForRole(role)
   const others = accountsForRole(role).filter((a) => a.email !== primary.email)

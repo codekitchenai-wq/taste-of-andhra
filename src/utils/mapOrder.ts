@@ -32,6 +32,8 @@ export function mapOrder(row: Record<string, unknown>): Order {
     special_instructions: (row.special_instructions as string | null) ?? null,
     estimated_delivery: (row.estimated_delivery as string | null) ?? null,
     payment_share_token: (row.payment_share_token as string | null) ?? null,
+    payment_claimed_at: (row.payment_claimed_at as string | null) ?? null,
+    payment_claim_note: (row.payment_claim_note as string | null) ?? null,
     whatsapp_updates_opt_in: Boolean(row.whatsapp_updates_opt_in),
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,

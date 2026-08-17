@@ -22,9 +22,11 @@ import { ROUTES } from '@/constants/ROUTES'
 import { useAuth } from '@/hooks/useAuth'
 import { useCart } from '@/hooks/useCart'
 import { useDishBySlug } from '@/hooks/useDishBySlug'
+import { useOrganization } from '@/contexts/OrganizationContext'
 import * as modifierService from '@/services/modifierService'
 import type { DishModifierGroup } from '@/types/Modifier'
 import { formatPrice } from '@/utils/format'
+import { dishImageFallback } from '@/utils/storefrontCopy'
 import {
   buildModifierSnapshots,
   calculateUnitPrice,
@@ -40,6 +42,7 @@ export default function DishDetailsPage() {
   const isReserved = Boolean(slug && RESERVED_MENU_SLUGS.has(slug))
   const navigate = useNavigate()
   const { isAuthenticated } = useAuth()
+  const { slug: orgSlug } = useOrganization()
   const { addItem, isUpdating } = useCart()
   const { dish, category, isLoading, error, refetch } = useDishBySlug(
     !isReserved && slug ? slug : undefined,
@@ -148,8 +151,13 @@ export default function DishDetailsPage() {
       <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
         <div className="relative overflow-hidden rounded-[var(--radius-card)] bg-surface shadow-md">
           <LazyImage
-            src={dish.image_url ?? undefined}
+            src={dishImageFallback(
+              dish.image_url || category?.image_url,
+              orgSlug,
+            )}
             alt={dish.name}
+            eager
+            imageWidth={900}
             className="aspect-[4/3] w-full object-cover"
           />
           <FavoriteButton dishId={dish.id} className="absolute right-3 top-3" />

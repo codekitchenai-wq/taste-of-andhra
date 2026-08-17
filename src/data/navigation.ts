@@ -14,6 +14,11 @@ export const mainNavLinks: NavLink[] = [
   { label: 'Contact', to: ROUTES.CONTACT },
 ]
 
+export const onamSpecialNavLink: NavLink = {
+  label: 'Onam Special',
+  to: ROUTES.ONAM,
+}
+
 export const footerQuickLinks: NavLink[] = [
   { label: 'Home', to: ROUTES.HOME },
   { label: 'Menu', to: ROUTES.MENU },

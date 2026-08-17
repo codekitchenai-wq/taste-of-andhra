@@ -3,21 +3,25 @@ import type { LucideIcon } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Container } from '@/components/ui/Container'
 import { SectionHeader } from '@/components/home/SectionHeader'
-import { whyChooseUsItems } from '@/data/home'
+import { useOrganization } from '@/contexts/OrganizationContext'
+import { storefrontWhyChooseUs } from '@/utils/storefrontCopy'
 
 const icons: LucideIcon[] = [ChefHat, Leaf, Clock, ShieldCheck]
 
 export function WhyChooseUs() {
+  const org = useOrganization()
+  const items = storefrontWhyChooseUs(org)
+  const subtitle = org.resolvedFromHost
+    ? `What makes ${org.name || 'this kitchen'} a favourite in your neighbourhood`
+    : 'What makes The Taste of Andhra your go-to destination for authentic food'
+
   return (
     <section className="bg-background py-12 md:py-16 lg:py-20">
       <Container as="div">
-        <SectionHeader
-          title="Why Choose Us"
-          subtitle="What makes The Taste of Andhra your go-to destination for authentic food"
-        />
+        <SectionHeader title="Why Choose Us" subtitle={subtitle} />
 
         <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {whyChooseUsItems.map((item, index) => {
+          {items.map((item, index) => {
             const Icon = icons[index] ?? ChefHat
 
             return (

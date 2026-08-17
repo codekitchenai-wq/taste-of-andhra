@@ -5,7 +5,7 @@ import {
 } from '@/types/api'
 import type { Dish } from '@/types/Dish'
 import type { SpiceLevel } from '@/types/enums'
-import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
+import { getCurrentOrganizationId } from '@/services/currentOrganization'
 import { isSupabaseConfigured, supabase } from '@/services/supabaseClient'
 import { uploadDishImage } from '@/services/storageService'
 import { mapDish, mapDishWithCategory } from '@/utils/mapDish'
@@ -78,6 +78,7 @@ export async function getDishes(
   let query = supabase
     .from('dishes')
     .select('*')
+    .eq('organization_id', getCurrentOrganizationId())
     .eq('is_available', true)
 
   if (filters?.categoryId) {
@@ -129,6 +130,7 @@ export async function getAllDishes(): Promise<
   const { data, error } = await supabase
     .from('dishes')
     .select('*, categories(name)')
+    .eq('organization_id', getCurrentOrganizationId())
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -162,6 +164,7 @@ export async function getDishBySlug(
   const { data, error } = await supabase
     .from('dishes')
     .select('*')
+    .eq('organization_id', getCurrentOrganizationId())
     .eq('slug', slug)
     .maybeSingle()
 
@@ -202,7 +205,7 @@ export async function createDish(
 
   const { data, error } = await insertWithOrgFallback(supabase, 'dishes', {
     id: dishId,
-    organization_id: DEFAULT_ORGANIZATION_ID,
+    organization_id: getCurrentOrganizationId(),
     name,
     slug: generateSlug(name),
     description: input.description?.trim() || null,

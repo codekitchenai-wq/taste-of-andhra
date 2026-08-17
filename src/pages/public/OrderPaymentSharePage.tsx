@@ -3,9 +3,11 @@ import { Link, useParams } from 'react-router-dom'
 import { Container } from '@/components/ui/Container'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { LoadingState } from '@/components/ui/LoadingState'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
 import { OrderNumberDisplay } from '@/components/orders/OrderNumberDisplay'
-import { APP_NAME } from '@/constants/APP'
 import { ROUTES } from '@/constants/ROUTES'
+import { useOrganization } from '@/contexts/OrganizationContext'
 import * as paymentShareService from '@/services/paymentShareService'
 import type { PaymentShareView } from '@/services/paymentShareService'
 import { formatPrice } from '@/utils/format'
@@ -13,8 +15,61 @@ import {
   buildUpiPayUrl,
   buildUpiQrImageUrl,
 } from '@/utils/upiPayment'
+import { storefrontContact } from '@/utils/storefrontCopy'
+
+function ClaimPaidForm({
+  token,
+  onClaimed,
+}: {
+  token: string
+  onClaimed: (claimed: {
+    paymentClaimedAt: string | null
+    paymentClaimNote: string | null
+  }) => void
+}) {
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const submit = async () => {
+    setBusy(true)
+    setError(null)
+    const result = await paymentShareService.claimPaymentShare(token, note)
+    setBusy(false)
+    if (!result.success) {
+      setError(result.message)
+      return
+    }
+    onClaimed({
+      paymentClaimedAt: result.data.paymentClaimedAt,
+      paymentClaimNote: result.data.paymentClaimNote,
+    })
+  }
+
+  return (
+    <div className="mt-2 w-full space-y-2">
+      <Input
+        label="UTR / reference (optional)"
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder="e.g. UPI transaction ID"
+      />
+      {error && <p className="text-sm text-error">{error}</p>}
+      <Button
+        type="button"
+        variant="secondary"
+        fullWidth
+        disabled={busy}
+        onClick={() => void submit()}
+      >
+        {busy ? 'Saving…' : 'I’ve paid'}
+      </Button>
+    </div>
+  )
+}
 
 export default function OrderPaymentSharePage() {
+  const contact = storefrontContact(useOrganization())
   const { token } = useParams<{ token: string }>()
   const [share, setShare] = useState<PaymentShareView | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -60,7 +115,7 @@ export default function OrderPaymentSharePage() {
     <Container as="div" className="py-8 md:py-12">
       <div className="mx-auto max-w-lg space-y-6">
         <div>
-          <p className="text-sm font-medium text-primary">{APP_NAME}</p>
+          <p className="text-sm font-medium text-primary">{contact.name}</p>
           <h1 className="mt-1 text-2xl font-bold text-text-primary">
             Order payment
           </h1>
@@ -188,8 +243,33 @@ export default function OrderPaymentSharePage() {
                   >
                     Open in UPI app
                   </a>
+                  {share.paymentClaimedAt ? (
+                    <p className="rounded-[var(--radius-input)] bg-amber-50 px-3 py-2 text-center text-sm text-amber-950">
+                      You marked this as paid
+                      {share.paymentClaimNote
+                        ? ` (${share.paymentClaimNote})`
+                        : ''}
+                      . Waiting for the restaurant to confirm.
+                    </p>
+                  ) : (
+                    <ClaimPaidForm
+                      token={token!}
+                      onClaimed={(claimed) =>
+                        setShare((current) =>
+                          current
+                            ? {
+                                ...current,
+                                paymentClaimedAt: claimed.paymentClaimedAt,
+                                paymentClaimNote: claimed.paymentClaimNote,
+                              }
+                            : current,
+                        )
+                      }
+                    />
+                  )}
                   <p className="text-center text-xs text-text-secondary">
-                    After paying, the restaurant will confirm your payment.
+                    After paying, tap I’ve paid. The restaurant confirms in
+                    their UPI app.
                   </p>
                 </div>
               )}
@@ -197,7 +277,7 @@ export default function OrderPaymentSharePage() {
 
             <p className="text-center text-sm">
               <Link to={ROUTES.HOME} className="font-medium text-primary">
-                Back to {APP_NAME}
+                Back to {contact.name}
               </Link>
             </p>
           </>

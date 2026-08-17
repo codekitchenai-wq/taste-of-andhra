@@ -11,6 +11,8 @@ import type {
   LoginInput,
   RegisterInput,
   UpdateProfileInput,
+  WhatsAppOtpRequestResult,
+  WhatsAppOtpVerifyInput,
 } from '@/services/authService'
 import { isSupabaseConfigured, supabase } from '@/services/supabaseClient'
 import type { ServiceResponse } from '@/types/api'
@@ -24,6 +26,12 @@ export interface AuthContextValue {
   role: UserRole | null
   login: (input: LoginInput) => Promise<ServiceResponse<Profile>>
   register: (input: RegisterInput) => Promise<ServiceResponse<Profile>>
+  requestWhatsAppOtp: (
+    phone: string,
+  ) => Promise<ServiceResponse<WhatsAppOtpRequestResult>>
+  loginWithWhatsAppOtp: (
+    input: WhatsAppOtpVerifyInput,
+  ) => Promise<ServiceResponse<Profile>>
   loginWithGoogle: (redirectPath?: string) => Promise<ServiceResponse<null>>
   logout: () => Promise<ServiceResponse<null>>
   updateProfile: (input: UpdateProfileInput) => Promise<ServiceResponse<Profile>>
@@ -102,6 +110,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return result
   }, [])
 
+  const requestWhatsAppOtp = useCallback(async (phone: string) => {
+    return authService.requestWhatsAppOtp(phone)
+  }, [])
+
+  const loginWithWhatsAppOtp = useCallback(
+    async (input: WhatsAppOtpVerifyInput) => {
+      const result = await authService.loginWithWhatsAppOtp(input)
+
+      if (result.success) {
+        setUser(result.data)
+      }
+
+      return result
+    },
+    [],
+  )
+
   const loginWithGoogle = useCallback(async (redirectPath?: string) => {
     return authService.loginWithGoogle(redirectPath)
   }, [])
@@ -138,6 +163,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       role: user?.role ?? null,
       login,
       register,
+      requestWhatsAppOtp,
+      loginWithWhatsAppOtp,
       loginWithGoogle,
       logout,
       updateProfile,
@@ -148,6 +175,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       isLoading,
       login,
       register,
+      requestWhatsAppOtp,
+      loginWithWhatsAppOtp,
       loginWithGoogle,
       logout,
       updateProfile,

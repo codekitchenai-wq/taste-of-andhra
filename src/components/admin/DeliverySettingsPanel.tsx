@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, MapPin } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Copy, MapPin } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
 import { useSelectedBranch } from '@/hooks/useSelectedBranch'
+import * as deliveryQuoteService from '@/services/deliveryQuoteService'
 import * as deliverySettingsService from '@/services/deliverySettingsService'
+import type { PidgeConfigStatus } from '@/services/deliveryQuoteService'
 import type {
   DeliveryProvider,
   DeliverySettings,
@@ -58,6 +60,7 @@ export function DeliverySettingsPanel() {
   const [form, setForm] = useState<FormState | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [pidgeStatus, setPidgeStatus] = useState<PidgeConfigStatus | null>(null)
 
   const branchId = scope === GLOBAL_SCOPE ? null : scope
 
@@ -79,6 +82,19 @@ export function DeliverySettingsPanel() {
       cancelled = true
     }
   }, [branchId])
+
+  useEffect(() => {
+    let cancelled = false
+
+    void deliveryQuoteService.getPidgeStatus().then((result) => {
+      if (cancelled || !result.success) return
+      setPidgeStatus(result.data)
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const parsedPincodes = useMemo(
     () =>
@@ -302,9 +318,9 @@ export function DeliverySettingsPanel() {
               Require customers to pin their location
             </span>
             <span className="mt-1 block text-text-secondary">
-              Addresses saved without a map pin are rejected. Turn this on when
-              you rely on the distance limit, so nobody can order from outside
-              it by typing an address by hand.
+              Customers already pin new addresses on the map. Turn this on to
+              also reject older addresses saved without a pin, so the distance
+              limit cannot be skipped.
             </span>
           </span>
         </label>
@@ -362,25 +378,31 @@ export function DeliverySettingsPanel() {
         )}
 
         {isPidge && form.isEnabled && (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Input
-              label="Markup per order (₹)"
-              type="number"
-              min={0}
-              step="1"
-              value={form.markupFlat}
-              onChange={(event) => update('markupFlat', event.target.value)}
+          <>
+            <PidgeSetupCard
+              status={pidgeStatus}
+              branchesMissingCoordinates={branchesMissingCoordinates}
             />
-            <Input
-              label="Markup (%)"
-              type="number"
-              min={0}
-              max={100}
-              step="1"
-              value={form.markupPercent}
-              onChange={(event) => update('markupPercent', event.target.value)}
-            />
-          </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input
+                label="Markup per order (₹)"
+                type="number"
+                min={0}
+                step="1"
+                value={form.markupFlat}
+                onChange={(event) => update('markupFlat', event.target.value)}
+              />
+              <Input
+                label="Markup (%)"
+                type="number"
+                min={0}
+                max={100}
+                step="1"
+                value={form.markupPercent}
+                onChange={(event) => update('markupPercent', event.target.value)}
+              />
+            </div>
+          </>
         )}
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -422,5 +444,134 @@ export function DeliverySettingsPanel() {
         </Button>
       </div>
     </section>
+  )
+}
+
+function statusLabel(ok: boolean, pendingLabel: string, okLabel: string) {
+  return ok ? okLabel : pendingLabel
+}
+
+function PidgeSetupCard({
+  status,
+  branchesMissingCoordinates,
+}: {
+  status: PidgeConfigStatus | null
+  branchesMissingCoordinates: { name: string }[]
+}) {
+  const webhookUrl = status?.webhookUrl ?? deliveryQuoteService.pidgeWebhookUrl()
+  const functionsReady = Boolean(status?.functionsReachable)
+  const tokenReady = Boolean(status?.configured)
+  const webhookReady = Boolean(status?.webhookConfigured)
+  const allReady = functionsReady && tokenReady && webhookReady
+
+  const copyWebhook = async () => {
+    if (!webhookUrl) {
+      toast.error('Supabase URL is not set, so the webhook address is unknown.')
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(webhookUrl)
+      toast.success('Webhook URL copied')
+    } catch {
+      toast.error('Could not copy. Select the URL and copy it manually.')
+    }
+  }
+
+  return (
+    <div className="space-y-3 rounded-[var(--radius-card)] bg-background p-4">
+      <div className="flex items-start gap-3">
+        {allReady ? (
+          <CheckCircle2
+            className="mt-0.5 h-5 w-5 shrink-0 text-success"
+            aria-hidden="true"
+          />
+        ) : (
+          <AlertTriangle
+            className="mt-0.5 h-5 w-5 shrink-0 text-warning"
+            aria-hidden="true"
+          />
+        )}
+        <div className="min-w-0 flex-1 space-y-2">
+          <p className="text-sm font-medium text-text-primary">
+            {allReady
+              ? 'Pidge is configured. Checkout will request a live quote; book the rider when the order is ready.'
+              : 'Pidge is selected but not fully configured yet. Checkout will keep using your own rate card until secrets are set.'}
+          </p>
+          <ul className="space-y-1 text-sm text-text-secondary">
+            <li>
+              Functions:{' '}
+              <span
+                className={
+                  functionsReady ? 'font-medium text-success' : 'font-medium text-warning'
+                }
+              >
+                {status
+                  ? statusLabel(functionsReady, 'Not deployed', 'Reachable')
+                  : 'Checking…'}
+              </span>
+            </li>
+            <li>
+              API token:{' '}
+              <span
+                className={
+                  tokenReady ? 'font-medium text-success' : 'font-medium text-warning'
+                }
+              >
+                {status
+                  ? statusLabel(tokenReady, 'Missing PIDGE_API_TOKEN', 'Set')
+                  : 'Checking…'}
+              </span>
+            </li>
+            <li>
+              Webhook token:{' '}
+              <span
+                className={
+                  webhookReady ? 'font-medium text-success' : 'font-medium text-warning'
+                }
+              >
+                {status
+                  ? statusLabel(
+                      webhookReady,
+                      'Missing PIDGE_WEBHOOK_TOKEN',
+                      'Set',
+                    )
+                  : 'Checking…'}
+              </span>
+            </li>
+            {status?.channelName ? (
+              <li>Channel: {status.channelName}</li>
+            ) : null}
+          </ul>
+          {webhookUrl ? (
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <code className="block min-w-0 flex-1 truncate rounded bg-surface px-2 py-1 text-xs text-text-primary">
+                {webhookUrl}
+              </code>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => void copyWebhook()}
+              >
+                <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                Copy webhook URL
+              </Button>
+            </div>
+          ) : null}
+          <p className="text-xs text-text-secondary">
+            Paste that URL in Pidge → Settings → Channel Integration, using the
+            same auth token as <code>PIDGE_WEBHOOK_TOKEN</code>. Steps:{' '}
+            <code>docs/PIDGE_SETUP.md</code>
+          </p>
+        </div>
+      </div>
+      {branchesMissingCoordinates.length > 0 && (
+        <p className="text-xs text-warning">
+          Pin these branches before booking a Pidge rider:{' '}
+          {branchesMissingCoordinates.map((branch) => branch.name).join(', ')}.
+        </p>
+      )}
+    </div>
   )
 }

@@ -24,6 +24,7 @@ const DishDetailsPage = lazy(() => import('@/pages/public/DishDetailsPage'))
 const GalleryPage = lazy(() => import('@/pages/public/GalleryPage'))
 const ContactPage = lazy(() => import('@/pages/public/ContactPage'))
 const PartyOrderPage = lazy(() => import('@/pages/public/PartyOrderPage'))
+const OnamSpecialPage = lazy(() => import('@/pages/public/OnamSpecialPage'))
 const QrMenuPage = lazy(() => import('@/pages/public/QrMenuPage'))
 const BranchMenuPage = lazy(() => import('@/pages/public/BranchMenuPage'))
 
@@ -220,6 +221,7 @@ const restaurantStorefrontRoutes = [
       { path: ROUTES.GALLERY, element: <GalleryPage /> },
       { path: ROUTES.CONTACT, element: <ContactPage /> },
       { path: ROUTES.PARTY_ORDER, element: <PartyOrderPage /> },
+      { path: ROUTES.ONAM, element: <OnamSpecialPage /> },
       { path: 'qr/:tableCode', element: <QrMenuPage /> },
       { path: 'b/:slug', element: <BranchMenuPage /> },
       { path: 'pay/:token', element: <OrderPaymentSharePage /> },
@@ -259,8 +261,12 @@ const restaurantStorefrontRoutes = [
   { path: '*', element: <Navigate to={ROUTES.HOME} replace /> },
 ]
 
-export const router = createBrowserRouter(
-  isPlatformMarketingHost()
-    ? platformMarketingRoutes
-    : restaurantStorefrontRoutes,
-)
+export function createAppRouter() {
+  return createBrowserRouter(
+    isPlatformMarketingHost()
+      ? platformMarketingRoutes
+      : restaurantStorefrontRoutes,
+  )
+}
+
+export const router = createAppRouter()

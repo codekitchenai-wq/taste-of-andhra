@@ -12,6 +12,11 @@ import { ROUTES } from '@/constants/ROUTES'
 import { useAuth } from '@/hooks/useAuth'
 import { useCart } from '@/hooks/useCart'
 import { useStoreOpenStatus } from '@/hooks/useStoreOpenStatus'
+import {
+  isFutureOnamSchedule,
+  onamScheduledAt,
+  readOnamPrebook,
+} from '@/utils/onamPrebook'
 
 export default function CartPage() {
   const navigate = useNavigate()
@@ -32,8 +37,17 @@ export default function CartPage() {
   const desktopCheckoutRef = useRef<HTMLButtonElement>(null)
   const mobileCheckoutRef = useRef<HTMLButtonElement>(null)
 
+  const onamPrebook = readOnamPrebook()
+  const isOnamPrebook = isFutureOnamSchedule(
+    onamPrebook
+      ? onamScheduledAt(onamPrebook.date, onamPrebook.slot)
+      : null,
+  )
   const storeClosedMessage =
-    !isStoreStatusLoading && storeStatus && !storeStatus.isOpen
+    !isOnamPrebook &&
+    !isStoreStatusLoading &&
+    storeStatus &&
+    !storeStatus.isOpen
       ? storeStatus.reason
       : null
 
@@ -143,7 +157,7 @@ export default function CartPage() {
               </Link>
             </div>
 
-            <div className="hidden lg:sticky lg:top-[88px] lg:block lg:self-start">
+            <div className="lg:sticky lg:top-[88px] lg:self-start">
               <CartSummary
                 subtotal={subtotal}
                 itemCount={itemCount}

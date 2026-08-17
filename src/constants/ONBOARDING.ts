@@ -1,8 +1,10 @@
 import { requirementClosure } from '@/constants/FEATURES'
 import { ROUTES } from '@/constants/ROUTES'
 
-/** Starter plan seeded in saas_multi_tenant_model.sql */
+/** Plans seeded in saas_multi_tenant_model + starter_direct_upi_and_plans */
 export const STARTER_PLAN_ID = 'b0000000-0000-4000-8000-000000000001'
+export const GROWTH_PLAN_ID = 'b0000000-0000-4000-8000-000000000002'
+export const PRO_PLAN_ID = 'b0000000-0000-4000-8000-000000000003'
 
 export const DEFAULT_TRIAL_DAYS = 30
 
@@ -29,6 +31,7 @@ export const ADDON_FEATURE_OPTIONS = [
   { key: 'party_inquiries', name: 'Party inquiries' },
   { key: 'delivery_pidge', name: 'Pidge delivery' },
   { key: 'loyalty', name: 'Loyalty' },
+  { key: 'payments_razorpay', name: 'Razorpay payments' },
   { key: 'whatsapp_notifications', name: 'WhatsApp notifications' },
   { key: 'whatsapp_ordering', name: 'WhatsApp ordering' },
   { key: 'sms_notifications', name: 'SMS notifications' },

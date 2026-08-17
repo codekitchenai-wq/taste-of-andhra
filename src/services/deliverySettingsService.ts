@@ -14,6 +14,7 @@ import {
   ORDER_DELIVERY_CHARGE,
 } from '@/constants/ORDER'
 import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
+import { getCurrentOrganizationId } from '@/services/currentOrganization'
 import { supabase } from '@/services/supabaseClient'
 import {
   isMissingColumnError,
@@ -75,6 +76,7 @@ export async function getDeliverySettings(
   const { data, error } = await supabase
     .from('delivery_settings')
     .select('*')
+    .eq('organization_id', getCurrentOrganizationId())
     .or(branchId ? `branch_id.eq.${branchId},branch_id.is.null` : 'branch_id.is.null')
 
   if (error) {
@@ -98,6 +100,7 @@ export async function getAllDeliverySettings(): Promise<
   const { data, error } = await supabase
     .from('delivery_settings')
     .select('*')
+    .eq('organization_id', getCurrentOrganizationId())
     .order('branch_id', { ascending: true, nullsFirst: true })
 
   if (error) {
@@ -151,7 +154,7 @@ export async function saveDeliverySettings(
   }
 
   const payload = {
-    organization_id: DEFAULT_ORGANIZATION_ID,
+    organization_id: getCurrentOrganizationId(),
     branch_id: branchId,
     provider: input.provider,
     is_enabled: input.isEnabled,

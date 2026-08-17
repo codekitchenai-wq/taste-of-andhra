@@ -59,6 +59,13 @@ import { hasLocationPin } from '@/utils/mapAddress'
 import { calculateOrderTotals } from '@/utils/orderTotals'
 import { cn } from '@/utils/cn'
 import { formatPrice } from '@/utils/format'
+import {
+  clearOnamPrebook,
+  isFutureOnamSchedule,
+  onamOrderNote,
+  onamScheduledAt,
+  readOnamPrebook,
+} from '@/utils/onamPrebook'
 
 const CHANNEL_ICONS = {
   upi: Smartphone,
@@ -105,6 +112,11 @@ export default function CheckoutPage() {
   )
   const [redeemLoyalty, setRedeemLoyalty] = useState(false)
   const [isCompletingCheckout, setIsCompletingCheckout] = useState(false)
+  const [onamPrebook] = useState(() => readOnamPrebook())
+  const onamSchedule = onamPrebook
+    ? onamScheduledAt(onamPrebook.date, onamPrebook.slot)
+    : null
+  const isOnamPrebook = isFutureOnamSchedule(onamSchedule)
 
   const isAwaitingPayment = Boolean(pendingOrder) || isPaymentOpen
   const shouldStayOnCheckout =
@@ -138,6 +150,16 @@ export default function CheckoutPage() {
     setIsAddressModalOpen(true)
     setHasPromptedForAddress(true)
   }, [addresses.length, hasPromptedForAddress, isAddressesLoading])
+
+  useEffect(() => {
+    if (!onamPrebook) return
+    const note = onamOrderNote(onamPrebook)
+    setSpecialInstructions((current) =>
+      current.includes('ONAM SADHYA PRE-BOOK')
+        ? current
+        : [note, current].filter(Boolean).join('\n\n'),
+    )
+  }, [onamPrebook])
 
   useEffect(() => {
     void loyaltyService.getOrCreateAccount().then((result) => {
@@ -224,7 +246,7 @@ export default function CheckoutPage() {
     if (isStoreStatusLoading || isQuoteLoading || isBranchLoading) {
       return 'loading'
     }
-    if (storeStatus && !storeStatus.isOpen) return 'closed'
+    if (storeStatus && !storeStatus.isOpen && !isOnamPrebook) return 'closed'
     if (needsAddress) return 'address'
     if (branches.length > 0 && !selectedBranch) return 'branch'
     if (needsLocationPin) return 'pin'
@@ -236,6 +258,7 @@ export default function CheckoutPage() {
     isQuoteLoading,
     isBranchLoading,
     storeStatus,
+    isOnamPrebook,
     needsAddress,
     branches.length,
     selectedBranch,
@@ -302,6 +325,7 @@ export default function CheckoutPage() {
     try {
       await clearCart()
       await refreshCart()
+      clearOnamPrebook()
       setIsPaymentOpen(false)
       setPendingOrder(null)
       toast.success('Order placed successfully')
@@ -331,7 +355,12 @@ export default function CheckoutPage() {
       return
     }
 
-    if (!isStoreStatusLoading && storeStatus && !storeStatus.isOpen) {
+    if (
+      !isOnamPrebook &&
+      !isStoreStatusLoading &&
+      storeStatus &&
+      !storeStatus.isOpen
+    ) {
       toast.error(storeStatus.reason)
       return
     }
@@ -367,6 +396,7 @@ export default function CheckoutPage() {
         loyaltyPointsToRedeem > 0 ? loyaltyPointsToRedeem : undefined,
       whatsappUpdatesOptIn:
         getCurrentOrganizationId() === TASTE_OF_ANDHRA_ORG_ID,
+      scheduledFor: onamSchedule,
     })
 
     setIsPlacingOrder(false)
@@ -578,7 +608,10 @@ export default function CheckoutPage() {
               </div>
             ) : null}
 
-            {!isStoreStatusLoading && storeStatus && !storeStatus.isOpen && (
+            {!isOnamPrebook &&
+              !isStoreStatusLoading &&
+              storeStatus &&
+              !storeStatus.isOpen && (
               <div
                 className="rounded-[var(--radius-card)] border border-error/30 bg-error/5 p-4 text-sm text-error"
                 role="alert"

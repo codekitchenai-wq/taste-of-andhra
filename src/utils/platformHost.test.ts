@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isPlatformApexHostname } from './platformHost'
+import { isPlatformApexHostname, isPlatformMarketingHost } from './platformHost'
 
 describe('isPlatformApexHostname', () => {
   it('matches apex and www apex only', () => {
@@ -13,5 +13,17 @@ describe('isPlatformApexHostname', () => {
     expect(isPlatformApexHostname('www.thetasteofandhra.com', 'directapp.in')).toBe(
       false,
     )
+  })
+})
+
+describe('isPlatformMarketingHost', () => {
+  it('does not use the marketing site for a tenant localhost host', () => {
+    expect(isPlatformMarketingHost('spice-malabar.localhost', '')).toBe(false)
+  })
+
+  it('does not use the marketing site for a local tenant query', () => {
+    expect(
+      isPlatformMarketingHost('localhost', '?tenant=spice-malabar'),
+    ).toBe(false)
   })
 })

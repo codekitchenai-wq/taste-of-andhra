@@ -49,6 +49,8 @@ export type FeatureKey =
   | 'whatsapp_notifications'
   | 'whatsapp_ordering'
   | 'sms_notifications'
+  | 'payments_direct_upi'
+  | 'payments_razorpay'
 
 export interface OrganizationBranding {
   logo_url?: string | null

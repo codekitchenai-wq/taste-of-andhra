@@ -1,5 +1,5 @@
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const PHONE_PATTERN = /^\d{10}$/
+const PHONE_PATTERN = /^[6-9]\d{9}$/
 
 export function isValidEmail(email: string): boolean {
   return EMAIL_PATTERN.test(email.trim())

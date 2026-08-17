@@ -9,12 +9,7 @@ import { WhatsAppSettingsPanel } from '@/components/admin/WhatsAppSettingsPanel'
 import { ConfigBanner } from '@/components/ui/ConfigBanner'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import {
-  APP_DESCRIPTION,
-  APP_NAME,
-  APP_TAGLINE,
-  CONTACT,
-} from '@/constants/APP'
+import { APP_NAME } from '@/constants/APP'
 import {
   DEFAULT_ETA_MINUTES,
   FREE_DELIVERY_THRESHOLD,
@@ -24,11 +19,16 @@ import {
 import {
   isRazorpayConfigured,
 } from '@/services/paymentService'
+import { useOrganization } from '@/contexts/OrganizationContext'
+import * as deliveryQuoteService from '@/services/deliveryQuoteService'
+import type { PidgeConfigStatus } from '@/services/deliveryQuoteService'
 import * as settingsService from '@/services/settingsService'
 import { isSupabaseConfigured } from '@/services/supabaseClient'
 import { formatPrice } from '@/utils/format'
+import { storefrontContact } from '@/utils/storefrontCopy'
 
 export default function AdminSettingsPage() {
+  const contact = storefrontContact(useOrganization())
   const [etaMinutes, setEtaMinutes] = useState(String(DEFAULT_ETA_MINUTES))
   const [isLoadingEta, setIsLoadingEta] = useState(true)
   const [isSavingEta, setIsSavingEta] = useState(false)
@@ -36,6 +36,7 @@ export default function AdminSettingsPage() {
   const [upiPayeeName, setUpiPayeeName] = useState(APP_NAME)
   const [isLoadingUpi, setIsLoadingUpi] = useState(true)
   const [isSavingUpi, setIsSavingUpi] = useState(false)
+  const [pidgeStatus, setPidgeStatus] = useState<PidgeConfigStatus | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -43,9 +44,10 @@ export default function AdminSettingsPage() {
     const load = async () => {
       setIsLoadingEta(true)
       setIsLoadingUpi(true)
-      const [etaResult, upiResult] = await Promise.all([
+      const [etaResult, upiResult, pidgeResult] = await Promise.all([
         settingsService.getDefaultEtaMinutes(),
         settingsService.getUpiSettings(),
+        deliveryQuoteService.getPidgeStatus(),
       ])
       if (cancelled) return
 
@@ -55,6 +57,9 @@ export default function AdminSettingsPage() {
       if (upiResult.success) {
         setUpiVpa(upiResult.data.vpa)
         setUpiPayeeName(upiResult.data.payeeName)
+      }
+      if (pidgeResult.success) {
+        setPidgeStatus(pidgeResult.data)
       }
       setIsLoadingEta(false)
       setIsLoadingUpi(false)
@@ -181,43 +186,44 @@ export default function AdminSettingsPage() {
         <dl className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
             <dt className="text-sm text-text-secondary">Name</dt>
-            <dd className="font-medium text-text-primary">{APP_NAME}</dd>
+            <dd className="font-medium text-text-primary">{contact.name}</dd>
           </div>
           <div>
             <dt className="text-sm text-text-secondary">Tagline</dt>
-            <dd className="font-medium text-text-primary">{APP_TAGLINE}</dd>
+            <dd className="font-medium text-text-primary">{contact.tagline}</dd>
           </div>
           <div className="sm:col-span-2">
             <dt className="text-sm text-text-secondary">Description</dt>
-            <dd className="font-medium text-text-primary">{APP_DESCRIPTION}</dd>
+            <dd className="font-medium text-text-primary">{contact.description}</dd>
           </div>
           <div className="sm:col-span-2">
             <dt className="text-sm text-text-secondary">Address</dt>
             <dd className="font-medium text-text-primary">
               <a
-                href={CONTACT.mapsDirectionsUrl}
+                href={contact.mapsUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="hover:text-primary"
               >
-                {CONTACT.address}
+                {contact.address}
               </a>
             </dd>
           </div>
           <div>
             <dt className="text-sm text-text-secondary">Phone</dt>
-            <dd className="font-medium text-text-primary">{CONTACT.phone}</dd>
+            <dd className="font-medium text-text-primary">
+              {contact.phones.join(' / ')}
+            </dd>
           </div>
           <div>
             <dt className="text-sm text-text-secondary">Email</dt>
-            <dd className="font-medium text-text-primary">{CONTACT.email}</dd>
+            <dd className="font-medium text-text-primary">
+              {contact.email || 'Not listed'}
+            </dd>
           </div>
         </dl>
         <p className="mt-4 text-xs text-text-secondary">
           Store open hours are managed in <strong>Store timings</strong> above.
-          Other restaurant details live in{' '}
-          <code className="rounded bg-background px-1">src/constants/APP.ts</code>
-          .
         </p>
       </section>
 
@@ -284,11 +290,31 @@ export default function AdminSettingsPage() {
               {isRazorpayConfigured() ? 'Live mode' : 'Demo mode'}
             </span>
           </li>
+          <li className="flex items-center justify-between rounded-[var(--radius-button)] bg-background px-4 py-3">
+            <span className="text-text-primary">Pidge (third-party delivery)</span>
+            <span
+              className={
+                pidgeStatus?.configured && pidgeStatus.functionsReachable
+                  ? 'font-medium text-success'
+                  : 'font-medium text-text-secondary'
+              }
+            >
+              {!pidgeStatus
+                ? 'Checking…'
+                : pidgeStatus.configured && pidgeStatus.functionsReachable
+                  ? 'Connected'
+                  : pidgeStatus.functionsReachable
+                    ? 'Secrets missing'
+                    : 'Not deployed'}
+            </span>
+          </li>
         </ul>
         <button
           type="button"
           onClick={() =>
-            toast('Integration settings are managed via environment variables.')
+            toast(
+              'Supabase and Razorpay use environment variables. Pidge uses Admin → Delivery settings plus Edge Function secrets — see docs/PIDGE_SETUP.md.',
+            )
           }
           className="mt-4 text-sm font-medium text-primary hover:text-primary-dark"
         >

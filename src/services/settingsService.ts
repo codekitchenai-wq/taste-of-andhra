@@ -5,7 +5,7 @@ import {
 } from '@/types/api'
 import { APP_NAME } from '@/constants/APP'
 import { DEFAULT_ETA_MINUTES } from '@/constants/ORDER'
-import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
+import { getCurrentOrganizationId } from '@/services/currentOrganization'
 import { supabase } from '@/services/supabaseClient'
 import type { StoreOperatingHours } from '@/types/StoreHours'
 import type { OrderNumberSequenceSettings } from '@/types/OrderNumberSequence'
@@ -59,7 +59,7 @@ export async function getDefaultEtaMinutes(): Promise<
     .from('app_settings')
     .select('value')
     .eq('key', DEFAULT_ETA_KEY)
-    .eq('organization_id', DEFAULT_ORGANIZATION_ID)
+    .eq('organization_id', getCurrentOrganizationId())
     .maybeSingle()
 
   if (
@@ -116,7 +116,7 @@ export async function setDefaultEtaMinutes(
 
   let { error } = await supabase.from('app_settings').upsert(
     {
-      organization_id: DEFAULT_ORGANIZATION_ID,
+      organization_id: getCurrentOrganizationId(),
       key: DEFAULT_ETA_KEY,
       value: String(next),
       updated_at: new Date().toISOString(),
@@ -155,7 +155,7 @@ async function getSettingValue(key: string): Promise<string | null> {
     .from('app_settings')
     .select('value')
     .eq('key', key)
-    .eq('organization_id', DEFAULT_ORGANIZATION_ID)
+    .eq('organization_id', getCurrentOrganizationId())
     .maybeSingle()
 
   if (
@@ -183,7 +183,7 @@ async function setSettingValue(
 ): Promise<ServiceResponse<string>> {
   let { error } = await supabase.from('app_settings').upsert(
     {
-      organization_id: DEFAULT_ORGANIZATION_ID,
+      organization_id: getCurrentOrganizationId(),
       key,
       value,
       updated_at: new Date().toISOString(),
