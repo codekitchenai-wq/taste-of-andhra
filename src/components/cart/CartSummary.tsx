@@ -2,6 +2,7 @@ import { forwardRef } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { WhatsAppLink } from '@/components/ui/WhatsAppLink'
 import { ROUTES } from '@/constants/ROUTES'
 import { formatPrice } from '@/utils/format'
 
@@ -13,6 +14,7 @@ export interface CartSummaryProps {
   storeClosedMessage?: string | null
   isStoreStatusLoading?: boolean
   checkoutButtonRef?: React.Ref<HTMLButtonElement>
+  whatsAppOrderHref?: string | null
 }
 
 function CheckoutActions({
@@ -24,6 +26,7 @@ function CheckoutActions({
   checkoutButtonRef,
   showBackToMenu = true,
   showClearCart = true,
+  whatsAppOrderHref = null,
 }: Omit<CartSummaryProps, 'subtotal'> & {
   showBackToMenu?: boolean
   showClearCart?: boolean
@@ -56,6 +59,12 @@ function CheckoutActions({
         </Link>
       )}
 
+      {whatsAppOrderHref && itemCount > 0 ? (
+        <WhatsAppLink href={whatsAppOrderHref} variant="button" fullWidth>
+          Send order on WhatsApp
+        </WhatsAppLink>
+      ) : null}
+
       {showBackToMenu && (
         <Link to={ROUTES.MENU} className="block">
           <Button type="button" variant="secondary" fullWidth>
@@ -87,6 +96,7 @@ export function CartSummary({
   storeClosedMessage = null,
   isStoreStatusLoading = false,
   checkoutButtonRef,
+  whatsAppOrderHref = null,
 }: CartSummaryProps) {
   return (
     <Card className="space-y-4 p-6">
@@ -110,6 +120,7 @@ export function CartSummary({
         storeClosedMessage={storeClosedMessage}
         isStoreStatusLoading={isStoreStatusLoading}
         checkoutButtonRef={checkoutButtonRef}
+        whatsAppOrderHref={whatsAppOrderHref}
       />
     </Card>
   )
@@ -125,6 +136,7 @@ export const CartMobileCheckoutBar = forwardRef<
     isUpdating,
     storeClosedMessage = null,
     isStoreStatusLoading = false,
+    whatsAppOrderHref = null,
   },
   checkoutButtonRef,
 ) {
@@ -166,6 +178,16 @@ export const CartMobileCheckoutBar = forwardRef<
               </Button>
             </Link>
           )}
+
+          {whatsAppOrderHref && itemCount > 0 ? (
+            <WhatsAppLink
+              href={whatsAppOrderHref}
+              variant="icon"
+              className="h-10 w-10 shrink-0"
+            >
+              WhatsApp order
+            </WhatsAppLink>
+          ) : null}
         </div>
       </div>
     </div>

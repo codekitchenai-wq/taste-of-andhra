@@ -1,5 +1,6 @@
 import { ONAM_SADHYA, type OnamServiceId } from '@/constants/ONAM_SADHYA'
 import { normalizeIndianPhone } from '@/utils/phone'
+import { storefrontWhatsAppUrl } from '@/utils/storefrontWhatsApp'
 
 export const ONAM_PREBOOK_STORAGE_KEY = 'toa_onam_prebook'
 
@@ -173,6 +174,20 @@ export function onamWhatsAppMessage(prebook: OnamPrebook) {
 
 export function onamWhatsAppUrl(prebook: OnamPrebook) {
   const phone = normalizeIndianPhone(ONAM_SADHYA.bookingPhone) ?? '7841822215'
-  const text = encodeURIComponent(onamWhatsAppMessage(prebook))
-  return `https://wa.me/91${phone}?text=${text}`
+  return storefrontWhatsAppUrl(
+    {
+      name: ONAM_SADHYA.restaurant,
+      tagline: '',
+      description: '',
+      phone: `+91 ${phone}`,
+      alternatePhone: null,
+      phones: [`+91 ${phone}`],
+      email: null,
+      address: '',
+      mapsUrl: '',
+      weekdayHours: '',
+      weekendHours: '',
+    },
+    onamWhatsAppMessage(prebook),
+  )
 }

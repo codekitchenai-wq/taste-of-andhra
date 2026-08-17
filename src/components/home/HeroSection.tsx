@@ -4,11 +4,16 @@ import { Container } from '@/components/ui/Container'
 import { LazyImage } from '@/components/ui/LazyImage'
 import { useOrganization } from '@/contexts/OrganizationContext'
 import { ROUTES } from '@/constants/ROUTES'
-import { storefrontHero, isSpiceMalabarStorefront } from '@/utils/storefrontCopy'
+import { storefrontHero, isSpiceMalabarStorefront, storefrontContact } from '@/utils/storefrontCopy'
+import { generalOrderWhatsAppUrl, storefrontWhatsAppPhone } from '@/utils/storefrontWhatsApp'
+import { WhatsAppLink } from '@/components/ui/WhatsAppLink'
 
 export function HeroSection() {
   const org = useOrganization()
   const hero = storefrontHero(org)
+  const contact = storefrontContact(org)
+  const whatsAppHref = generalOrderWhatsAppUrl(contact)
+  const showWhatsApp = Boolean(storefrontWhatsAppPhone(contact))
 
   return (
     <section className="relative flex min-h-[85vh] items-center">
@@ -55,6 +60,15 @@ export function HeroSection() {
                 {isSpiceMalabarStorefront(org) ? 'View Menu' : 'Quick Order'}
               </Button>
             </Link>
+            {showWhatsApp ? (
+              <WhatsAppLink
+                href={whatsAppHref}
+                variant="button"
+                className="w-full bg-[#25D366] hover:bg-[#1ebe57] sm:w-auto"
+              >
+                Order on WhatsApp
+              </WhatsAppLink>
+            ) : null}
           </div>
           <p className="mt-4">
             <Link

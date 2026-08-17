@@ -8,7 +8,14 @@ import { Input } from '@/components/ui/Input'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Textarea } from '@/components/ui/Textarea'
 import { useOrganization } from '@/contexts/OrganizationContext'
+import { WhatsAppLink } from '@/components/ui/WhatsAppLink'
 import { storefrontContact } from '@/utils/storefrontCopy'
+import {
+  contactWhatsAppMessage,
+  generalOrderWhatsAppUrl,
+  storefrontWhatsAppPhone,
+  storefrontWhatsAppUrl,
+} from '@/utils/storefrontWhatsApp'
 
 interface ContactFormValues {
   name: string
@@ -36,6 +43,15 @@ export default function ContactPage() {
   })
 
   const onSubmit = async (values: ContactFormValues) => {
+    const message = contactWhatsAppMessage(contact.name, values)
+    if (storefrontWhatsAppPhone(contact)) {
+      window.open(storefrontWhatsAppUrl(contact, message), '_blank', 'noopener,noreferrer')
+      toast.success('Opening WhatsApp to send your message')
+      setSubmitted(true)
+      reset()
+      return
+    }
+
     const body = encodeURIComponent(
       `From: ${values.name}\nEmail: ${values.email}\n\n${values.message}`,
     )
@@ -130,7 +146,11 @@ export default function ContactPage() {
               })}
             />
             <Button type="submit" size="lg" disabled={isSubmitting}>
-              {isSubmitting ? 'Sending...' : 'Send Message'}
+              {isSubmitting
+                ? 'Sending...'
+                : storefrontWhatsAppPhone(contact)
+                  ? 'Send on WhatsApp'
+                  : 'Send Message'}
             </Button>
           </form>
         </section>
@@ -139,6 +159,16 @@ export default function ContactPage() {
           <div className="rounded-[var(--radius-card)] bg-primary p-5 text-white shadow-md md:p-6">
             <h2 className="font-heading text-xl font-semibold">{contact.name}</h2>
             <p className="mt-2 text-sm text-white/85">{contact.description}</p>
+            {storefrontWhatsAppPhone(contact) ? (
+              <WhatsAppLink
+                href={generalOrderWhatsAppUrl(contact)}
+                variant="button"
+                fullWidth
+                className="mt-4 bg-white text-[#128C7E] hover:bg-white/90"
+              >
+                Order on WhatsApp
+              </WhatsAppLink>
+            ) : null}
           </div>
 
           <div className="space-y-4 rounded-[var(--radius-card)] border border-black/5 bg-surface p-5 shadow-sm md:p-6">
@@ -178,6 +208,11 @@ export default function ContactPage() {
                 </div>
               </div>
             ))}
+            {storefrontWhatsAppPhone(contact) ? (
+              <WhatsAppLink href={generalOrderWhatsAppUrl(contact)} variant="button" fullWidth>
+                Chat on WhatsApp
+              </WhatsAppLink>
+            ) : null}
             {contact.email ? (
               <div className="flex gap-3">
                 <Mail className="mt-0.5 h-5 w-5 shrink-0 text-primary" />

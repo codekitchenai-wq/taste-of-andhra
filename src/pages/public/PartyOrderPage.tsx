@@ -10,6 +10,12 @@ import { Textarea } from '@/components/ui/Textarea'
 import { useOrganization } from '@/contexts/OrganizationContext'
 import * as partyInquiryService from '@/services/partyInquiryService'
 import type { PartyMealPreference } from '@/types/PartyInquiry'
+import { WhatsAppLink } from '@/components/ui/WhatsAppLink'
+import {
+  partyOrderWhatsAppMessage,
+  storefrontWhatsAppPhone,
+  storefrontWhatsAppUrl,
+} from '@/utils/storefrontWhatsApp'
 import { cn } from '@/utils/cn'
 import { storefrontContact } from '@/utils/storefrontCopy'
 
@@ -81,6 +87,13 @@ export default function PartyOrderPage() {
   })
 
   const mealPreference = watch('mealPreference')
+  const guestCount = watch('guestCount')
+  const partyWhatsAppUrl = storefrontWhatsAppPhone(contact)
+    ? storefrontWhatsAppUrl(
+        contact,
+        partyOrderWhatsAppMessage(contact, Number(guestCount) || undefined),
+      )
+    : null
 
   const onSubmit = async (values: PartyOrderFormValues) => {
     const result = await partyInquiryService.submitPartyInquiry({
@@ -382,15 +395,28 @@ export default function PartyOrderPage() {
             </p>
           </div>
           <div className="rounded-[var(--radius-card)] border border-black/5 bg-surface p-5 shadow-sm md:p-6">
-            <h3 className="font-semibold text-text-primary">Prefer to call?</h3>
+            <h3 className="font-semibold text-text-primary">
+              Prefer WhatsApp?
+            </h3>
             <p className="mt-2 text-sm text-text-secondary">
-              Speak with us directly for urgent party orders.
+              Send your party order details on WhatsApp — we reply quickly on
+              mobile.
             </p>
+            {partyWhatsAppUrl ? (
+              <WhatsAppLink
+                href={partyWhatsAppUrl}
+                variant="button"
+                fullWidth
+                className="mt-4"
+              >
+                Enquire on WhatsApp
+              </WhatsAppLink>
+            ) : null}
             <a
               href={`tel:${contact.phone.replace(/\s/g, '')}`}
-              className="mt-4 inline-flex text-sm font-medium text-primary hover:text-primary-dark"
+              className="mt-3 inline-flex text-sm font-medium text-primary hover:text-primary-dark"
             >
-              {contact.phones.join(' / ')}
+              Or call {contact.phones.join(' / ')}
             </a>
             {contact.email ? (
               <a

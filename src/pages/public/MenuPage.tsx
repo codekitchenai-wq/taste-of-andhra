@@ -1,6 +1,10 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Zap } from 'lucide-react'
+import { WhatsAppLink } from '@/components/ui/WhatsAppLink'
+import { useOrganization } from '@/contexts/OrganizationContext'
+import { generalOrderWhatsAppUrl, storefrontWhatsAppPhone } from '@/utils/storefrontWhatsApp'
+import { storefrontContact } from '@/utils/storefrontCopy'
 import { MenuDishCard } from '@/components/menu/MenuDishCard'
 import { MenuFilters } from '@/components/menu/MenuFilters'
 import { Container } from '@/components/ui/Container'
@@ -16,6 +20,9 @@ import { usePublicCategories } from '@/hooks/usePublicCategories'
 import { useMenuImageFallbacks } from '@/hooks/useMenuImageFallbacks'
 
 export default function MenuPage() {
+  const contact = storefrontContact(useOrganization())
+  const whatsAppHref = generalOrderWhatsAppUrl(contact)
+  const showWhatsApp = Boolean(storefrontWhatsAppPhone(contact))
   const [filters, setFilters] = useState(DEFAULT_MENU_FILTERS)
   const { categories } = usePublicCategories()
   const { dishes, isLoading, error, refetch } = useMenuDishes(filters)
@@ -52,13 +59,20 @@ export default function MenuPage() {
             </span>
           ) : null}
         </div>
-        <Link
-          to={ROUTES.LIGHT_MENU}
-          className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary transition-colors hover:text-primary-dark"
-        >
-          <Zap className="h-3.5 w-3.5" aria-hidden="true" />
-          Light menu
-        </Link>
+        <div className="flex shrink-0 items-center gap-2">
+          {showWhatsApp ? (
+            <WhatsAppLink href={whatsAppHref} variant="inline" className="hidden sm:inline-flex">
+              WhatsApp order
+            </WhatsAppLink>
+          ) : null}
+          <Link
+            to={ROUTES.LIGHT_MENU}
+            className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary transition-colors hover:text-primary-dark"
+          >
+            <Zap className="h-3.5 w-3.5" aria-hidden="true" />
+            Light menu
+          </Link>
+        </div>
       </header>
 
       <div className="sticky top-[72px] z-40 -mx-4 mb-3 border-b border-black/5 bg-background/95 px-4 py-2 backdrop-blur md:static md:mx-0 md:mb-3 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">

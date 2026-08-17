@@ -5,12 +5,14 @@ import { ROUTES } from '@/constants/ROUTES'
 import { useAuth } from '@/hooks/useAuth'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { cn } from '@/utils/cn'
+import { WhatsAppLink } from '@/components/ui/WhatsAppLink'
 
 interface MobileMenuProps {
   isOpen: boolean
   onClose: () => void
   links: NavLink[]
   onLogout: () => void
+  whatsAppOrderHref?: string | null
 }
 
 export function MobileMenu({
@@ -18,6 +20,7 @@ export function MobileMenu({
   onClose,
   links,
   onLogout,
+  whatsAppOrderHref = null,
 }: MobileMenuProps) {
   const { isAuthenticated, user } = useAuth()
   const navRef = useRef<HTMLElement>(null)
@@ -45,6 +48,18 @@ export function MobileMenu({
         aria-label="Mobile navigation"
       >
         <ul className="space-y-1">
+          {whatsAppOrderHref ? (
+            <li className="mb-2">
+              <WhatsAppLink
+                href={whatsAppOrderHref}
+                variant="button"
+                fullWidth
+                className="w-full"
+              >
+                Order on WhatsApp
+              </WhatsAppLink>
+            </li>
+          ) : null}
           {links.map((link) => (
             <li key={link.to}>
               <Link

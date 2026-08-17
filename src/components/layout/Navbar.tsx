@@ -14,6 +14,8 @@ import toast from 'react-hot-toast'
 import { ROUTES } from '@/constants/ROUTES'
 import { useOrganization } from '@/contexts/OrganizationContext'
 import { storefrontContact, isSpiceMalabarStorefront } from '@/utils/storefrontCopy'
+import { generalOrderWhatsAppUrl, storefrontWhatsAppPhone } from '@/utils/storefrontWhatsApp'
+import { WhatsAppLink } from '@/components/ui/WhatsAppLink'
 import { mainNavLinks, onamSpecialNavLink } from '@/data/navigation'
 import { Container } from '@/components/ui/Container'
 import { MobileMenu } from '@/components/layout/MobileMenu'
@@ -32,6 +34,8 @@ export function Navbar({ transparent = false }: NavbarProps) {
   const navLinks = isSpiceMalabarStorefront(org)
     ? [mainNavLinks[0], onamSpecialNavLink, ...mainNavLinks.slice(1)]
     : mainNavLinks
+  const whatsAppOrderHref = generalOrderWhatsAppUrl(contact)
+  const showWhatsApp = Boolean(storefrontWhatsAppPhone(contact))
   const { itemCount } = useCart()
   const navigate = useNavigate()
   const [isScrolled, setIsScrolled] = useState(false)
@@ -114,6 +118,15 @@ export function Navbar({ transparent = false }: NavbarProps) {
           </nav>
 
           <div className="flex items-center gap-2 md:gap-3">
+            {showWhatsApp ? (
+              <WhatsAppLink
+                href={whatsAppOrderHref}
+                variant="icon"
+                className="h-10 w-10 lg:hidden"
+              >
+                Order on WhatsApp
+              </WhatsAppLink>
+            ) : null}
             {isAuthenticated && (
               <>
                 <Link
@@ -246,6 +259,7 @@ export function Navbar({ transparent = false }: NavbarProps) {
         onClose={() => setIsMobileOpen(false)}
         links={navLinks}
         onLogout={handleLogout}
+        whatsAppOrderHref={showWhatsApp ? whatsAppOrderHref : null}
       />
     </>
   )

@@ -11,7 +11,10 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { ROUTES } from '@/constants/ROUTES'
 import { useAuth } from '@/hooks/useAuth'
 import { useCart } from '@/hooks/useCart'
+import { useOrganization } from '@/contexts/OrganizationContext'
 import { useStoreOpenStatus } from '@/hooks/useStoreOpenStatus'
+import { storefrontContact } from '@/utils/storefrontCopy'
+import { cartWhatsAppUrl, generalOrderWhatsAppUrl } from '@/utils/storefrontWhatsApp'
 import {
   isFutureOnamSchedule,
   onamScheduledAt,
@@ -20,6 +23,7 @@ import {
 
 export default function CartPage() {
   const navigate = useNavigate()
+  const contact = storefrontContact(useOrganization())
   const { isAuthenticated } = useAuth()
   const {
     cart,
@@ -50,6 +54,11 @@ export default function CartPage() {
     !storeStatus.isOpen
       ? storeStatus.reason
       : null
+
+  const whatsAppOrderHref =
+    cart && cart.items.length > 0
+      ? cartWhatsAppUrl(contact, cart)
+      : generalOrderWhatsAppUrl(contact)
 
   useEffect(() => {
     if (isLoading || !cart?.items.length) return
@@ -107,6 +116,16 @@ export default function CartPage() {
           actionLabel="Sign In"
           onAction={() => navigate(ROUTES.LOGIN, { state: { from: ROUTES.CART } })}
         />
+        <div className="mt-6 flex justify-center">
+          <a
+            href={generalOrderWhatsAppUrl(contact)}
+            target="_blank"
+            rel="noreferrer"
+            className="text-sm font-medium text-[#128C7E] hover:underline"
+          >
+            Or order on WhatsApp without signing in →
+          </a>
+        </div>
       </Container>
     )
   }
@@ -166,6 +185,7 @@ export default function CartPage() {
                 isStoreStatusLoading={isStoreStatusLoading}
                 storeClosedMessage={storeClosedMessage}
                 checkoutButtonRef={desktopCheckoutRef}
+                whatsAppOrderHref={whatsAppOrderHref}
               />
             </div>
           </div>
@@ -178,6 +198,7 @@ export default function CartPage() {
             onClearCart={() => void handleClearCart()}
             isStoreStatusLoading={isStoreStatusLoading}
             storeClosedMessage={storeClosedMessage}
+            whatsAppOrderHref={whatsAppOrderHref}
           />
         </>
       )}

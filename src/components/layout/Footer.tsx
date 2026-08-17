@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
-import { Globe, Mail, MapPin, MessageCircle, Phone, Share2 } from 'lucide-react'
+import { Globe, Mail, MapPin, Phone, Share2 } from 'lucide-react'
+import { WhatsAppLink } from '@/components/ui/WhatsAppLink'
 import {
   footerCustomerLinks,
   footerQuickLinks,
@@ -14,6 +15,7 @@ import {
   showStorefrontQaHelpers,
   storefrontContact,
 } from '@/utils/storefrontCopy'
+import { generalOrderWhatsAppUrl, storefrontWhatsAppPhone } from '@/utils/storefrontWhatsApp'
 
 export function Footer() {
   const org = useOrganization()
@@ -22,6 +24,8 @@ export function Footer() {
   const quickLinks = isSpiceMalabarStorefront(org)
     ? [footerQuickLinks[0], onamSpecialNavLink, ...footerQuickLinks.slice(1)]
     : footerQuickLinks
+  const whatsAppOrderUrl = generalOrderWhatsAppUrl(contact)
+  const hasWhatsApp = Boolean(storefrontWhatsAppPhone(contact))
   const blurb = contact.description
 
   return (
@@ -61,8 +65,13 @@ export function Footer() {
                 className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors hover:bg-primary hover:text-white"
                 aria-label="Twitter"
               >
-                <MessageCircle className="h-4 w-4" />
+                <Globe className="h-4 w-4" />
               </a>
+              {hasWhatsApp ? (
+                <WhatsAppLink href={whatsAppOrderUrl} variant="icon" className="h-9 w-9">
+                  WhatsApp
+                </WhatsAppLink>
+              ) : null}
             </div>
           </div>
 
@@ -144,6 +153,13 @@ export function Footer() {
                   </a>
                 </li>
               ))}
+              {hasWhatsApp ? (
+                <li>
+                  <WhatsAppLink href={whatsAppOrderUrl} variant="inline">
+                    Order on WhatsApp
+                  </WhatsAppLink>
+                </li>
+              ) : null}
               {contact.email ? (
                 <li className="flex items-center gap-2">
                   <Mail className="h-4 w-4 shrink-0 text-secondary" />

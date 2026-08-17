@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
+import { WhatsAppFab } from '@/components/layout/WhatsAppFab'
 import { LoadingState } from '@/components/ui/LoadingState'
 import { ROUTES } from '@/constants/ROUTES'
 
@@ -18,6 +19,7 @@ export function MainLayout() {
         </Suspense>
       </main>
       <Footer />
+      <WhatsAppFab />
     </div>
   )
 }
