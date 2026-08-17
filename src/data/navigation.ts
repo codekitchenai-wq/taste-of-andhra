@@ -27,6 +27,7 @@ export const footerQuickLinks: NavLink[] = [
   { label: 'Gallery', to: ROUTES.GALLERY },
   { label: 'Party Orders', to: ROUTES.PARTY_ORDER },
   { label: 'Contact', to: ROUTES.CONTACT },
+  { label: 'Privacy Policy', to: ROUTES.PRIVACY },
 ]
 
 /** TEMPORARY — persona entry points for QA. Gated by SHOW_TEST_HELPERS. */

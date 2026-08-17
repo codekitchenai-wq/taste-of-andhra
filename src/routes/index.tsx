@@ -23,6 +23,9 @@ const LightMenuPage = lazy(() => import('@/pages/public/LightMenuPage'))
 const DishDetailsPage = lazy(() => import('@/pages/public/DishDetailsPage'))
 const GalleryPage = lazy(() => import('@/pages/public/GalleryPage'))
 const ContactPage = lazy(() => import('@/pages/public/ContactPage'))
+const PrivacyPolicyPage = lazy(
+  () => import('@/pages/public/PrivacyPolicyPage'),
+)
 const PartyOrderPage = lazy(() => import('@/pages/public/PartyOrderPage'))
 const OnamSpecialPage = lazy(() => import('@/pages/public/OnamSpecialPage'))
 const QrMenuPage = lazy(() => import('@/pages/public/QrMenuPage'))
@@ -203,6 +206,7 @@ const platformMarketingRoutes = [
     children: [
       { index: true, element: <PlatformLandingPage /> },
       { path: ROUTES.PLATFORM.DEMO, element: <PlatformDemoPage /> },
+      { path: ROUTES.PRIVACY, element: <PrivacyPolicyPage /> },
     ],
   },
   ...sharedStaffRoutes,
@@ -220,6 +224,7 @@ const restaurantStorefrontRoutes = [
       { path: `${ROUTES.MENU}/:slug`, element: <DishDetailsPage /> },
       { path: ROUTES.GALLERY, element: <GalleryPage /> },
       { path: ROUTES.CONTACT, element: <ContactPage /> },
+      { path: ROUTES.PRIVACY, element: <PrivacyPolicyPage /> },
       { path: ROUTES.PARTY_ORDER, element: <PartyOrderPage /> },
       { path: ROUTES.ONAM, element: <OnamSpecialPage /> },
       { path: 'qr/:tableCode', element: <QrMenuPage /> },

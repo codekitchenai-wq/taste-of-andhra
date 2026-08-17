@@ -6,6 +6,7 @@ export const ROUTES = {
   DISH_DETAILS: (slug: string) => `/menu/${slug}`,
   GALLERY: '/gallery',
   CONTACT: '/contact',
+  PRIVACY: '/privacy',
   PARTY_ORDER: '/party-order',
   ONAM: '/onam',
   LOGIN: '/login',
