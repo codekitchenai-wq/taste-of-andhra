@@ -1,9 +1,14 @@
 import {
   AUTH_GOOGLE_CONTINUE_PARAM,
   AUTH_GOOGLE_CONTINUE_VALUE,
+  AUTH_OAUTH_CALLBACK_ORIGIN,
 } from '@/constants/AUTH'
 import { ROUTES } from '@/constants/ROUTES'
-import { resolveTenantSlugFromLocation } from '@/utils/tenantHost'
+import {
+  isLocalDevHostname,
+  resolveTenantSlugFromLocation,
+  slugFromHostname,
+} from '@/utils/tenantHost'
 
 function currentLocation() {
   if (typeof window === 'undefined') {
@@ -49,6 +54,10 @@ function withTenantAndNext(
  * Bounce local tenant hosts through localhost and keep `?tenant=` on the URL
  * because sessionStorage is origin-scoped and would be lost on the hop.
  *
+ * Production Site URL is Taste of Andhra's custom domain. Tenant subdomains are
+ * often rejected, so send Google back there with `?tenant=` and bounce before
+ * the session is created (PKCE verifier stays on the tenant origin).
+ *
  * PKCE is also origin-scoped: OAuth must *start* on localhost, not merely
  * return there. Use `googleOAuthPreflightUrl` for that hop.
  */
@@ -64,6 +73,15 @@ export function googleOAuthRedirectTo(
   if (host.endsWith('.localhost') && host !== 'localhost') {
     const localOrigin = `http://localhost${port ? `:${port}` : ''}`
     return `${localOrigin}${suffix}`
+  }
+
+  if (
+    tenant &&
+    !isLocalDevHostname(host) &&
+    origin !== AUTH_OAUTH_CALLBACK_ORIGIN &&
+    slugFromHostname(host)
+  ) {
+    return `${AUTH_OAUTH_CALLBACK_ORIGIN}${suffix}`
   }
 
   return `${origin}${suffix}`

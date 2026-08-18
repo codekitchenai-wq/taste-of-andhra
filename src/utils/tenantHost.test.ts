@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   customDomainHostVariants,
+  hostServesTenant,
   isPlatformHostname,
   slugFromHostname,
   slugFromSearchParams,
@@ -78,6 +79,20 @@ describe('slugFromSearchParams', () => {
     expect(
       slugFromSearchParams('?tenant=spice-malabar', 'order.chopsticks.com'),
     ).toBeNull()
+  })
+})
+
+describe('hostServesTenant', () => {
+  it('matches platform subdomains and Taste of Andhra custom domains', () => {
+    expect(
+      hostServesTenant('chopsticksspicemalabar.directapp.in', 'chopsticksspicemalabar'),
+    ).toBe(true)
+    expect(
+      hostServesTenant('www.thetasteofandhra.com', 'thetasteofandhra'),
+    ).toBe(true)
+    expect(
+      hostServesTenant('www.thetasteofandhra.com', 'chopsticksspicemalabar'),
+    ).toBe(false)
   })
 })
 

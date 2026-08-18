@@ -4,7 +4,11 @@ import {
   AUTH_REDIRECT_STORAGE_KEY,
 } from '@/constants/AUTH'
 import { PLATFORM_ROOT_DOMAIN } from '@/constants/PLATFORM'
-import { isPlatformHostname, slugFromHostname } from '@/utils/tenantHost'
+import { ROUTES } from '@/constants/ROUTES'
+import {
+  hostServesTenant,
+  isPlatformHostname,
+} from '@/utils/tenantHost'
 
 const OAUTH_COOKIE_MAX_AGE_SECONDS = 600
 
@@ -104,11 +108,13 @@ export function clearOAuthTenantCookie(
   clearCookie(AUTH_OAUTH_NEXT_COOKIE, hostname)
 }
 
-function restoreAuthRedirectFromCookie(state: OAuthTenantCookieState): void {
-  if (!state.next) return
+function restoreAuthRedirect(
+  nextPath?: string,
+): void {
+  if (!nextPath?.startsWith('/') || nextPath.startsWith('//')) return
   try {
     if (!sessionStorage.getItem(AUTH_REDIRECT_STORAGE_KEY)) {
-      sessionStorage.setItem(AUTH_REDIRECT_STORAGE_KEY, state.next)
+      sessionStorage.setItem(AUTH_REDIRECT_STORAGE_KEY, nextPath)
     }
   } catch {
     // Private browsing may block sessionStorage.
@@ -119,9 +125,18 @@ export function tenantStorefrontOrigin(slug: string): string {
   return `https://${slug.trim().toLowerCase()}.${PLATFORM_ROOT_DOMAIN}`
 }
 
+function isOAuthCallback(
+  search: URLSearchParams,
+  hash: string,
+): boolean {
+  if (search.has('code') || search.has('access_token')) return true
+  return hash.includes('access_token') || hash.includes('refresh_token')
+}
+
 /**
- * When Supabase falls back to the platform Site URL, bounce back to the tenant
- * that started OAuth. Preserves hash tokens and the intended post-login path.
+ * When Supabase falls back to the Site URL (Taste of Andhra), bounce back to
+ * the tenant that started OAuth before the app creates a session. Preserves
+ * PKCE `code` / hash tokens and the intended post-login path.
  */
 export function recoverOAuthTenantHostIfNeeded(
   location: Pick<Location, 'hostname' | 'pathname' | 'search' | 'hash'> =
@@ -133,22 +148,30 @@ export function recoverOAuthTenantHostIfNeeded(
     location.search.startsWith('?') ? location.search.slice(1) : location.search,
   )
   const tenantFromUrl = params.get('tenant')?.trim().toLowerCase() || null
+  const nextFromUrl = params.get('next')?.trim()
 
   const state = readOAuthTenantCookie()
   const intendedTenant = state?.tenant ?? tenantFromUrl
   if (!intendedTenant) return false
 
-  const currentSlug = slugFromHostname(location.hostname)
-  if (currentSlug === intendedTenant) {
-    if (state) restoreAuthRedirectFromCookie(state)
+  if (hostServesTenant(location.hostname, intendedTenant)) {
+    restoreAuthRedirect(state?.next ?? nextFromUrl)
     return false
   }
 
-  const path = location.pathname || '/'
   if (!params.has('tenant')) params.set('tenant', intendedTenant)
-  const nextPath = state?.next
-  if (nextPath && !params.has('next')) params.set('next', nextPath)
+  const nextPath = state?.next ?? nextFromUrl
+  if (
+    nextPath?.startsWith('/') &&
+    !nextPath.startsWith('//') &&
+    !params.has('next')
+  ) {
+    params.set('next', nextPath)
+  }
 
+  const path = isOAuthCallback(params, location.hash ?? '')
+    ? ROUTES.LOGIN
+    : location.pathname || '/'
   const search = params.toString()
   const target = `${tenantStorefrontOrigin(intendedTenant)}${path}${
     search ? `?${search}` : ''

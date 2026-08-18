@@ -23,6 +23,13 @@ function readAuthRedirect(): string {
     return fromCookie
   }
 
+  if (typeof window !== 'undefined') {
+    const next = new URLSearchParams(window.location.search).get('next')
+    if (next?.startsWith('/') && !next.startsWith('//')) {
+      return next
+    }
+  }
+
   return ROUTES.HOME
 }
 

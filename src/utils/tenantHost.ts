@@ -1,4 +1,8 @@
 import { PLATFORM_ROOT_DOMAIN } from '@/constants/PLATFORM'
+import {
+  TASTE_OF_ANDHRA_CUSTOM_HOSTS,
+  TASTE_OF_ANDHRA_SLUG,
+} from '@/constants/TENANTS'
 
 const LOCAL_TENANT_STORAGE_KEY = 'toa_tenant_slug'
 
@@ -147,4 +151,16 @@ export function isPlatformHostname(
   const root = rootDomain.trim().toLowerCase().replace(/^www\./, '')
   if (!host || !root) return false
   return host === root || host === `www.${root}` || host.endsWith(`.${root}`)
+}
+
+/** True when this hostname is already the storefront for `tenant`. */
+export function hostServesTenant(hostname: string, tenant: string): boolean {
+  const slug = tenant.trim().toLowerCase()
+  if (!slug) return false
+  if (slugFromHostname(hostname) === slug) return true
+  if (slug === TASTE_OF_ANDHRA_SLUG) {
+    const host = hostname.trim().toLowerCase()
+    return (TASTE_OF_ANDHRA_CUSTOM_HOSTS as readonly string[]).includes(host)
+  }
+  return false
 }

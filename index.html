@@ -15,6 +15,42 @@
       rel="stylesheet"
     />
     <title>directapp.in</title>
+    <script>
+      (function () {
+        try {
+          var params = new URLSearchParams(location.search)
+          var tenant = (params.get('tenant') || '').trim().toLowerCase()
+          if (!tenant) return
+          var host = location.hostname.toLowerCase()
+          var root = 'directapp.in'
+          var currentSlug = null
+          if (host.endsWith('.' + root) && host !== root && host !== 'www.' + root) {
+            var prefix = host.slice(0, -(root.length + 1))
+            var parts = prefix.split('.')
+            if (parts.length === 1 && parts[0]) currentSlug = parts[0]
+            else if (parts.length === 2 && parts[0] === 'www' && parts[1]) {
+              currentSlug = parts[1]
+            }
+          }
+          var isTasteOfAndhraCustom =
+            host === 'thetasteofandhra.com' || host === 'www.thetasteofandhra.com'
+          if (currentSlug === tenant) return
+          if (tenant === 'thetasteofandhra' && isTasteOfAndhraCustom) return
+          var hasCode = params.has('code') || params.has('access_token')
+          var hash = location.hash || ''
+          if (
+            hash.indexOf('access_token') !== -1 ||
+            hash.indexOf('refresh_token') !== -1
+          ) {
+            hasCode = true
+          }
+          var path = hasCode ? '/login' : location.pathname || '/'
+          location.replace(
+            'https://' + tenant + '.' + root + path + location.search + hash,
+          )
+        } catch (e) {}
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

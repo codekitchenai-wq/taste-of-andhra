@@ -1,6 +1,12 @@
 /** Taste of Andhra public slug. Never use this as a fallback for other tenants. */
 export const TASTE_OF_ANDHRA_SLUG = 'thetasteofandhra'
 
+/** Custom domains that already serve Taste of Andhra (Supabase Site URL). */
+export const TASTE_OF_ANDHRA_CUSTOM_HOSTS = [
+  'thetasteofandhra.com',
+  'www.thetasteofandhra.com',
+] as const
+
 export function isTasteOfAndhraSlug(
   slug: string | null | undefined,
 ): boolean {

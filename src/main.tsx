@@ -1,14 +1,21 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import App from '@/App'
 import { recoverOAuthTenantHostIfNeeded } from '@/utils/authTenantCookie'
 import { redirectToCanonicalHost } from '@/utils/canonicalHost'
 import '@/index.css'
 
-if (!redirectToCanonicalHost() && !recoverOAuthTenantHostIfNeeded()) {
+async function boot() {
+  if (redirectToCanonicalHost() || recoverOAuthTenantHostIfNeeded()) return
+
+  const [{ StrictMode }, { createRoot }, { default: App }] = await Promise.all([
+    import('react'),
+    import('react-dom/client'),
+    import('@/App'),
+  ])
+
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <App />
     </StrictMode>,
   )
 }
+
+void boot()

@@ -114,4 +114,54 @@ describe('authTenantCookie', () => {
 
     expect(replace).not.toHaveBeenCalled()
   })
+
+  it('bounces from Taste of Andhra Site URL back to the tenant with PKCE code', () => {
+    const replace = vi.fn()
+    vi.stubGlobal('window', {
+      location: {
+        hostname: 'www.thetasteofandhra.com',
+        pathname: '/',
+        search: '?code=pkce-code&tenant=chopsticksspicemalabar&next=%2Fonam',
+        hash: '',
+        replace,
+      },
+    })
+
+    expect(
+      recoverOAuthTenantHostIfNeeded({
+        hostname: 'www.thetasteofandhra.com',
+        pathname: '/',
+        search: '?code=pkce-code&tenant=chopsticksspicemalabar&next=%2Fonam',
+        hash: '',
+      }),
+    ).toBe(true)
+
+    expect(replace).toHaveBeenCalledWith(
+      'https://chopsticksspicemalabar.directapp.in/login?code=pkce-code&tenant=chopsticksspicemalabar&next=%2Fonam',
+    )
+  })
+
+  it('stays on Taste of Andhra custom domain when that tenant started OAuth', () => {
+    const replace = vi.fn()
+    vi.stubGlobal('window', {
+      location: {
+        hostname: 'www.thetasteofandhra.com',
+        pathname: '/login',
+        search: '?tenant=thetasteofandhra',
+        hash: '',
+        replace,
+      },
+    })
+
+    expect(
+      recoverOAuthTenantHostIfNeeded({
+        hostname: 'www.thetasteofandhra.com',
+        pathname: '/login',
+        search: '?tenant=thetasteofandhra',
+        hash: '',
+      }),
+    ).toBe(false)
+
+    expect(replace).not.toHaveBeenCalled()
+  })
 })
