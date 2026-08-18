@@ -10,6 +10,8 @@ import {
   MOCK_WHATSAPP_CONNECT_DEFAULTS,
   WHATSAPP_TOGGLEABLE_STATUSES,
 } from '@/constants/WHATSAPP'
+import { useOrganization } from '@/contexts/OrganizationContext'
+import * as settingsService from '@/services/settingsService'
 import * as whatsappService from '@/services/whatsappService'
 import { supabase } from '@/services/supabaseClient'
 import type { OrderStatus } from '@/types/enums'
@@ -89,8 +91,13 @@ function statusBadgeClass(status: OrganizationWhatsAppConfig['connection_status'
 }
 
 export function WhatsAppSettingsPanel() {
+  const org = useOrganization()
   const [config, setConfig] = useState<OrganizationWhatsAppConfig | null>(null)
   const [entitled, setEntitled] = useState(false)
+  const [storefrontEnabled, setStorefrontEnabled] = useState(
+    org.storefrontWhatsAppEnabled,
+  )
+  const [isSavingStorefront, setIsSavingStorefront] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isSavingStatuses, setIsSavingStatuses] = useState(false)
   const [isConnecting, setIsConnecting] = useState(false)
@@ -165,6 +172,27 @@ export function WhatsAppSettingsPanel() {
       'Mock test values filled. Click Connect / save, then Save status preferences.',
     )
   }
+
+  const handleToggleStorefront = async (enabled: boolean) => {
+    setIsSavingStorefront(true)
+    const result = await settingsService.setStorefrontWhatsAppEnabled(enabled)
+    setIsSavingStorefront(false)
+    if (!result.success) {
+      toast.error(result.message)
+      return
+    }
+    setStorefrontEnabled(result.data)
+    org.setStorefrontWhatsAppEnabled(result.data)
+    toast.success(
+      result.data
+        ? 'WhatsApp ordering is now shown on this restaurant website.'
+        : 'WhatsApp ordering is hidden on this restaurant website.',
+    )
+  }
+
+  useEffect(() => {
+    setStorefrontEnabled(org.storefrontWhatsAppEnabled)
+  }, [org.storefrontWhatsAppEnabled])
 
   const load = async () => {
     setIsLoading(true)
@@ -353,18 +381,30 @@ export function WhatsAppSettingsPanel() {
       <div>
         <h3 className="text-lg font-semibold text-text-primary">WhatsApp</h3>
         <p className="mt-1 text-sm text-text-secondary">
-          Share order status updates from your restaurant WhatsApp Business
-          number. Customers must opt in at checkout; they can reply STOP to
-          unsubscribe. When the WhatsApp ordering add-on is enabled, customers
-          can also text Hi / Menu to browse categories and dishes in chat.
-        </p>
-        <p className="mt-2 text-xs text-text-secondary">
-          Meta sandbox IDs are prefilled for TOAapp. Your access token is kept
-          in this browser until you connect. Mock mode does not deliver real
-          WhatsApp — see{' '}
-          <code className="font-mono">docs/WHATSAPP_META_SETUP.md</code>.
+          Turn on click-to-WhatsApp on this restaurant website, or connect
+          WhatsApp Business for order-status updates. Each restaurant has its
+          own setting — it does not follow another kitchen.
         </p>
       </div>
+
+      <label className="flex cursor-pointer items-start gap-3 rounded-[var(--radius-button)] border border-black/10 bg-background px-4 py-3">
+        <input
+          type="checkbox"
+          className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+          checked={storefrontEnabled}
+          disabled={isSavingStorefront}
+          onChange={(event) => void handleToggleStorefront(event.target.checked)}
+        />
+        <span>
+          <span className="block text-sm font-medium text-text-primary">
+            Show WhatsApp ordering on the website
+          </span>
+          <span className="mt-1 block text-xs text-text-secondary">
+            Header, menu, cart, and contact buttons. Off by default for new
+            restaurants. Does not require WhatsApp Business API.
+          </span>
+        </span>
+      </label>
 
       {!entitled && (
         <p className="rounded-[var(--radius-button)] bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -498,12 +538,10 @@ export function WhatsAppSettingsPanel() {
           Statuses to share
         </h4>
         <p className="mt-1 text-xs text-text-secondary">
-          Only ticked statuses send WhatsApp for this restaurant. Automatic
-          customer opt-in is on for Taste of Andhra only. Save after you
-          change them. Customer login also needs an Authentication template
+          Only ticked statuses send WhatsApp for this restaurant. Save after
+          you change them. Customer login OTP needs an Authentication template
           named{' '}
-          <code className="font-mono">login_otp</code> (copy-code / OTP) in
-          WhatsApp Manager — no TRAI DLT registration.
+          <code className="font-mono">login_otp</code> in WhatsApp Manager.
         </p>
         <ul className="mt-3 space-y-2">
           {WHATSAPP_TOGGLEABLE_STATUSES.map((status) => (

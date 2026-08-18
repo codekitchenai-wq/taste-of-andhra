@@ -50,7 +50,7 @@ export function Navbar() {
 
   return (
     <>
-      <header className="sticky top-0 z-50 h-[72px] border-b border-black/5 bg-surface/95 shadow-sm backdrop-blur-md">
+      <header className="fixed inset-x-0 top-0 z-50 h-[72px] border-b border-black/10 bg-surface shadow-sm">
         <Container className="flex h-full items-center justify-between gap-4">
           <Link
             to={ROUTES.HOME}

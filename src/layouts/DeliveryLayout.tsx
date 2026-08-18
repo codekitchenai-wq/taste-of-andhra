@@ -1,14 +1,18 @@
 import { Link, Outlet, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { APP_NAME } from '@/constants/APP'
 import { ROUTES } from '@/constants/ROUTES'
 import { Button } from '@/components/ui/Button'
 import { Container } from '@/components/ui/Container'
 import { useAuth } from '@/hooks/useAuth'
+import { useOrganization } from '@/contexts/OrganizationContext'
+import { storefrontContact } from '@/utils/storefrontCopy'
+import { useTenantDocumentTitle } from '@/hooks/useTenantDocumentTitle'
 
 export function DeliveryLayout() {
   const { user, logout } = useAuth()
+  const contact = storefrontContact(useOrganization())
   const navigate = useNavigate()
+  useTenantDocumentTitle('Delivery')
 
   const handleLogout = async () => {
     const result = await logout()
@@ -29,7 +33,7 @@ export function DeliveryLayout() {
               to={ROUTES.DELIVERY.DASHBOARD}
               className="font-heading text-lg font-bold text-primary"
             >
-              {APP_NAME} · Delivery
+              {contact.name} · Delivery
             </Link>
             {user && (
               <p className="text-xs text-text-secondary">{user.full_name}</p>

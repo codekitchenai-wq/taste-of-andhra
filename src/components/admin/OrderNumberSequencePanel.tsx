@@ -4,21 +4,25 @@ import { OrderNumberDisplay } from '@/components/orders/OrderNumberDisplay'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
+import { useOrganization } from '@/contexts/OrganizationContext'
 import { useSelectedBranch } from '@/hooks/useSelectedBranch'
 import * as settingsService from '@/services/settingsService'
 import type { OrderNumberSequenceSettings } from '@/types/OrderNumberSequence'
-import { DEFAULT_ORDER_NUMBER_SEQUENCE } from '@/types/OrderNumberSequence'
 import { previewOrderNumber } from '@/utils/orderNumber'
+import { defaultOrderNumberSequence } from '@/utils/tenantFeatures'
 
 const GLOBAL_SCOPE = 'global'
 
 export function OrderNumberSequencePanel() {
+  const org = useOrganization()
   const { branches } = useSelectedBranch()
-  const [scope, setScope] = useState(GLOBAL_SCOPE)
-  const [prefix, setPrefix] = useState(DEFAULT_ORDER_NUMBER_SEQUENCE.prefix)
-  const [includeDate, setIncludeDate] = useState(
-    DEFAULT_ORDER_NUMBER_SEQUENCE.includeDate,
+  const tenantDefault = useMemo(
+    () => defaultOrderNumberSequence({ slug: org.slug }),
+    [org.slug],
   )
+  const [scope, setScope] = useState(GLOBAL_SCOPE)
+  const [prefix, setPrefix] = useState(tenantDefault.prefix)
+  const [includeDate, setIncludeDate] = useState(tenantDefault.includeDate)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
 
@@ -111,7 +115,7 @@ export function OrderNumberSequencePanel() {
               value={prefix}
               maxLength={8}
               onChange={(event) => setPrefix(event.target.value)}
-              placeholder="TOA"
+              placeholder={tenantDefault.prefix}
             />
             <label className="flex items-end gap-2 pb-2 text-sm text-text-primary">
               <input

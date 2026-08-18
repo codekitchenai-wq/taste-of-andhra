@@ -14,8 +14,9 @@ import {
   isSpiceMalabarStorefront,
   showStorefrontQaHelpers,
   storefrontContact,
+  storefrontSocialLinks,
 } from '@/utils/storefrontCopy'
-import { generalOrderWhatsAppUrl, storefrontWhatsAppPhone } from '@/utils/storefrontWhatsApp'
+import { useStorefrontWhatsApp } from '@/hooks/useStorefrontWhatsApp'
 
 export function Footer() {
   const org = useOrganization()
@@ -24,8 +25,8 @@ export function Footer() {
   const quickLinks = isSpiceMalabarStorefront(org)
     ? [footerQuickLinks[0], onamSpecialNavLink, ...footerQuickLinks.slice(1)]
     : footerQuickLinks
-  const whatsAppOrderUrl = generalOrderWhatsAppUrl(contact)
-  const hasWhatsApp = Boolean(storefrontWhatsAppPhone(contact))
+  const whatsApp = useStorefrontWhatsApp()
+  const socialLinks = storefrontSocialLinks(org)
   const blurb = contact.description
 
   return (
@@ -39,40 +40,31 @@ export function Footer() {
             <p className="mt-3 text-sm leading-relaxed text-text-secondary">
               {blurb}
             </p>
+            {socialLinks.length > 0 || whatsApp.enabled ? (
             <div className="mt-4 flex gap-3">
+              {socialLinks.map((link) => (
               <a
-                href="https://instagram.com"
+                key={link.label}
+                href={link.href}
                 target="_blank"
                 rel="noreferrer"
                 className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors hover:bg-primary hover:text-white"
-                aria-label="Instagram"
+                aria-label={link.label}
               >
-                <Share2 className="h-4 w-4" />
+                {link.label === 'Instagram' ? (
+                  <Share2 className="h-4 w-4" />
+                ) : (
+                  <Globe className="h-4 w-4" />
+                )}
               </a>
-              <a
-                href="https://facebook.com"
-                target="_blank"
-                rel="noreferrer"
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors hover:bg-primary hover:text-white"
-                aria-label="Facebook"
-              >
-                <Globe className="h-4 w-4" />
-              </a>
-              <a
-                href="https://twitter.com"
-                target="_blank"
-                rel="noreferrer"
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors hover:bg-primary hover:text-white"
-                aria-label="Twitter"
-              >
-                <Globe className="h-4 w-4" />
-              </a>
-              {hasWhatsApp ? (
-                <WhatsAppLink href={whatsAppOrderUrl} variant="icon" className="h-9 w-9">
+              ))}
+              {whatsApp.enabled && whatsApp.orderUrl ? (
+                <WhatsAppLink href={whatsApp.orderUrl} variant="icon" className="h-9 w-9">
                   WhatsApp
                 </WhatsAppLink>
               ) : null}
             </div>
+            ) : null}
           </div>
 
           <div>
@@ -153,9 +145,9 @@ export function Footer() {
                   </a>
                 </li>
               ))}
-              {hasWhatsApp ? (
+              {whatsApp.enabled && whatsApp.orderUrl ? (
                 <li>
-                  <WhatsAppLink href={whatsAppOrderUrl} variant="inline">
+                  <WhatsAppLink href={whatsApp.orderUrl} variant="inline">
                     Order on WhatsApp
                   </WhatsAppLink>
                 </li>

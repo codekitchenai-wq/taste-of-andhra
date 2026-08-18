@@ -10,6 +10,8 @@ import { formatGuestAddress } from '@/utils/mapOrder'
 import { formatPrice, formatDateTimeFull } from '@/utils/format'
 import { cn } from '@/utils/cn'
 import toast from 'react-hot-toast'
+import { useOrganization } from '@/contexts/OrganizationContext'
+import { storefrontContact } from '@/utils/storefrontCopy'
 
 interface OrderDetailsPanelProps {
   order: OrderFullDetails
@@ -23,6 +25,7 @@ export function OrderDetailsPanel({
   onOrderUpdated,
   compact = false,
 }: OrderDetailsPanelProps) {
+  const contact = storefrontContact(useOrganization())
   const guestAddress = formatGuestAddress(order)
   const sectionClass = cn(
     'rounded-[var(--radius-card)] bg-surface shadow-md',
@@ -249,6 +252,7 @@ export function OrderDetailsPanel({
                   paymentShareService.paymentShareAbsoluteUrl(
                     order.payment_share_token!,
                   ),
+                  contact.name,
                 ),
               )}
               target="_blank"

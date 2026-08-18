@@ -38,9 +38,11 @@ import {
   type OnamPrebook,
 } from '@/utils/onamPrebook'
 import { isSpiceMalabarStorefront } from '@/utils/storefrontCopy'
+import { useStorefrontWhatsApp } from '@/hooks/useStorefrontWhatsApp'
 
 export default function OnamSpecialPage() {
   const org = useOrganization()
+  const whatsApp = useStorefrontWhatsApp()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { isAuthenticated, isLoading: isAuthLoading } = useAuth()
@@ -332,6 +334,7 @@ export default function OnamSpecialPage() {
             </div>
 
             <div className="mt-5 space-y-3">
+              {whatsApp.enabled ? (
               <a
                 href={onamWhatsAppUrl(prebook)}
                 target="_blank"
@@ -343,6 +346,7 @@ export default function OnamSpecialPage() {
                   Message restaurant
                 </Button>
               </a>
+              ) : null}
               <Button
                 type="button"
                 variant="secondary"
@@ -367,11 +371,18 @@ export default function OnamSpecialPage() {
                 Share this offer
               </Button>
             </div>
+            {whatsApp.enabled ? (
             <p className="mt-3 text-xs text-text-secondary">
               WhatsApp sends your plates and slot to {ONAM_SADHYA.restaurant}.
               Online orders keep the same slot as a delivery note for 25–26
               August.
             </p>
+            ) : (
+            <p className="mt-3 text-xs text-text-secondary">
+              Online orders keep the same slot as a delivery note for 25–26
+              August.
+            </p>
+            )}
           </aside>
         </div>
       </Container>

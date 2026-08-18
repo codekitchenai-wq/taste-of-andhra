@@ -32,8 +32,8 @@ import {
   type OnlinePaymentChannel,
 } from '@/constants/PAYMENT_METHOD'
 import { ROUTES } from '@/constants/ROUTES'
-import { DEFAULT_ORGANIZATION_ID, TASTE_OF_ANDHRA_ORG_ID } from '@/constants/ORGANIZATION'
-import { getCurrentOrganizationId } from '@/services/currentOrganization'
+import { useOrganization } from '@/contexts/OrganizationContext'
+import { storefrontContact } from '@/utils/storefrontCopy'
 import { useAddresses } from '@/hooks/useAddresses'
 import { useAuth } from '@/hooks/useAuth'
 import { useCart } from '@/hooks/useCart'
@@ -76,6 +76,8 @@ const CHANNEL_ICONS = {
 
 export default function CheckoutPage() {
   const navigate = useNavigate()
+  const org = useOrganization()
+  const contact = storefrontContact(org)
   const { user } = useAuth()
   const { cart, isLoading: isCartLoading, itemCount, refreshCart, clearCart } =
     useCart()
@@ -394,8 +396,7 @@ export default function CheckoutPage() {
       deliveryQuoteId: deliveryQuote?.quoteId ?? null,
       loyaltyPointsToRedeem:
         loyaltyPointsToRedeem > 0 ? loyaltyPointsToRedeem : undefined,
-      whatsappUpdatesOptIn:
-        getCurrentOrganizationId() === TASTE_OF_ANDHRA_ORG_ID,
+      whatsappUpdatesOptIn: org.storefrontWhatsAppEnabled,
       scheduledFor: onamSchedule,
     })
 
@@ -431,6 +432,7 @@ export default function CheckoutPage() {
       orderNumber: pendingOrder.orderNumber,
       amount: pendingOrder.total,
       channel,
+      restaurantName: contact.name,
       customerName: user?.full_name ?? 'Customer',
       customerPhone: user?.phone ?? undefined,
       customerEmail: user?.email ?? undefined,
@@ -648,7 +650,7 @@ export default function CheckoutPage() {
             <PaymentMethodSelector
               value={paymentMethod}
               onChange={setPaymentMethod}
-              organizationId={DEFAULT_ORGANIZATION_ID}
+              organizationId={org.organizationId}
             />
 
             {paymentMethod === 'razorpay' && (

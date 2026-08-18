@@ -1,5 +1,3 @@
-import { APP_NAME } from '@/constants/APP'
-
 export interface UpiPaymentParams {
   vpa: string
   payeeName: string
@@ -17,7 +15,7 @@ export function buildUpiPayUrl(params: UpiPaymentParams): string | null {
 
   const query = new URLSearchParams({
     pa: vpa,
-    pn: params.payeeName.trim() || APP_NAME,
+    pn: params.payeeName.trim() || 'Restaurant',
     am: amount.toFixed(2),
     cu: 'INR',
     tn: params.note.trim().slice(0, 80) || 'Order payment',

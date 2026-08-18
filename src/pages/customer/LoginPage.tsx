@@ -1,13 +1,24 @@
 import { LoginForm } from '@/components/auth/LoginForm'
+import { useOrganization } from '@/contexts/OrganizationContext'
 
 export default function LoginPage() {
+  const { storefrontWhatsAppEnabled } = useOrganization()
+  const methods = [
+    storefrontWhatsAppEnabled ? 'WhatsApp' : null,
+    'Google',
+    'email',
+  ]
+    .filter(Boolean)
+    .join(', ')
+    .replace(/, ([^,]*)$/, ' or $1')
+
   return (
     <div>
       <h2 className="text-xl font-semibold">Login</h2>
       <p className="mt-2 text-sm text-text-secondary">
-        Use WhatsApp, Google, or email. Each restaurant has its own customer
-        list — join this kitchen even if you already order from another. Google
-        is the same login, and we create your account here on first visit.
+        Use {methods}. Each restaurant has its own customer list — join this
+        kitchen even if you already order from another. Google is the same
+        login, and we create your account here on first visit.
       </p>
       <div className="mt-6">
         <LoginForm />

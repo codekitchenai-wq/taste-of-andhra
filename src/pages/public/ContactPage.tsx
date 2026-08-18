@@ -10,11 +10,9 @@ import { Textarea } from '@/components/ui/Textarea'
 import { useOrganization } from '@/contexts/OrganizationContext'
 import { WhatsAppLink } from '@/components/ui/WhatsAppLink'
 import { storefrontContact } from '@/utils/storefrontCopy'
+import { useStorefrontWhatsApp } from '@/hooks/useStorefrontWhatsApp'
 import {
   contactWhatsAppMessage,
-  generalOrderWhatsAppUrl,
-  storefrontWhatsAppPhone,
-  storefrontWhatsAppUrl,
 } from '@/utils/storefrontWhatsApp'
 
 interface ContactFormValues {
@@ -26,6 +24,7 @@ interface ContactFormValues {
 
 export default function ContactPage() {
   const contact = storefrontContact(useOrganization())
+  const whatsApp = useStorefrontWhatsApp()
   const [submitted, setSubmitted] = useState(false)
 
   const {
@@ -44,12 +43,15 @@ export default function ContactPage() {
 
   const onSubmit = async (values: ContactFormValues) => {
     const message = contactWhatsAppMessage(contact.name, values)
-    if (storefrontWhatsAppPhone(contact)) {
-      window.open(storefrontWhatsAppUrl(contact, message), '_blank', 'noopener,noreferrer')
-      toast.success('Opening WhatsApp to send your message')
-      setSubmitted(true)
-      reset()
-      return
+    if (whatsApp.enabled) {
+      const href = whatsApp.messageUrl(message)
+      if (href) {
+        window.open(href, '_blank', 'noopener,noreferrer')
+        toast.success('Opening WhatsApp to send your message')
+        setSubmitted(true)
+        reset()
+        return
+      }
     }
 
     const body = encodeURIComponent(
@@ -148,7 +150,7 @@ export default function ContactPage() {
             <Button type="submit" size="lg" disabled={isSubmitting}>
               {isSubmitting
                 ? 'Sending...'
-                : storefrontWhatsAppPhone(contact)
+                : whatsApp.enabled
                   ? 'Send on WhatsApp'
                   : 'Send Message'}
             </Button>
@@ -159,9 +161,9 @@ export default function ContactPage() {
           <div className="rounded-[var(--radius-card)] bg-primary p-5 text-white shadow-md md:p-6">
             <h2 className="font-heading text-xl font-semibold">{contact.name}</h2>
             <p className="mt-2 text-sm text-white/85">{contact.description}</p>
-            {storefrontWhatsAppPhone(contact) ? (
+            {whatsApp.orderUrl ? (
               <WhatsAppLink
-                href={generalOrderWhatsAppUrl(contact)}
+                href={whatsApp.orderUrl}
                 variant="button"
                 fullWidth
                 className="mt-4 bg-white text-[#128C7E] hover:bg-white/90"
@@ -208,8 +210,8 @@ export default function ContactPage() {
                 </div>
               </div>
             ))}
-            {storefrontWhatsAppPhone(contact) ? (
-              <WhatsAppLink href={generalOrderWhatsAppUrl(contact)} variant="button" fullWidth>
+            {whatsApp.orderUrl ? (
+              <WhatsAppLink href={whatsApp.orderUrl} variant="button" fullWidth>
                 Chat on WhatsApp
               </WhatsAppLink>
             ) : null}

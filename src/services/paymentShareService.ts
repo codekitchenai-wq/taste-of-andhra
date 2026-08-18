@@ -3,11 +3,11 @@ import {
   createSuccessResponse,
   type ServiceResponse,
 } from '@/types/api'
-import { APP_NAME } from '@/constants/APP'
 import { PLATFORM_WWW_URL } from '@/constants/PLATFORM'
 import { ROUTES } from '@/constants/ROUTES'
 import { supabase } from '@/services/supabaseClient'
 import { formatPrice } from '@/utils/format'
+import { currentStorefrontOrigin } from '@/utils/tenantFeatures'
 
 export interface PaymentShareItem {
   name: string
@@ -62,7 +62,7 @@ function mapShare(raw: Record<string, unknown>): PaymentShareView {
       }
     }),
     upiVpa: String(raw.upi_vpa ?? '').trim(),
-    upiPayeeName: String(raw.upi_payee_name ?? '').trim() || APP_NAME,
+    upiPayeeName: String(raw.upi_payee_name ?? '').trim() || 'Restaurant',
     paymentClaimedAt: (raw.payment_claimed_at as string | null) ?? null,
     paymentClaimNote: (raw.payment_claim_note as string | null) ?? null,
   }
@@ -142,10 +142,7 @@ export function paymentSharePath(token: string): string {
 }
 
 export function paymentShareAbsoluteUrl(token: string): string {
-  const origin =
-    typeof window !== 'undefined' && window.location?.origin
-      ? window.location.origin
-      : PLATFORM_WWW_URL
+  const origin = currentStorefrontOrigin() || PLATFORM_WWW_URL
   return `${origin.replace(/\/$/, '')}${paymentSharePath(token)}`
 }
 
@@ -164,9 +161,11 @@ export function buildPaymentShareMessage(
     | 'total'
   >,
   pageUrl: string,
+  restaurantName?: string,
 ): string {
+  const brand = restaurantName?.trim() || 'Your order'
   const lines: string[] = [
-    `${APP_NAME} — Order ${share.orderNumber}`,
+    `${brand} — Order ${share.orderNumber}`,
     share.guestName ? `Hi ${share.guestName},` : 'Hi,',
     share.fulfillmentType === 'pickup'
       ? 'Your pickup order is confirmed.'

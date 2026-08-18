@@ -129,14 +129,16 @@ export default function OrderSuccessPage() {
           </div>
         )}
 
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+        <div className="mt-8 grid gap-3 sm:grid-cols-2">
           {payHref && (
-            <Button onClick={() => navigate(payHref)}>
+            <Button fullWidth className="whitespace-nowrap" onClick={() => navigate(payHref)}>
               Open payment page
             </Button>
           )}
           {state.orderId && (
             <Button
+              fullWidth
+              className="whitespace-nowrap"
               variant={payHref ? 'secondary' : 'primary'}
               onClick={() => navigate(ROUTES.ORDER_DETAILS(state.orderId!))}
             >
@@ -144,12 +146,14 @@ export default function OrderSuccessPage() {
             </Button>
           )}
           <Button
+            fullWidth
+            className="whitespace-nowrap"
             variant="secondary"
             onClick={() => navigate(ROUTES.ORDERS)}
           >
             My Orders
           </Button>
-          <Link to={ROUTES.MENU}>
+          <Link to={ROUTES.MENU} className="block w-full">
             <Button variant="secondary" fullWidth>
               Continue Shopping
             </Button>

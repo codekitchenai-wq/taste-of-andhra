@@ -53,8 +53,31 @@ export default function AboutPage() {
   const org = useOrganization()
   const contact = storefrontContact(org)
   const highlights = storefrontWhyChooseUs(org)
-  const milestones =
-    isSpiceMalabarStorefront(org) ? SPICE_MILESTONES : ANDHRA_MILESTONES
+  const milestones = isSpiceMalabarStorefront(org)
+    ? SPICE_MILESTONES
+    : org.resolvedFromHost
+      ? [
+          {
+            year: 'Kitchen',
+            title: `${contact.name}`,
+            description:
+              contact.description ||
+              `Fresh meals from ${contact.name} for delivery and pickup.`,
+          },
+          {
+            year: 'Menu',
+            title: 'Order online',
+            description: `Browse the ${contact.name} menu and check out on this site.`,
+          },
+          {
+            year: 'Visit',
+            title: 'Find us',
+            description: contact.address
+              ? `Visit us at ${contact.address}.`
+              : `Call ${contact.phones.join(' / ') || 'us'} for takeaway or delivery.`,
+          },
+        ]
+      : ANDHRA_MILESTONES
 
   return (
     <>

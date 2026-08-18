@@ -16,6 +16,7 @@ import { setCurrentOrganizationId } from '@/services/currentOrganization'
 import { supabase } from '@/services/supabaseClient'
 import { organizationSlugCandidates } from '@/constants/TENANTS'
 import { isMissingColumnError } from '@/utils/supabaseSchema'
+import { storefrontWhatsAppEnabledFromSettings } from '@/utils/tenantFeatures'
 import {
   customDomainHostVariants,
   isPlatformHostname,
@@ -35,12 +36,19 @@ export interface OrganizationContextValue {
   weekdayHours: string | null
   weekendHours: string | null
   branding: Record<string, unknown>
+  settings: Record<string, unknown>
+  /** Admin-controlled storefront click-to-WhatsApp. Off for new restaurants. */
+  storefrontWhatsAppEnabled: boolean
+  setStorefrontWhatsAppEnabled: (enabled: boolean) => void
   /** True when host resolution is on and a non-default host was mapped. */
   resolvedFromHost: boolean
   isLoading: boolean
 }
 
-type ResolvedOrganization = Omit<OrganizationContextValue, 'isLoading'>
+type ResolvedOrganization = Omit<
+  OrganizationContextValue,
+  'isLoading' | 'setStorefrontWhatsAppEnabled'
+>
 
 const OrganizationContext = createContext<OrganizationContextValue | null>(null)
 
@@ -87,10 +95,16 @@ function fromRow(
     data.branding && typeof data.branding === 'object'
       ? (data.branding as Record<string, unknown>)
       : {}
+  const settings =
+    data.settings && typeof data.settings === 'object'
+      ? (data.settings as Record<string, unknown>)
+      : {}
   const extra = hoursFrom(data)
+  const organizationId = data.id as string
+  const resolvedSlug = (data.slug as string) ?? slug
   return {
-    organizationId: data.id as string,
-    slug: (data.slug as string) ?? slug,
+    organizationId,
+    slug: resolvedSlug,
     name: (data.name as string) ?? null,
     tagline: (data.tagline as string) ?? null,
     description: (data.description as string) ?? null,
@@ -101,6 +115,11 @@ function fromRow(
     weekdayHours: extra.weekdayHours,
     weekendHours: extra.weekendHours,
     branding,
+    settings,
+    storefrontWhatsAppEnabled: storefrontWhatsAppEnabledFromSettings(settings, {
+      slug: resolvedSlug,
+      organizationId,
+    }),
     resolvedFromHost: resolved,
   }
 }
@@ -135,10 +154,8 @@ async function fetchOrgBySlug(slug: string): Promise<Record<string, unknown> | n
   return null
 }
 
-async function resolveOrganizationFromHostname(
-  hostname: string,
-): Promise<ResolvedOrganization> {
-  const empty: ResolvedOrganization = {
+function emptyResolved(overrides: Partial<ResolvedOrganization> = {}): ResolvedOrganization {
+  const base: ResolvedOrganization = {
     organizationId: DEFAULT_ORGANIZATION_ID,
     slug: null,
     name: null,
@@ -151,8 +168,26 @@ async function resolveOrganizationFromHostname(
     weekdayHours: null,
     weekendHours: null,
     branding: {},
+    settings: {},
+    storefrontWhatsAppEnabled: false,
     resolvedFromHost: false,
+    ...overrides,
   }
+  return {
+    ...base,
+    storefrontWhatsAppEnabled:
+      overrides.storefrontWhatsAppEnabled ??
+      storefrontWhatsAppEnabledFromSettings(base.settings, {
+        slug: base.slug,
+        organizationId: base.organizationId,
+      }),
+  }
+}
+
+async function resolveOrganizationFromHostname(
+  hostname: string,
+): Promise<ResolvedOrganization> {
+  const empty = emptyResolved()
 
   if (!ENABLE_HOST_TENANT_RESOLUTION) {
     return empty
@@ -170,12 +205,12 @@ async function resolveOrganizationFromHostname(
       return fromRow(row, slug, row.id !== TASTE_OF_ANDHRA_ORG_ID)
     }
 
-    return {
-      ...empty,
+    return emptyResolved({
       organizationId: UNMATCHED_ORGANIZATION_ID,
       slug,
       resolvedFromHost: true,
-    }
+      storefrontWhatsAppEnabled: false,
+    })
   }
 
   if (!isPlatformHostname(host)) {
@@ -198,7 +233,7 @@ async function resolveOrganizationFromHostname(
     }
   }
 
-  return { ...empty, slug }
+  return emptyResolved({ slug })
 }
 
 function displayNameFromSlug(slug: string | null): string | null {
@@ -236,6 +271,16 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
   const [weekdayHours, setWeekdayHours] = useState<string | null>(null)
   const [weekendHours, setWeekendHours] = useState<string | null>(null)
   const [branding, setBranding] = useState<Record<string, unknown>>({})
+  const [settings, setSettings] = useState<Record<string, unknown>>({})
+  const [storefrontWhatsAppEnabled, setStorefrontWhatsAppEnabled] = useState(
+    () =>
+      storefrontWhatsAppEnabledFromSettings({}, {
+        slug: initialSlugFromLocation(),
+        organizationId: initialSlugFromLocation()
+          ? UNMATCHED_ORGANIZATION_ID
+          : DEFAULT_ORGANIZATION_ID,
+      }),
+  )
   const [resolvedFromHost, setResolvedFromHost] = useState(
     () => Boolean(initialSlugFromLocation()),
   )
@@ -261,6 +306,8 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       setWeekdayHours(result.weekdayHours)
       setWeekendHours(result.weekendHours)
       setBranding(result.branding)
+      setSettings(result.settings)
+      setStorefrontWhatsAppEnabled(result.storefrontWhatsAppEnabled)
       setResolvedFromHost(result.resolvedFromHost)
       setIsLoading(false)
     })
@@ -284,6 +331,9 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       weekdayHours,
       weekendHours,
       branding,
+      settings,
+      storefrontWhatsAppEnabled,
+      setStorefrontWhatsAppEnabled,
       resolvedFromHost,
       isLoading,
     }),
@@ -300,6 +350,8 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       weekdayHours,
       weekendHours,
       branding,
+      settings,
+      storefrontWhatsAppEnabled,
       resolvedFromHost,
       isLoading,
     ],
@@ -328,6 +380,12 @@ export function useOrganization(): OrganizationContextValue {
       weekdayHours: null,
       weekendHours: null,
       branding: {},
+      settings: {},
+      storefrontWhatsAppEnabled: storefrontWhatsAppEnabledFromSettings(
+        {},
+        { organizationId: DEFAULT_ORGANIZATION_ID },
+      ),
+      setStorefrontWhatsAppEnabled: () => undefined,
       resolvedFromHost: false,
       isLoading: false,
     }

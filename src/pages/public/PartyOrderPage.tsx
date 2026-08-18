@@ -11,11 +11,8 @@ import { useOrganization } from '@/contexts/OrganizationContext'
 import * as partyInquiryService from '@/services/partyInquiryService'
 import type { PartyMealPreference } from '@/types/PartyInquiry'
 import { WhatsAppLink } from '@/components/ui/WhatsAppLink'
-import {
-  partyOrderWhatsAppMessage,
-  storefrontWhatsAppPhone,
-  storefrontWhatsAppUrl,
-} from '@/utils/storefrontWhatsApp'
+import { partyOrderWhatsAppMessage } from '@/utils/storefrontWhatsApp'
+import { useStorefrontWhatsApp } from '@/hooks/useStorefrontWhatsApp'
 import { cn } from '@/utils/cn'
 import { storefrontContact } from '@/utils/storefrontCopy'
 
@@ -59,6 +56,7 @@ const MEAL_OPTIONS: {
 
 export default function PartyOrderPage() {
   const contact = storefrontContact(useOrganization())
+  const whatsApp = useStorefrontWhatsApp()
   const [submitted, setSubmitted] = useState(false)
 
   const {
@@ -88,9 +86,8 @@ export default function PartyOrderPage() {
 
   const mealPreference = watch('mealPreference')
   const guestCount = watch('guestCount')
-  const partyWhatsAppUrl = storefrontWhatsAppPhone(contact)
-    ? storefrontWhatsAppUrl(
-        contact,
+  const partyWhatsAppUrl = whatsApp.enabled
+    ? whatsApp.messageUrl(
         partyOrderWhatsAppMessage(contact, Number(guestCount) || undefined),
       )
     : null
@@ -394,6 +391,7 @@ export default function PartyOrderPage() {
               meals for groups of all sizes.
             </p>
           </div>
+          {partyWhatsAppUrl ? (
           <div className="rounded-[var(--radius-card)] border border-black/5 bg-surface p-5 shadow-sm md:p-6">
             <h3 className="font-semibold text-text-primary">
               Prefer WhatsApp?
@@ -402,16 +400,14 @@ export default function PartyOrderPage() {
               Send your party order details on WhatsApp — we reply quickly on
               mobile.
             </p>
-            {partyWhatsAppUrl ? (
-              <WhatsAppLink
-                href={partyWhatsAppUrl}
-                variant="button"
-                fullWidth
-                className="mt-4"
-              >
-                Enquire on WhatsApp
-              </WhatsAppLink>
-            ) : null}
+            <WhatsAppLink
+              href={partyWhatsAppUrl}
+              variant="button"
+              fullWidth
+              className="mt-4"
+            >
+              Enquire on WhatsApp
+            </WhatsAppLink>
             <a
               href={`tel:${contact.phone.replace(/\s/g, '')}`}
               className="mt-3 inline-flex text-sm font-medium text-primary hover:text-primary-dark"
@@ -427,6 +423,30 @@ export default function PartyOrderPage() {
               </a>
             ) : null}
           </div>
+          ) : (
+          <div className="rounded-[var(--radius-card)] border border-black/5 bg-surface p-5 shadow-sm md:p-6">
+            <h3 className="font-semibold text-text-primary">Call us</h3>
+            <p className="mt-2 text-sm text-text-secondary">
+              We take party orders by phone{contact.email ? ' or email' : ''}.
+            </p>
+            {contact.phone ? (
+            <a
+              href={`tel:${contact.phone.replace(/\s/g, '')}`}
+              className="mt-3 inline-flex text-sm font-medium text-primary hover:text-primary-dark"
+            >
+              Call {contact.phones.join(' / ')}
+            </a>
+            ) : null}
+            {contact.email ? (
+              <a
+                href={`mailto:${contact.email}`}
+                className="mt-2 block text-sm font-medium text-primary hover:text-primary-dark"
+              >
+                {contact.email}
+              </a>
+            ) : null}
+          </div>
+          )}
         </aside>
       </div>
     </Container>

@@ -3,13 +3,11 @@ import {
   createSuccessResponse,
   type ServiceResponse,
 } from '@/types/api'
-import { APP_NAME } from '@/constants/APP'
 import { DEFAULT_ETA_MINUTES } from '@/constants/ORDER'
 import { getCurrentOrganizationId } from '@/services/currentOrganization'
 import { supabase } from '@/services/supabaseClient'
 import type { StoreOperatingHours } from '@/types/StoreHours'
 import type { OrderNumberSequenceSettings } from '@/types/OrderNumberSequence'
-import { DEFAULT_ORDER_NUMBER_SEQUENCE } from '@/types/OrderNumberSequence'
 import { isMissingColumnError } from '@/utils/supabaseSchema'
 import {
   createDefaultStoreHours,
@@ -27,6 +25,12 @@ import {
   normalizeGstin,
   parseGstSettings,
 } from '@/utils/gstSettings'
+import {
+  defaultOrderNumberSequence,
+  restaurantDisplayName,
+  STOREFRONT_WHATSAPP_SETTING_KEY,
+  storefrontWhatsAppEnabledFromSettings,
+} from '@/utils/tenantFeatures'
 
 const DEFAULT_ETA_KEY = 'default_eta_minutes'
 const UPI_VPA_KEY = 'upi_vpa'
@@ -214,9 +218,38 @@ async function setSettingValue(
   return createSuccessResponse(value)
 }
 
+async function loadCurrentRestaurant(): Promise<{
+  name: string | null
+  slug: string | null
+  settings: Record<string, unknown>
+}> {
+  const { data } = await supabase
+    .from('organizations')
+    .select('name, slug, settings')
+    .eq('id', getCurrentOrganizationId())
+    .maybeSingle()
+
+  const settings =
+    data?.settings && typeof data.settings === 'object'
+      ? (data.settings as Record<string, unknown>)
+      : {}
+
+  return {
+    name: typeof data?.name === 'string' ? data.name : null,
+    slug: typeof data?.slug === 'string' ? data.slug : null,
+    settings,
+  }
+}
+
 export async function getUpiSettings(): Promise<ServiceResponse<UpiSettings>> {
   const envVpa = import.meta.env.VITE_UPI_VPA?.trim() ?? ''
   const envName = import.meta.env.VITE_UPI_PAYEE_NAME?.trim() ?? ''
+  const org = await loadCurrentRestaurant()
+  const fallbackName = restaurantDisplayName({
+    name: org.name,
+    slug: org.slug,
+    organizationId: getCurrentOrganizationId(),
+  })
 
   const [vpaRaw, nameRaw] = await Promise.all([
     getSettingValue(UPI_VPA_KEY),
@@ -224,17 +257,22 @@ export async function getUpiSettings(): Promise<ServiceResponse<UpiSettings>> {
   ])
 
   return createSuccessResponse({
-    // Test default until Admin → Settings (or env) overrides it.
-    vpa: (vpaRaw?.trim() || envVpa || 'tasteofandhra@okaxis').trim(),
-    payeeName: (nameRaw?.trim() || envName || APP_NAME).trim(),
+    vpa: (vpaRaw?.trim() || envVpa || '').trim(),
+    payeeName: (nameRaw?.trim() || envName || fallbackName).trim(),
   })
 }
 
 export async function setUpiSettings(
   input: UpiSettings,
 ): Promise<ServiceResponse<UpiSettings>> {
+  const org = await loadCurrentRestaurant()
+  const fallbackName = restaurantDisplayName({
+    name: org.name,
+    slug: org.slug,
+    organizationId: getCurrentOrganizationId(),
+  })
   const vpa = input.vpa.trim()
-  const payeeName = input.payeeName.trim() || APP_NAME
+  const payeeName = input.payeeName.trim() || fallbackName
 
   if (vpa && !vpa.includes('@')) {
     return createErrorResponse('Enter a valid UPI ID (e.g. restaurant@upi).')
@@ -249,6 +287,43 @@ export async function setUpiSettings(
   if (!nameResult.success) return nameResult
 
   return createSuccessResponse({ vpa, payeeName })
+}
+
+export async function getStorefrontWhatsAppEnabled(): Promise<
+  ServiceResponse<boolean>
+> {
+  const org = await loadCurrentRestaurant()
+  return createSuccessResponse(
+    storefrontWhatsAppEnabledFromSettings(org.settings, {
+      slug: org.slug,
+      organizationId: getCurrentOrganizationId(),
+    }),
+  )
+}
+
+export async function setStorefrontWhatsAppEnabled(
+  enabled: boolean,
+): Promise<ServiceResponse<boolean>> {
+  const orgId = getCurrentOrganizationId()
+  const org = await loadCurrentRestaurant()
+  const nextSettings = {
+    ...org.settings,
+    [STOREFRONT_WHATSAPP_SETTING_KEY]: enabled,
+  }
+
+  const { error } = await supabase
+    .from('organizations')
+    .update({ settings: nextSettings })
+    .eq('id', orgId)
+
+  if (error) {
+    return createErrorResponse(
+      'Unable to save WhatsApp storefront setting.',
+      error.message,
+    )
+  }
+
+  return createSuccessResponse(enabled)
 }
 
 export async function getStoreOperatingHours(): Promise<
@@ -292,6 +367,9 @@ export async function setStoreOperatingHours(
 export async function getOrderNumberSequence(
   branchId?: string | null,
 ): Promise<ServiceResponse<OrderNumberSequenceSettings>> {
+  const org = await loadCurrentRestaurant()
+  const fallback = defaultOrderNumberSequence({ slug: org.slug })
+
   if (branchId) {
     const branchRaw = await getSettingValue(orderNumberSequenceKey(branchId))
     const branchParsed = parseOrderNumberSequence(branchRaw)
@@ -302,7 +380,7 @@ export async function getOrderNumberSequence(
 
   const globalRaw = await getSettingValue(ORDER_NUMBER_SEQUENCE_KEY)
   const globalParsed = parseOrderNumberSequence(globalRaw)
-  return createSuccessResponse(globalParsed ?? DEFAULT_ORDER_NUMBER_SEQUENCE)
+  return createSuccessResponse(globalParsed ?? fallback)
 }
 
 export async function setOrderNumberSequence(

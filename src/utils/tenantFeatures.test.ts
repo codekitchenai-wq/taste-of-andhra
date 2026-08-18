@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { TASTE_OF_ANDHRA_ORG_ID } from '@/constants/ORGANIZATION'
 import {
+  defaultOrderNumberSequence,
   isDefaultAndhraTenant,
   parseBooleanSetting,
   restaurantDisplayName,
@@ -72,5 +73,23 @@ describe('restaurantDisplayName', () => {
         slug: 'chopsticksspicemalabar',
       }),
     ).toBe('Spice Malabar')
+  })
+})
+
+describe('defaultOrderNumberSequence', () => {
+  it('uses a tenant-specific prefix for Spice Malabar', () => {
+    expect(
+      defaultOrderNumberSequence({ slug: 'chopsticksspicemalabar' }),
+    ).toEqual({
+      prefix: 'CSM',
+      includeDate: true,
+    })
+  })
+
+  it('keeps Taste of Andhra on the default prefix', () => {
+    expect(defaultOrderNumberSequence({ slug: 'thetasteofandhra' })).toEqual({
+      prefix: 'TOA',
+      includeDate: true,
+    })
   })
 })

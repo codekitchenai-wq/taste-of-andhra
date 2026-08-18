@@ -31,9 +31,10 @@ describe('paymentShareService', () => {
         total: 525,
       },
       'https://www.thetasteofandhra.com/pay/token',
+      'The Taste of Andhra',
     )
 
-    expect(message).toContain('Order TOA-1001')
+    expect(message).toContain('The Taste of Andhra — Order TOA-1001')
     expect(message).toContain('2× Chicken Biryani')
     expect(message).toContain('GST:')
     expect(message).toContain('Total:')

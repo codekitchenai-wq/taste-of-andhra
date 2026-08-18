@@ -9,6 +9,8 @@ import {
 } from '@/services/paymentService'
 import type { OrderFullDetails } from '@/types/Order'
 import { formatPrice } from '@/utils/format'
+import { useOrganization } from '@/contexts/OrganizationContext'
+import { storefrontContact } from '@/utils/storefrontCopy'
 
 interface OrderRazorpayCollectProps {
   order: OrderFullDetails
@@ -20,6 +22,7 @@ export function OrderRazorpayCollect({
   order,
   onMarkedPaid,
 }: OrderRazorpayCollectProps) {
+  const contact = storefrontContact(useOrganization())
   const [isOpen, setIsOpen] = useState(false)
   const [isPaying, setIsPaying] = useState(false)
 
@@ -35,6 +38,7 @@ export function OrderRazorpayCollect({
       orderNumber: order.order_number,
       amount: order.total,
       channel,
+      restaurantName: contact.name,
       customerName:
         order.guest_name?.trim() ||
         order.address?.full_name ||

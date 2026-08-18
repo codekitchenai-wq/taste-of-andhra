@@ -12,6 +12,7 @@ import {
   isSpiceMalabarStorefront,
   storefrontContact,
 } from '@/utils/storefrontCopy'
+import { isTasteOfAndhraSlug } from '@/constants/TENANTS'
 
 export default function GalleryPage() {
   const org = useOrganization()
@@ -34,7 +35,7 @@ export default function GalleryPage() {
           alt: dish.name,
         }))
 
-      if (photos.length === 0 && org.slug && org.slug !== 'thetasteofandhra') {
+      if (photos.length === 0 && org.slug && !isTasteOfAndhraSlug(org.slug)) {
         setUrls([{ src: SPICE_MALABAR_HERO, alt: `${contact.name} kitchen` }])
       } else {
         setUrls(photos)

@@ -2,9 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Zap } from 'lucide-react'
 import { WhatsAppLink } from '@/components/ui/WhatsAppLink'
-import { useOrganization } from '@/contexts/OrganizationContext'
-import { generalOrderWhatsAppUrl, storefrontWhatsAppPhone } from '@/utils/storefrontWhatsApp'
-import { storefrontContact } from '@/utils/storefrontCopy'
+import { useStorefrontWhatsApp } from '@/hooks/useStorefrontWhatsApp'
 import { MenuDishCard } from '@/components/menu/MenuDishCard'
 import { MenuFilters } from '@/components/menu/MenuFilters'
 import { Container } from '@/components/ui/Container'
@@ -20,9 +18,7 @@ import { usePublicCategories } from '@/hooks/usePublicCategories'
 import { useMenuImageFallbacks } from '@/hooks/useMenuImageFallbacks'
 
 export default function MenuPage() {
-  const contact = storefrontContact(useOrganization())
-  const whatsAppHref = generalOrderWhatsAppUrl(contact)
-  const showWhatsApp = Boolean(storefrontWhatsAppPhone(contact))
+  const { enabled: showWhatsApp, orderUrl: whatsAppHref } = useStorefrontWhatsApp()
   const [filters, setFilters] = useState(DEFAULT_MENU_FILTERS)
   const { categories } = usePublicCategories()
   const { dishes, isLoading, error, refetch } = useMenuDishes(filters)
@@ -60,7 +56,7 @@ export default function MenuPage() {
           ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {showWhatsApp ? (
+          {showWhatsApp && whatsAppHref ? (
             <WhatsAppLink href={whatsAppHref} variant="inline" className="hidden sm:inline-flex">
               WhatsApp order
             </WhatsAppLink>

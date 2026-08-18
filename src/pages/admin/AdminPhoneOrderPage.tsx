@@ -38,7 +38,10 @@ import type { DishWithCategory } from '@/utils/mapDish'
 import { formatAddressLine } from '@/utils/mapAddress'
 import { calculateOrderTotals } from '@/utils/orderTotals'
 import { formatPrice } from '@/utils/format'
+import { useOrganization } from '@/contexts/OrganizationContext'
+import { storefrontContact } from '@/utils/storefrontCopy'
 import { cn } from '@/utils/cn'
+import { navigateDeferredTab, openDeferredTab } from '@/utils/deferredWindow'
 import { isValidPhone } from '@/utils/validation'
 
 type PaymentCollection = 'counter' | 'delivery' | 'link'
@@ -72,6 +75,7 @@ function snapshotKey(snapshot: CustomerFormSnapshot): string {
 
 export default function AdminPhoneOrderPage() {
   const navigate = useNavigate()
+  const contact = storefrontContact(useOrganization())
   const { status: storeStatus, isLoading: isStoreStatusLoading } =
     useStoreOpenStatus()
   const [dishes, setDishes] = useState<DishWithCategory[]>([])
@@ -696,9 +700,15 @@ export default function AdminPhoneOrderPage() {
 
   const openShareForOrder = async (
     order: orderService.CreatePhoneOrderResult,
+    options?: {
+      paymentTab?: Window | null
+      whatsappTab?: Window | null
+    },
   ) => {
     const token = order.payment_share_token
     if (!token) {
+      options?.paymentTab?.close()
+      options?.whatsappTab?.close()
       toast.error(
         'Payment link is unavailable until the database migration is applied.',
       )
@@ -727,18 +737,19 @@ export default function AdminPhoneOrderPage() {
         total: order.total,
       },
       pageUrl,
+      contact.name,
     )
 
     const phoneDigits = phone.trim()
     if (makePaymentAfterPlace) {
-      window.open(pageUrl, '_blank', 'noopener,noreferrer')
+      navigateDeferredTab(options?.paymentTab, pageUrl)
     }
     if (sendMessageAfterPlace) {
-      window.open(
-        paymentShareService.whatsappShareUrl(phoneDigits, localMessage),
-        '_blank',
-        'noopener,noreferrer',
+      const whatsappUrl = paymentShareService.whatsappShareUrl(
+        phoneDigits,
+        localMessage,
       )
+      navigateDeferredTab(options?.whatsappTab, whatsappUrl)
     }
 
     setShareModal({
@@ -759,6 +770,7 @@ export default function AdminPhoneOrderPage() {
               message: paymentShareService.buildPaymentShareMessage(
                 shareView.data,
                 pageUrl,
+                contact.name,
               ),
             }
           : prev,
@@ -797,6 +809,9 @@ export default function AdminPhoneOrderPage() {
       return
     }
 
+    const paymentTab = openDeferredTab(makePaymentAfterPlace)
+    const whatsappTab = openDeferredTab(sendMessageAfterPlace)
+
     setIsSubmitting(true)
     const result = await orderService.createPhoneOrder({
       customerName,
@@ -831,6 +846,8 @@ export default function AdminPhoneOrderPage() {
     setIsSubmitting(false)
 
     if (!result.success) {
+      paymentTab?.close()
+      whatsappTab?.close()
       toast.error(
         result.error ? `${result.message} (${result.error})` : result.message,
       )
@@ -850,7 +867,7 @@ export default function AdminPhoneOrderPage() {
       paymentCollection === 'delivery' ||
       paymentCollection === 'counter'
     ) {
-      await openShareForOrder(result.data)
+      await openShareForOrder(result.data, { paymentTab, whatsappTab })
       return
     }
 

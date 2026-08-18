@@ -1,6 +1,8 @@
 import { APP_NAME } from '@/constants/APP'
 import { TASTE_OF_ANDHRA_ORG_ID } from '@/constants/ORGANIZATION'
 import { isSpiceMalabarSlug, isTasteOfAndhraSlug } from '@/constants/TENANTS'
+import { DEFAULT_ORDER_NUMBER_SEQUENCE } from '@/types/OrderNumberSequence'
+import type { OrderNumberSequenceSettings } from '@/types/OrderNumberSequence'
 
 /** Restaurant-admin toggle stored on `organizations.settings`. */
 export const STOREFRONT_WHATSAPP_SETTING_KEY = 'storefront_whatsapp_enabled'
@@ -55,6 +57,19 @@ export function restaurantDisplayName(input: {
   if (isDefaultAndhraTenant(input)) return APP_NAME
   if (isSpiceMalabarSlug(input.slug)) return 'Chopstick Spice Malabar'
   return 'Restaurant'
+}
+
+/** Tenant-aware fallback used before an admin saves a custom order sequence. */
+export function defaultOrderNumberSequence(input: {
+  slug?: string | null
+}): OrderNumberSequenceSettings {
+  if (isSpiceMalabarSlug(input.slug)) {
+    return {
+      prefix: 'CSM',
+      includeDate: true,
+    }
+  }
+  return DEFAULT_ORDER_NUMBER_SEQUENCE
 }
 
 /** Absolute origin of the current tenant host — never another restaurant domain. */

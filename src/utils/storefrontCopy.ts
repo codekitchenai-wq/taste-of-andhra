@@ -49,7 +49,7 @@ function isOtherTenant(org: OrganizationContextValue) {
 }
 
 export function storefrontHero(org: OrganizationContextValue) {
-  const name = org.name?.trim() || 'our restaurant'
+  const name = restaurantDisplayName(org)
   const brandingHero = brandingHeroUrl(org.branding)
 
   if (isSpiceMalabar(org)) {

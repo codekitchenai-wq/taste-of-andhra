@@ -1,10 +1,10 @@
-import { APP_NAME } from '@/constants/APP'
+import { getCurrentOrganizationId } from '@/services/currentOrganization'
+import { restaurantDisplayName } from '@/utils/tenantFeatures'
 import {
   DEFAULT_PRINTER_SETTINGS,
   PRINTER_PRINTED_ORDERS_KEY,
   PRINTER_SETTINGS_KEY,
 } from '@/constants/PRINTER'
-import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
 import {
   createErrorResponse,
   createSuccessResponse,
@@ -53,7 +53,7 @@ async function getSettingValue(key: string): Promise<string | null> {
     .from('app_settings')
     .select('value')
     .eq('key', key)
-    .eq('organization_id', DEFAULT_ORGANIZATION_ID)
+    .eq('organization_id', getCurrentOrganizationId())
     .maybeSingle()
 
   if (
@@ -81,7 +81,7 @@ async function setSettingValue(
 ): Promise<ServiceResponse<string>> {
   let { error } = await supabase.from('app_settings').upsert(
     {
-      organization_id: DEFAULT_ORGANIZATION_ID,
+      organization_id: getCurrentOrganizationId(),
       key,
       value,
       updated_at: new Date().toISOString(),
@@ -212,7 +212,17 @@ export async function printTicket(
     )
   }
 
-  const payload = buildPrintTicketPayload(order, ticketType, APP_NAME)
+  const { data: org } = await supabase
+    .from('organizations')
+    .select('name, slug')
+    .eq('id', getCurrentOrganizationId())
+    .maybeSingle()
+  const restaurantName = restaurantDisplayName({
+    name: typeof org?.name === 'string' ? org.name : null,
+    slug: typeof org?.slug === 'string' ? org.slug : null,
+    organizationId: getCurrentOrganizationId(),
+  })
+  const payload = buildPrintTicketPayload(order, ticketType, restaurantName)
   const html = buildTicketHtml(payload)
   const text = buildTicketText(payload)
 

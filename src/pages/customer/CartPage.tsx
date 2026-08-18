@@ -11,10 +11,8 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { ROUTES } from '@/constants/ROUTES'
 import { useAuth } from '@/hooks/useAuth'
 import { useCart } from '@/hooks/useCart'
-import { useOrganization } from '@/contexts/OrganizationContext'
 import { useStoreOpenStatus } from '@/hooks/useStoreOpenStatus'
-import { storefrontContact } from '@/utils/storefrontCopy'
-import { cartWhatsAppUrl, generalOrderWhatsAppUrl } from '@/utils/storefrontWhatsApp'
+import { useStorefrontWhatsApp } from '@/hooks/useStorefrontWhatsApp'
 import {
   isFutureOnamSchedule,
   onamScheduledAt,
@@ -23,7 +21,7 @@ import {
 
 export default function CartPage() {
   const navigate = useNavigate()
-  const contact = storefrontContact(useOrganization())
+  const whatsApp = useStorefrontWhatsApp()
   const { isAuthenticated } = useAuth()
   const {
     cart,
@@ -56,9 +54,11 @@ export default function CartPage() {
       : null
 
   const whatsAppOrderHref =
-    cart && cart.items.length > 0
-      ? cartWhatsAppUrl(contact, cart)
-      : generalOrderWhatsAppUrl(contact)
+    whatsApp.enabled
+      ? cart && cart.items.length > 0
+        ? whatsApp.cartUrl(cart)
+        : whatsApp.orderUrl
+      : null
 
   useEffect(() => {
     if (isLoading || !cart?.items.length) return
@@ -116,9 +116,10 @@ export default function CartPage() {
           actionLabel="Sign In"
           onAction={() => navigate(ROUTES.LOGIN, { state: { from: ROUTES.CART } })}
         />
+        {whatsApp.orderUrl ? (
         <div className="mt-6 flex justify-center">
           <a
-            href={generalOrderWhatsAppUrl(contact)}
+            href={whatsApp.orderUrl}
             target="_blank"
             rel="noreferrer"
             className="text-sm font-medium text-[#128C7E] hover:underline"
@@ -126,6 +127,7 @@ export default function CartPage() {
             Or order on WhatsApp without signing in →
           </a>
         </div>
+        ) : null}
       </Container>
     )
   }
@@ -146,7 +148,7 @@ export default function CartPage() {
       {!isLoading && cart && cart.items.length === 0 && (
         <EmptyState
           title="Your cart is empty"
-          description="Browse the menu and add your favorite Andhra dishes."
+          description="Browse the menu and add your favourite dishes."
           actionLabel="Browse Menu"
           onAction={() => navigate(ROUTES.MENU)}
         />

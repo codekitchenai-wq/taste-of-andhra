@@ -8,6 +8,7 @@ import { storefrontTestimonials } from '@/utils/storefrontCopy'
 export function Testimonials() {
   const org = useOrganization()
   const items = storefrontTestimonials(org)
+  if (items.length === 0) return null
   return (
     <section className="bg-surface py-12 md:py-16 lg:py-20">
       <Container as="div">

@@ -41,7 +41,7 @@ describe('generalOrderWhatsAppMessage', () => {
   it('includes restaurant name and menu link', () => {
     const message = generalOrderWhatsAppMessage(
       contact,
-      'https://spice-malabar.directapp.in/menu',
+      'https://chopsticksspicemalabar.directapp.in/menu',
     )
     expect(message).toContain('Spice Malabar')
     expect(message).toContain('/menu')

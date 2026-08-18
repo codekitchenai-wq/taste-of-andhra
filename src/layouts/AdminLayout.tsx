@@ -5,11 +5,13 @@ import { AdminTopBar } from '@/components/layout/AdminTopBar'
 import { AdminMobileNav } from '@/components/layout/AdminMobileNav'
 import { LoadingState } from '@/components/ui/LoadingState'
 import { getAdminPageMeta } from '@/data/adminNavigation'
+import { useTenantDocumentTitle } from '@/hooks/useTenantDocumentTitle'
 
 export function AdminLayout() {
   const { pathname } = useLocation()
   const matches = useMatches()
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  useTenantDocumentTitle('Admin')
 
   // Prefer the deepest matched route path so layout titles track the active page
   // even if a parent segment is `/admin` (Dashboard).

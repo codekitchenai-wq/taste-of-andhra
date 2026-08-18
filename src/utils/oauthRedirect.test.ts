@@ -13,14 +13,14 @@ describe('google OAuth redirect', () => {
   it('keeps production tenant origin', () => {
     vi.stubGlobal('window', {
       location: {
-        hostname: 'spice-malabar.directapp.in',
+        hostname: 'chopsticksspicemalabar.directapp.in',
         port: '',
-        origin: 'https://spice-malabar.directapp.in',
+        origin: 'https://chopsticksspicemalabar.directapp.in',
         search: '',
       },
     })
     expect(googleOAuthRedirectTo('/login')).toBe(
-      'https://spice-malabar.directapp.in/login',
+      'https://chopsticksspicemalabar.directapp.in/login',
     )
     expect(googleOAuthPreflightUrl('/login')).toBeNull()
   })

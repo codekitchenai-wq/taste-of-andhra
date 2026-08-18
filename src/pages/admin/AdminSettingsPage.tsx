@@ -9,7 +9,6 @@ import { WhatsAppSettingsPanel } from '@/components/admin/WhatsAppSettingsPanel'
 import { ConfigBanner } from '@/components/ui/ConfigBanner'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { APP_NAME } from '@/constants/APP'
 import {
   DEFAULT_ETA_MINUTES,
   FREE_DELIVERY_THRESHOLD,
@@ -33,7 +32,7 @@ export default function AdminSettingsPage() {
   const [isLoadingEta, setIsLoadingEta] = useState(true)
   const [isSavingEta, setIsSavingEta] = useState(false)
   const [upiVpa, setUpiVpa] = useState('')
-  const [upiPayeeName, setUpiPayeeName] = useState(APP_NAME)
+  const [upiPayeeName, setUpiPayeeName] = useState(contact.name)
   const [isLoadingUpi, setIsLoadingUpi] = useState(true)
   const [isSavingUpi, setIsSavingUpi] = useState(false)
   const [pidgeStatus, setPidgeStatus] = useState<PidgeConfigStatus | null>(null)
@@ -166,7 +165,7 @@ export default function AdminSettingsPage() {
             value={upiPayeeName}
             disabled={isLoadingUpi || isSavingUpi}
             onChange={(event) => setUpiPayeeName(event.target.value)}
-            placeholder={APP_NAME}
+            placeholder={contact.name}
           />
         </div>
         <Button

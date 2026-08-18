@@ -16,6 +16,7 @@ export interface RazorpayCheckoutInput {
   customerEmail?: string | null
   customerPhone?: string | null
   channel: OnlinePaymentChannel
+  restaurantName?: string
 }
 
 export interface RazorpayCheckoutResult {
@@ -210,7 +211,7 @@ export async function processOnlinePayment(
       key,
       amount: amountPaise,
       currency: 'INR',
-      name: 'The Taste of Andhra',
+      name: input.restaurantName?.trim() || 'Restaurant',
       description: `Order ${input.orderNumber}`,
       order_id: undefined,
       notes: {

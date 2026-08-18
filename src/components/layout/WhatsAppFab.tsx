@@ -4,31 +4,25 @@ import { WhatsAppGlyph } from '@/components/ui/WhatsAppLink'
 import { ROUTES } from '@/constants/ROUTES'
 import { useAuth } from '@/hooks/useAuth'
 import { useCart } from '@/hooks/useCart'
-import { useOrganization } from '@/contexts/OrganizationContext'
-import { storefrontContact } from '@/utils/storefrontCopy'
-import {
-  cartWhatsAppUrl,
-  generalOrderWhatsAppUrl,
-  storefrontWhatsAppPhone,
-} from '@/utils/storefrontWhatsApp'
+import { useStorefrontWhatsApp } from '@/hooks/useStorefrontWhatsApp'
 import { cn } from '@/utils/cn'
 
-/** Mobile-friendly floating WhatsApp order button. */
+/** Mobile-friendly floating WhatsApp order button. Hidden unless admin enabled it. */
 export function WhatsAppFab() {
   const { pathname } = useLocation()
-  const org = useOrganization()
-  const contact = storefrontContact(org)
   const { isAuthenticated } = useAuth()
   const { cart } = useCart()
+  const whatsApp = useStorefrontWhatsApp()
 
   const href = useMemo(() => {
+    if (!whatsApp.enabled) return null
     if (isAuthenticated && cart && cart.items.length > 0) {
-      return cartWhatsAppUrl(contact, cart)
+      return whatsApp.cartUrl(cart)
     }
-    return generalOrderWhatsAppUrl(contact)
-  }, [cart, contact, isAuthenticated])
+    return whatsApp.orderUrl
+  }, [cart, isAuthenticated, whatsApp])
 
-  if (!storefrontWhatsAppPhone(contact)) return null
+  if (!href) return null
   if (pathname === ROUTES.ONAM) return null
 
   const aboveCheckoutBar =

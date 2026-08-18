@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/Button'
-import { APP_NAME } from '@/constants/APP'
 import * as paymentService from '@/services/paymentService'
 import * as settingsService from '@/services/settingsService'
 import type { OrderFullDetails } from '@/types/Order'
 import { formatPrice } from '@/utils/format'
+import { useOrganization } from '@/contexts/OrganizationContext'
+import { storefrontContact } from '@/utils/storefrontCopy'
 import {
   buildUpiPayUrl,
   buildUpiQrImageUrl,
@@ -18,8 +19,9 @@ interface OrderPaymentQrProps {
 }
 
 export function OrderPaymentQr({ order, onMarkedPaid }: OrderPaymentQrProps) {
+  const contact = storefrontContact(useOrganization())
   const [vpa, setVpa] = useState('')
-  const [payeeName, setPayeeName] = useState(APP_NAME)
+  const [payeeName, setPayeeName] = useState(contact.name)
   const [isLoading, setIsLoading] = useState(true)
   const [isMarking, setIsMarking] = useState(false)
 

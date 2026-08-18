@@ -1,3 +1,5 @@
+import { isTasteOfAndhraSlug } from '@/constants/TENANTS'
+
 const SWIGGY_UPLOAD = '/image/upload/'
 
 /** Local Taste of Andhra photos that must not appear on other tenants. */
@@ -75,6 +77,6 @@ export function tenantSafeImage(
   if (url && !isAndhraLocalAsset(url)) {
     return optimizeMenuImage(url, 480) ?? fallback
   }
-  if (orgSlug && orgSlug !== 'thetasteofandhra') return fallback
+  if (orgSlug && !isTasteOfAndhraSlug(orgSlug)) return fallback
   return url || fallback
 }
