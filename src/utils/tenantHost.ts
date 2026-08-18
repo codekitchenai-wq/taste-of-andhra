@@ -69,7 +69,13 @@ export function slugFromSearchParams(
   search: string,
   hostname: string,
 ): string | null {
-  if (!isLocalDevHostname(hostname) && !isPlatformHostname(hostname)) return null
+  if (
+    !isLocalDevHostname(hostname) &&
+    !isPlatformHostname(hostname) &&
+    !isTasteOfAndhraCustomHost(hostname)
+  ) {
+    return null
+  }
   const params = new URLSearchParams(search.startsWith('?') ? search : `?${search}`)
   if (!params.has('tenant') && !params.has('org')) return null
   const raw = (params.get('tenant') || params.get('org') || '').trim().toLowerCase()
@@ -163,4 +169,9 @@ export function hostServesTenant(hostname: string, tenant: string): boolean {
     return (TASTE_OF_ANDHRA_CUSTOM_HOSTS as readonly string[]).includes(host)
   }
   return false
+}
+
+export function isTasteOfAndhraCustomHost(hostname: string): boolean {
+  const host = hostname.trim().toLowerCase()
+  return (TASTE_OF_ANDHRA_CUSTOM_HOSTS as readonly string[]).includes(host)
 }

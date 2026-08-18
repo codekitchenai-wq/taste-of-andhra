@@ -79,6 +79,12 @@ describe('slugFromSearchParams', () => {
     expect(
       slugFromSearchParams('?tenant=spice-malabar', 'order.chopsticks.com'),
     ).toBeNull()
+    expect(
+      slugFromSearchParams(
+        '?tenant=chopsticksspicemalabar',
+        'www.thetasteofandhra.com',
+      ),
+    ).toBe('chopsticksspicemalabar')
   })
 })
 

@@ -35,7 +35,7 @@
           var isTasteOfAndhraCustom =
             host === 'thetasteofandhra.com' || host === 'www.thetasteofandhra.com'
           if (currentSlug === tenant) return
-          if (tenant === 'thetasteofandhra' && isTasteOfAndhraCustom) return
+          if (isTasteOfAndhraCustom) return
           var hasCode = params.has('code') || params.has('access_token')
           var hash = location.hash || ''
           if (

@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { RouterProvider } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { CustomerEnrollmentSync } from '@/components/auth/CustomerEnrollmentSync'
+import { OAuthTenantHandoff } from '@/components/auth/OAuthTenantHandoff'
 import { ConfigBanner } from '@/components/ui/ConfigBanner'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { BranchProvider } from '@/contexts/BranchContext'
@@ -22,6 +23,7 @@ export default function App() {
           <CartProvider>
             <FavoritesProvider>
               <CustomerEnrollmentSync />
+              <OAuthTenantHandoff />
               <ConfigBanner />
               <RouterProvider router={router} />
               <Toaster

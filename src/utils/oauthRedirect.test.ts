@@ -10,7 +10,7 @@ describe('google OAuth redirect', () => {
     vi.unstubAllGlobals()
   })
 
-  it('sends production tenant OAuth back through the allowlisted Site URL', () => {
+  it('hops production tenants to the Site URL so Google PKCE can finish there', () => {
     vi.stubGlobal('window', {
       location: {
         hostname: 'chopsticksspicemalabar.directapp.in',
@@ -22,10 +22,9 @@ describe('google OAuth redirect', () => {
     expect(googleOAuthRedirectTo('/login')).toBe(
       'https://www.thetasteofandhra.com/login?tenant=chopsticksspicemalabar',
     )
-    expect(googleOAuthRedirectTo('/login', '/onam?checkout=1')).toBe(
-      'https://www.thetasteofandhra.com/login?tenant=chopsticksspicemalabar&next=%2Fonam%3Fcheckout%3D1',
+    expect(googleOAuthPreflightUrl('/login', '/onam?checkout=1')).toBe(
+      'https://www.thetasteofandhra.com/login?tenant=chopsticksspicemalabar&continue=google&next=%2Fonam%3Fcheckout%3D1',
     )
-    expect(googleOAuthPreflightUrl('/login')).toBeNull()
   })
 
   it('rewrites {slug}.localhost to localhost for the allowlist', () => {

@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { clearOAuthTenantCookie, readOAuthTenantCookie } from '@/utils/authTenantCookie'
 import { isPlatformMasterUser } from '@/utils/platformMaster'
 import { resolveCustomerPostAuthRedirect } from '@/utils/postAuthRedirect'
+import { hostServesTenant, resolveTenantSlugFromLocation } from '@/utils/tenantHost'
 
 function readAuthRedirect(): string {
   try {
@@ -33,6 +34,15 @@ function readAuthRedirect(): string {
   return ROUTES.HOME
 }
 
+function pendingTenantHandoff(): boolean {
+  if (typeof window === 'undefined') return false
+  const tenant =
+    readOAuthTenantCookie()?.tenant ??
+    resolveTenantSlugFromLocation({ persist: false })
+  if (!tenant) return false
+  return !hostServesTenant(window.location.hostname, tenant)
+}
+
 function clearAuthRedirect() {
   try {
     sessionStorage.removeItem(AUTH_REDIRECT_STORAGE_KEY)
@@ -52,7 +62,7 @@ export function GuestRoute() {
     !isPlatformMasterUser(user)
 
   useEffect(() => {
-    if (!isCustomer) {
+    if (!isCustomer || pendingTenantHandoff()) {
       setCustomerPath(null)
       return
     }
@@ -76,6 +86,9 @@ export function GuestRoute() {
   }
 
   if (isAuthenticated) {
+    if (pendingTenantHandoff()) {
+      return <LoadingState fullPage variant="inline" />
+    }
     if (isPlatformMasterUser(user) || role === 'platform_master') {
       return <Navigate to={ROUTES.MASTER.DASHBOARD} replace />
     }

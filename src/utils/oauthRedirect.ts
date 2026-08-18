@@ -6,6 +6,7 @@ import {
 import { ROUTES } from '@/constants/ROUTES'
 import {
   isLocalDevHostname,
+  isTasteOfAndhraCustomHost,
   resolveTenantSlugFromLocation,
   slugFromHostname,
 } from '@/utils/tenantHost'
@@ -79,6 +80,7 @@ export function googleOAuthRedirectTo(
     tenant &&
     !isLocalDevHostname(host) &&
     origin !== AUTH_OAUTH_CALLBACK_ORIGIN &&
+    !isTasteOfAndhraCustomHost(host) &&
     slugFromHostname(host)
   ) {
     return `${AUTH_OAUTH_CALLBACK_ORIGIN}${suffix}`
@@ -88,17 +90,15 @@ export function googleOAuthRedirectTo(
 }
 
 /**
- * When Google OAuth is started on `{slug}.localhost`, move to localhost first
- * so the PKCE verifier is stored on the same origin as `redirectTo`.
- * Returns null when OAuth can start on the current origin.
+ * Production Site URL is Taste of Andhra. Start Google there (same as the
+ * `{slug}.localhost` → localhost hop) so PKCE and the return URL share an origin.
+ * After login, `OAuthTenantHandoff` sends the session to the restaurant host.
  */
 export function googleOAuthPreflightUrl(
   loginPath: string = ROUTES.LOGIN,
   nextPath?: string,
 ): string | null {
-  const { host, port } = currentLocation()
-  if (!host.endsWith('.localhost') || host === 'localhost') return null
-
+  const { host, port, origin } = currentLocation()
   const path = loginPath.startsWith('/') ? loginPath : `/${loginPath}`
   const tenant = resolveTenantSlugFromLocation({ persist: false })
   const params = new URLSearchParams()
@@ -107,7 +107,22 @@ export function googleOAuthPreflightUrl(
   if (nextPath && nextPath.startsWith('/') && !nextPath.startsWith('//')) {
     params.set('next', nextPath)
   }
+  const query = params.toString()
 
-  const localOrigin = `http://localhost${port ? `:${port}` : ''}`
-  return `${localOrigin}${path}?${params.toString()}`
+  if (host.endsWith('.localhost') && host !== 'localhost') {
+    const localOrigin = `http://localhost${port ? `:${port}` : ''}`
+    return `${localOrigin}${path}?${query}`
+  }
+
+  if (
+    tenant &&
+    slugFromHostname(host) &&
+    !isLocalDevHostname(host) &&
+    origin !== AUTH_OAUTH_CALLBACK_ORIGIN &&
+    !isTasteOfAndhraCustomHost(host)
+  ) {
+    return `${AUTH_OAUTH_CALLBACK_ORIGIN}${path}?${query}`
+  }
+
+  return null
 }

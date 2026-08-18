@@ -7,7 +7,7 @@ import { PLATFORM_ROOT_DOMAIN } from '@/constants/PLATFORM'
 import { ROUTES } from '@/constants/ROUTES'
 import {
   hostServesTenant,
-  isPlatformHostname,
+  isTasteOfAndhraCustomHost,
 } from '@/utils/tenantHost'
 
 const OAUTH_COOKIE_MAX_AGE_SECONDS = 600
@@ -19,6 +19,7 @@ export interface OAuthTenantCookieState {
 
 function cookieDomain(hostname: string): string | null {
   const host = hostname.trim().toLowerCase()
+  if (isTasteOfAndhraCustomHost(host)) return '.thetasteofandhra.com'
   const root = PLATFORM_ROOT_DOMAIN.trim().toLowerCase()
   if (!host.endsWith(`.${root}`) && host !== root) return null
   return `.${root}`
@@ -77,7 +78,7 @@ export function persistOAuthTenantCookie(
     : '',
 ): void {
   const slug = tenant.trim().toLowerCase()
-  if (!slug || !isPlatformHostname(hostname)) return
+  if (!slug || !cookieDomain(hostname)) return
 
   writeCookie(AUTH_OAUTH_TENANT_COOKIE, slug, hostname)
   if (nextPath?.startsWith('/') && !nextPath.startsWith('//')) {
@@ -134,9 +135,8 @@ function isOAuthCallback(
 }
 
 /**
- * When Supabase falls back to the Site URL (Taste of Andhra), bounce back to
- * the tenant that started OAuth before the app creates a session. Preserves
- * PKCE `code` / hash tokens and the intended post-login path.
+ * Early bounce for the wrong `*.directapp.in` host. Taste of Andhra's custom
+ * domain is the Supabase Site URL — wait for the session there, then hand off.
  */
 export function recoverOAuthTenantHostIfNeeded(
   location: Pick<Location, 'hostname' | 'pathname' | 'search' | 'hash'> =
@@ -144,6 +144,7 @@ export function recoverOAuthTenantHostIfNeeded(
       ? window.location
       : { hostname: '', pathname: '/', search: '', hash: '' },
 ): boolean {
+  if (isTasteOfAndhraCustomHost(location.hostname)) return false
   const params = new URLSearchParams(
     location.search.startsWith('?') ? location.search.slice(1) : location.search,
   )
