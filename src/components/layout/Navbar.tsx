@@ -9,13 +9,13 @@ import {
   Menu,
   X,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import toast from 'react-hot-toast'
 import { ROUTES } from '@/constants/ROUTES'
 import { useOrganization } from '@/contexts/OrganizationContext'
 import { storefrontContact, isSpiceMalabarStorefront } from '@/utils/storefrontCopy'
-import { generalOrderWhatsAppUrl, storefrontWhatsAppPhone } from '@/utils/storefrontWhatsApp'
 import { WhatsAppLink } from '@/components/ui/WhatsAppLink'
+import { useStorefrontWhatsApp } from '@/hooks/useStorefrontWhatsApp'
 import { mainNavLinks, onamSpecialNavLink } from '@/data/navigation'
 import { Container } from '@/components/ui/Container'
 import { MobileMenu } from '@/components/layout/MobileMenu'
@@ -23,31 +23,18 @@ import { useAuth } from '@/hooks/useAuth'
 import { useCart } from '@/hooks/useCart'
 import { cn } from '@/utils/cn'
 
-interface NavbarProps {
-  transparent?: boolean
-}
-
-export function Navbar({ transparent = false }: NavbarProps) {
+export function Navbar() {
   const org = useOrganization()
   const { isAuthenticated, user, logout } = useAuth()
   const contact = storefrontContact(org)
   const navLinks = isSpiceMalabarStorefront(org)
     ? [mainNavLinks[0], onamSpecialNavLink, ...mainNavLinks.slice(1)]
     : mainNavLinks
-  const whatsAppOrderHref = generalOrderWhatsAppUrl(contact)
-  const showWhatsApp = Boolean(storefrontWhatsAppPhone(contact))
+  const { enabled: showWhatsApp, orderUrl: whatsAppOrderHref } =
+    useStorefrontWhatsApp()
   const { itemCount } = useCart()
   const navigate = useNavigate()
-  const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileOpen, setIsMobileOpen] = useState(false)
-
-  useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 24)
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
-
-  const isSolid = !transparent || isScrolled
 
   const handleLogout = async () => {
     const result = await logout()
@@ -63,21 +50,11 @@ export function Navbar({ transparent = false }: NavbarProps) {
 
   return (
     <>
-      <header
-        className={cn(
-          'sticky top-0 z-50 h-[72px] transition-colors duration-200',
-          isSolid
-            ? 'border-b border-black/5 bg-surface/95 shadow-sm backdrop-blur-md'
-            : 'bg-transparent',
-        )}
-      >
+      <header className="sticky top-0 z-50 h-[72px] border-b border-black/5 bg-surface/95 shadow-sm backdrop-blur-md">
         <Container className="flex h-full items-center justify-between gap-4">
           <Link
             to={ROUTES.HOME}
-            className={cn(
-              'font-heading text-xl font-bold transition-colors md:text-2xl',
-              isSolid ? 'text-primary' : 'text-white',
-            )}
+            className="font-heading text-xl font-bold text-primary transition-colors md:text-2xl"
           >
             {contact.name}
           </Link>
@@ -93,13 +70,9 @@ export function Navbar({ transparent = false }: NavbarProps) {
                 className={({ isActive }) =>
                   cn(
                     'text-sm font-medium transition-colors',
-                    isSolid
-                      ? isActive
-                        ? 'text-primary'
-                        : 'text-text-primary hover:text-primary'
-                      : isActive
-                        ? 'text-white'
-                        : 'text-white/80 hover:text-white',
+                    isActive
+                      ? 'text-primary'
+                      : 'text-text-primary hover:text-primary',
                   )
                 }
               >
@@ -118,7 +91,7 @@ export function Navbar({ transparent = false }: NavbarProps) {
           </nav>
 
           <div className="flex items-center gap-2 md:gap-3">
-            {showWhatsApp ? (
+            {showWhatsApp && whatsAppOrderHref ? (
               <WhatsAppLink
                 href={whatsAppOrderHref}
                 variant="icon"
@@ -131,12 +104,7 @@ export function Navbar({ transparent = false }: NavbarProps) {
               <>
                 <Link
                   to={ROUTES.ORDERS}
-                  className={cn(
-                    'hidden h-10 w-10 items-center justify-center rounded-full transition-colors sm:flex',
-                    isSolid
-                      ? 'text-text-primary hover:bg-primary/10 hover:text-primary'
-                      : 'text-white hover:bg-white/10',
-                  )}
+                  className="hidden h-10 w-10 items-center justify-center rounded-full text-text-primary transition-colors hover:bg-primary/10 hover:text-primary sm:flex"
                   aria-label="My Orders"
                   title="My Orders"
                 >
@@ -144,24 +112,14 @@ export function Navbar({ transparent = false }: NavbarProps) {
                 </Link>
                 <Link
                   to={ROUTES.FAVORITES}
-                  className={cn(
-                    'hidden h-10 w-10 items-center justify-center rounded-full transition-colors sm:flex',
-                    isSolid
-                      ? 'text-text-primary hover:bg-primary/10 hover:text-primary'
-                      : 'text-white hover:bg-white/10',
-                  )}
+                  className="hidden h-10 w-10 items-center justify-center rounded-full text-text-primary transition-colors hover:bg-primary/10 hover:text-primary sm:flex"
                   aria-label="Favorites"
                 >
                   <Heart className="h-5 w-5" />
                 </Link>
                 <Link
                   to={ROUTES.NOTIFICATIONS}
-                  className={cn(
-                    'hidden h-10 w-10 items-center justify-center rounded-full transition-colors sm:flex',
-                    isSolid
-                      ? 'text-text-primary hover:bg-primary/10 hover:text-primary'
-                      : 'text-white hover:bg-white/10',
-                  )}
+                  className="hidden h-10 w-10 items-center justify-center rounded-full text-text-primary transition-colors hover:bg-primary/10 hover:text-primary sm:flex"
                   aria-label="Notifications"
                 >
                   <Bell className="h-5 w-5" />
@@ -170,12 +128,7 @@ export function Navbar({ transparent = false }: NavbarProps) {
             )}
             <Link
               to={ROUTES.CART}
-              className={cn(
-                'relative flex h-10 w-10 items-center justify-center rounded-full transition-colors',
-                isSolid
-                  ? 'text-text-primary hover:bg-primary/10 hover:text-primary'
-                  : 'text-white hover:bg-white/10',
-              )}
+              className="relative flex h-10 w-10 items-center justify-center rounded-full text-text-primary transition-colors hover:bg-primary/10 hover:text-primary"
               aria-label={`View cart${itemCount > 0 ? `, ${itemCount} items` : ''}`}
             >
               <ShoppingCart className="h-5 w-5" />
@@ -190,12 +143,7 @@ export function Navbar({ transparent = false }: NavbarProps) {
               <>
                 <Link
                   to={ROUTES.PROFILE}
-                  className={cn(
-                    'hidden h-10 max-w-[140px] items-center gap-2 rounded-full px-3 transition-colors sm:flex',
-                    isSolid
-                      ? 'text-text-primary hover:bg-primary/10 hover:text-primary'
-                      : 'text-white hover:bg-white/10',
-                  )}
+                  className="hidden h-10 max-w-[140px] items-center gap-2 rounded-full px-3 text-text-primary transition-colors hover:bg-primary/10 hover:text-primary sm:flex"
                   aria-label="View profile"
                 >
                   <User className="h-5 w-5 shrink-0" />
@@ -206,12 +154,7 @@ export function Navbar({ transparent = false }: NavbarProps) {
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className={cn(
-                    'hidden h-10 w-10 items-center justify-center rounded-full transition-colors sm:flex',
-                    isSolid
-                      ? 'text-text-primary hover:bg-primary/10 hover:text-primary'
-                      : 'text-white hover:bg-white/10',
-                  )}
+                  className="hidden h-10 w-10 items-center justify-center rounded-full text-text-primary transition-colors hover:bg-primary/10 hover:text-primary sm:flex"
                   aria-label="Sign out"
                 >
                   <LogOut className="h-5 w-5" />
@@ -220,12 +163,7 @@ export function Navbar({ transparent = false }: NavbarProps) {
             ) : (
               <Link
                 to={ROUTES.LOGIN}
-                className={cn(
-                  'hidden h-10 w-10 items-center justify-center rounded-full transition-colors sm:flex',
-                  isSolid
-                    ? 'text-text-primary hover:bg-primary/10 hover:text-primary'
-                    : 'text-white hover:bg-white/10',
-                )}
+                className="hidden h-10 w-10 items-center justify-center rounded-full text-text-primary transition-colors hover:bg-primary/10 hover:text-primary sm:flex"
                 aria-label="Sign in"
               >
                 <User className="h-5 w-5" />
@@ -234,12 +172,7 @@ export function Navbar({ transparent = false }: NavbarProps) {
 
             <button
               type="button"
-              className={cn(
-                'flex h-10 w-10 items-center justify-center rounded-full transition-colors lg:hidden',
-                isSolid
-                  ? 'text-text-primary hover:bg-primary/10'
-                  : 'text-white hover:bg-white/10',
-              )}
+              className="flex h-10 w-10 items-center justify-center rounded-full text-text-primary transition-colors hover:bg-primary/10 lg:hidden"
               aria-label={isMobileOpen ? 'Close menu' : 'Open menu'}
               aria-expanded={isMobileOpen}
               onClick={() => setIsMobileOpen((open) => !open)}
