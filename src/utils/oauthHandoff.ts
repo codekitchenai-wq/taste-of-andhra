@@ -32,7 +32,6 @@ export function tenantSessionHandoffUrl(input: {
     access_token: input.accessToken,
     refresh_token: input.refreshToken,
     token_type: 'bearer',
-    type: 'recovery',
   })
   return `${target}#${hash.toString()}`
 }
@@ -79,4 +78,41 @@ export async function handoffOAuthSessionToTenant(): Promise<boolean> {
   clearOAuthTenantCookie()
   window.location.replace(target)
   return true
+}
+
+export function parseSessionFromLocationHash(
+  hash: string = typeof window !== 'undefined' ? window.location.hash : '',
+): { access_token: string; refresh_token: string } | null {
+  const raw = hash.startsWith('#') ? hash.slice(1) : hash
+  if (!raw) return null
+  const params = new URLSearchParams(raw)
+  const access_token = params.get('access_token')?.trim()
+  const refresh_token = params.get('refresh_token')?.trim()
+  if (!access_token || !refresh_token) return null
+  return { access_token, refresh_token }
+}
+
+function stripAuthHashFromAddressBar(): void {
+  if (typeof window === 'undefined') return
+  const url = new URL(window.location.href)
+  if (!url.hash.includes('access_token')) return
+  url.hash = ''
+  window.history.replaceState(
+    {},
+    '',
+    `${url.pathname}${url.search}`,
+  )
+}
+
+/**
+ * PKCE clients ignore `#access_token=` (they expect `?code=`). After a tenant
+ * handoff the tokens are in the hash, so apply them with setSession.
+ */
+export async function applySessionFromUrlHash(): Promise<boolean> {
+  const tokens = parseSessionFromLocationHash()
+  if (!tokens) return false
+
+  const { error } = await supabase.auth.setSession(tokens)
+  stripAuthHashFromAddressBar()
+  return !error
 }

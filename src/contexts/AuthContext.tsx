@@ -15,6 +15,7 @@ import type {
   WhatsAppOtpVerifyInput,
 } from '@/services/authService'
 import { isSupabaseConfigured, supabase } from '@/services/supabaseClient'
+import { applySessionFromUrlHash } from '@/utils/oauthHandoff'
 import type { ServiceResponse } from '@/types/api'
 import type { Profile } from '@/types/Profile'
 import type { UserRole } from '@/types/enums'
@@ -70,6 +71,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     const initialize = async () => {
+      await applySessionFromUrlHash()
       await loadUser()
     }
 
