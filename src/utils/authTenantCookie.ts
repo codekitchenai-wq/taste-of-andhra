@@ -129,24 +129,28 @@ export function recoverOAuthTenantHostIfNeeded(
       ? window.location
       : { hostname: '', pathname: '/', search: '', hash: '' },
 ): boolean {
+  const params = new URLSearchParams(
+    location.search.startsWith('?') ? location.search.slice(1) : location.search,
+  )
+  const tenantFromUrl = params.get('tenant')?.trim().toLowerCase() || null
+
   const state = readOAuthTenantCookie()
-  if (!state?.tenant) return false
+  const intendedTenant = state?.tenant ?? tenantFromUrl
+  if (!intendedTenant) return false
 
   const currentSlug = slugFromHostname(location.hostname)
-  if (currentSlug === state.tenant) {
-    restoreAuthRedirectFromCookie(state)
+  if (currentSlug === intendedTenant) {
+    if (state) restoreAuthRedirectFromCookie(state)
     return false
   }
 
   const path = location.pathname || '/'
-  const params = new URLSearchParams(
-    location.search.startsWith('?') ? location.search.slice(1) : location.search,
-  )
-  if (!params.has('tenant')) params.set('tenant', state.tenant)
-  if (state.next && !params.has('next')) params.set('next', state.next)
+  if (!params.has('tenant')) params.set('tenant', intendedTenant)
+  const nextPath = state?.next
+  if (nextPath && !params.has('next')) params.set('next', nextPath)
 
   const search = params.toString()
-  const target = `${tenantStorefrontOrigin(state.tenant)}${path}${
+  const target = `${tenantStorefrontOrigin(intendedTenant)}${path}${
     search ? `?${search}` : ''
   }${location.hash ?? ''}`
 

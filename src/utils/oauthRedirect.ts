@@ -3,10 +3,7 @@ import {
   AUTH_GOOGLE_CONTINUE_VALUE,
 } from '@/constants/AUTH'
 import { ROUTES } from '@/constants/ROUTES'
-import {
-  isLocalDevHostname,
-  resolveTenantSlugFromLocation,
-} from '@/utils/tenantHost'
+import { resolveTenantSlugFromLocation } from '@/utils/tenantHost'
 
 function currentLocation() {
   if (typeof window === 'undefined') {
