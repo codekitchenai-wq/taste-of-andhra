@@ -18,9 +18,12 @@ const PRODUCTION_URL = `https://${PRODUCTION_REF}.supabase.co`
 const seedScript = process.argv[2] || 'seed-spice-malabar.mjs'
 const seedPath = resolve(dirname(fileURLToPath(import.meta.url)), seedScript)
 
-function readServiceRoleKey() {
-  const fromEnv = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
-  if (fromEnv) return fromEnv
+function readApiKeys() {
+  const fromEnvService = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+  const fromEnvAnon = process.env.VITE_SUPABASE_ANON_KEY?.trim()
+  if (fromEnvService) {
+    return { service: fromEnvService, anon: fromEnvAnon || '' }
+  }
 
   const result = spawnSync(
     'npx',
@@ -45,15 +48,16 @@ function readServiceRoleKey() {
   }
 
   const service = rows.find((row) => row.name === 'service_role')?.api_key
+  const anon = rows.find((row) => row.name === 'anon')?.api_key || ''
   if (!service) {
     console.error('Production service_role key not found.')
     process.exit(1)
   }
 
-  return service
+  return { service, anon }
 }
 
-const serviceKey = readServiceRoleKey()
+const keys = readApiKeys()
 
 console.log(`Seeding production (${PRODUCTION_REF}) via ${seedScript}…`)
 
@@ -62,7 +66,8 @@ const run = spawnSync('node', [seedPath], {
   env: {
     ...process.env,
     VITE_SUPABASE_URL: PRODUCTION_URL,
-    SUPABASE_SERVICE_ROLE_KEY: serviceKey,
+    SUPABASE_SERVICE_ROLE_KEY: keys.service,
+    VITE_SUPABASE_ANON_KEY: keys.anon,
   },
 })
 
