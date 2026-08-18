@@ -7,7 +7,12 @@ import {
   tenantStorefrontOrigin,
 } from '@/utils/authTenantCookie'
 import { shouldContinueGoogleOAuth } from '@/utils/oauthRedirect'
-import { hostServesTenant, resolveTenantSlugFromLocation, slugFromHostname } from '@/utils/tenantHost'
+import {
+  hostServesTenant,
+  isTasteOfAndhraCustomHost,
+  resolveTenantSlugFromLocation,
+  slugFromHostname,
+} from '@/utils/tenantHost'
 
 export function tenantSessionHandoffUrl(input: {
   tenant: string
@@ -51,9 +56,19 @@ export function shouldHandoffOAuthSession(): boolean {
   }
 
   const params = new URLSearchParams(window.location.search)
-  return (
-    params.has('code') || window.location.hash.includes('access_token')
-  )
+  if (params.has('code') || window.location.hash.includes('access_token')) {
+    return true
+  }
+
+  // Supabase Site URL fallback: authenticated on ToA domain for another tenant.
+  if (isTasteOfAndhraCustomHost(window.location.hostname)) {
+    const tenant = resolveTenantSlugFromLocation({ persist: false })
+    if (tenant && !hostServesTenant(window.location.hostname, tenant)) {
+      return true
+    }
+  }
+
+  return false
 }
 
 function clearOAuthInFlight(): void {

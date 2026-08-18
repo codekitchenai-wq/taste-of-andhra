@@ -54,8 +54,9 @@ function withTenantAndNext(
  * Bounce local tenant hosts through localhost and keep `?tenant=` on the URL
  * because sessionStorage is origin-scoped and would be lost on the hop.
  *
- * Production `{slug}.directapp.in` hops to the platform Site URL
- * (`www.directapp.in`) so Google does not fall back to Taste of Andhra.
+ * Production `{slug}.directapp.in` hops to the Supabase Site URL
+ * (`www.thetasteofandhra.com` until migrated) so Google accepts redirectTo
+ * and `?tenant=` survives the callback.
  */
 export function googleOAuthRedirectTo(
   loginPath: string = ROUTES.LOGIN,
@@ -80,8 +81,8 @@ export function googleOAuthRedirectTo(
 
 /**
  * Local `{slug}.localhost` is not on the Google/Supabase allowlist, so hop to
- * localhost first. Production restaurant subdomains hop to www.directapp.in
- * so PKCE and the tenant cookie stay on `.directapp.in`.
+ * localhost first. Production restaurant subdomains hop to the Supabase Site URL
+ * so PKCE and the tenant cookie stay on an allowed redirect origin.
  */
 export function googleOAuthPreflightUrl(
   loginPath: string = ROUTES.LOGIN,

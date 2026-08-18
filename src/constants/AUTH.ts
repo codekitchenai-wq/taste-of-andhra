@@ -1,4 +1,5 @@
 import { PLATFORM_WWW_URL } from '@/constants/PLATFORM'
+import { TASTE_OF_ANDHRA_WWW_URL } from '@/constants/TENANTS'
 
 /** Minimum password length for email auth (testing-friendly). */
 export const MIN_PASSWORD_LENGTH = 6
@@ -15,11 +16,14 @@ export const AUTH_OAUTH_TENANT_COOKIE = 'toa_oauth_tenant'
 export const AUTH_OAUTH_NEXT_COOKIE = 'toa_oauth_next'
 
 /**
- * Default Google OAuth return origin (Supabase Site URL).
- * `{slug}.directapp.in` hops here so login does not fall back to Taste of Andhra.
+ * Google OAuth return origin — must match Supabase **Site URL** (redirect allowlist).
+ * Defaults to Taste of Andhra until Supabase Site URL is `https://www.directapp.in`.
+ * Set `VITE_AUTH_OAUTH_CALLBACK_ORIGIN=https://www.directapp.in` after that migration.
  */
 export const AUTH_OAUTH_CALLBACK_ORIGIN = (
-  import.meta.env.VITE_AUTH_OAUTH_CALLBACK_ORIGIN?.trim() || PLATFORM_WWW_URL
+  import.meta.env.VITE_AUTH_OAUTH_CALLBACK_ORIGIN?.trim() ||
+  TASTE_OF_ANDHRA_WWW_URL ||
+  PLATFORM_WWW_URL
 ).replace(/\/$/, '')
 
 /** Local `{slug}.localhost` hops here so Google PKCE stays on localhost. */
