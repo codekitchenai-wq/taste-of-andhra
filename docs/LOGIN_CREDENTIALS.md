@@ -30,9 +30,22 @@ npm run seed:all-test-users
 | 9 | Tester 2 Admin | `tester2.admin@thetasteofandhra.com` | `Test@123` | http://127.0.0.1:5173/admin/login | https://www.thetasteofandhra.com/admin/login |
 | 10 | Tester 2 Delivery | `tester2.delivery@thetasteofandhra.com` | `Test@123` | http://127.0.0.1:5173/delivery/login | https://www.thetasteofandhra.com/delivery/login |
 
-**Total: 10 accounts · one shared password: `Test@123`**
+**Total: 10 Taste of Andhra accounts · one shared password: `Test@123`**
 
 Use the **matching login URL** for each persona (do not sign in as admin on `/login`).
+
+---
+
+## Spice Malabar (separate tenant)
+
+Login on the Spice Malabar host (not Taste of Andhra). The login form requires a full email, so the admin address is `spice-malabar@admin.test` (not `spice-malabar@admin`).
+
+| Persona | Email | Password | Local | Production |
+|---------|-------|----------|-------|------------|
+| Admin | `spice-malabar@admin.test` | `Test@123` | http://127.0.0.1:5173/admin/login?tenant=chopsticksspicemalabar | https://chopsticksspicemalabar.directapp.in/admin/login |
+| Demo customer | `demo@spicemalabar.test` | `Test@123` | http://127.0.0.1:5173/login?tenant=chopsticksspicemalabar | https://chopsticksspicemalabar.directapp.in/login |
+
+Seed: `npm run seed:spice-malabar` (staging) and `npm run seed:spice-malabar:production`.
 
 ---
 

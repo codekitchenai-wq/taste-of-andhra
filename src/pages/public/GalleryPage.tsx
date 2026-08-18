@@ -9,6 +9,7 @@ import { isAndhraLocalAsset } from '@/utils/menuImage'
 import {
   SPICE_MALABAR_HERO,
   dishImageFallback,
+  isSpiceMalabarStorefront,
   storefrontContact,
 } from '@/utils/storefrontCopy'
 
@@ -47,7 +48,7 @@ export default function GalleryPage() {
   }, [contact.name, org.isLoading, org.slug, org.organizationId])
 
   const description = useMemo(() => {
-    if (org.slug === 'spice-malabar') {
+    if (isSpiceMalabarStorefront(org)) {
       return 'Dishes from our Viman Nagar kitchen — Kerala specials, tandoor, and Indo-Chinese.'
     }
     if (org.resolvedFromHost) {

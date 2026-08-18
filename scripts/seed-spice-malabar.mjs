@@ -1,7 +1,7 @@
 /**
  * Seeds Spice Malabar tenant (Chopsticks Spice Malabar, Viman Nagar, Pune).
  *
- * Admin:    spicemalabaradmin@spicemalabar.test / Test@123
+ * Admin:    spice-malabar@admin.test / Test@123
  * Customer: demo@spicemalabar.test / Test@123
  *
  * Usage:
@@ -19,7 +19,8 @@ import { fileURLToPath } from 'node:url'
 const STARTER_PLAN_ID = 'b0000000-0000-4000-8000-000000000001'
 const GROWTH_PLAN_ID = 'b0000000-0000-4000-8000-000000000002'
 const PASSWORD = 'Test@123'
-const SLUG = 'spice-malabar'
+const SLUG = 'chopsticksspicemalabar'
+const LEGACY_SLUGS = ['spice-malabar']
 const ORG_NAME = 'Spice Malabar'
 const MENU_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -27,9 +28,18 @@ const MENU_PATH = resolve(
 )
 
 const ADMIN = {
-  email: 'spicemalabaradmin@spicemalabar.test',
+  email: 'spice-malabar@admin.test',
   password: PASSWORD,
   fullName: 'Spice Malabar Admin',
+  phone: '7841800101',
+  role: 'admin',
+}
+
+/** Previous seed email — kept so existing testers still work. */
+const LEGACY_ADMIN = {
+  email: 'spicemalabaradmin@spicemalabar.test',
+  password: PASSWORD,
+  fullName: 'Spice Malabar Admin (legacy)',
   phone: '7841800101',
   role: 'admin',
 }
@@ -260,13 +270,14 @@ async function main() {
   console.log('Seeding Spice Malabar…')
 
   let orgId
-  const { data: existingOrg, error: orgFindError } = await admin
+  const { data: existingRows, error: orgFindError } = await admin
     .from('organizations')
     .select('id, name, slug, status')
-    .eq('slug', SLUG)
-    .maybeSingle()
+    .in('slug', [SLUG, ...LEGACY_SLUGS])
 
   if (orgFindError) throw new Error(orgFindError.message)
+  const existingOrg =
+    existingRows?.find((row) => row.slug === SLUG) || existingRows?.[0]
 
   const homepageUrl = `https://${SLUG}.directapp.in`
   const orgFields = {
@@ -357,7 +368,7 @@ async function main() {
   if (existingOrg?.id) {
     orgId = existingOrg.id
     console.log(`Org exists: ${orgId}`)
-    await saveOrganization({ ...orgFields, ...homepageColumns }, orgId)
+    await saveOrganization({ slug: SLUG, ...orgFields, ...homepageColumns }, orgId)
   } else {
     orgId = randomUUID()
     await saveOrganization(
@@ -590,18 +601,22 @@ async function main() {
     }
   }
 
-  const adminUser = await ensureAuthUser(ADMIN)
-  await upsertProfile(adminUser.id, ADMIN)
-  const { error: memberError } = await admin.from('organization_members').upsert(
-    {
-      organization_id: orgId,
-      user_id: adminUser.id,
-      role: 'restaurant_owner',
-      is_active: true,
-    },
-    { onConflict: 'organization_id,user_id' },
-  )
-  if (memberError) throw new Error(`org member: ${memberError.message}`)
+  for (const account of [ADMIN, LEGACY_ADMIN]) {
+    const adminUser = await ensureAuthUser(account)
+    await upsertProfile(adminUser.id, account)
+    const { error: memberError } = await admin.from('organization_members').upsert(
+      {
+        organization_id: orgId,
+        user_id: adminUser.id,
+        role: 'restaurant_owner',
+        is_active: true,
+      },
+      { onConflict: 'organization_id,user_id' },
+    )
+    if (memberError) {
+      throw new Error(`org member ${account.email}: ${memberError.message}`)
+    }
+  }
 
   const customerUser = await ensureAuthUser(CUSTOMER)
   await upsertProfile(customerUser.id, CUSTOMER)

@@ -9,7 +9,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const SLUG = 'spice-malabar'
+const SLUGS = ['chopsticksspicemalabar', 'spice-malabar']
 const IMAGE_URL = '/images/tenants/spice-malabar-onam.png'
 const DESCRIPTION =
   'Traditional Kerala Onam Sadhya on banana leaf. 28 items including avial, olan, sambar, rasam, payasam. Pre-book for 25–26 August, 11 AM–9 PM.'
@@ -58,7 +58,8 @@ const admin = createClient(url, serviceKey, {
 const { data: org, error: orgError } = await admin
   .from('organizations')
   .select('id')
-  .eq('slug', SLUG)
+  .in('slug', SLUGS)
+  .limit(1)
   .maybeSingle()
 
 if (orgError || !org?.id) {

@@ -19,6 +19,8 @@
     "docs:test-excel": "node scripts/generate-test-excel.mjs",
     "seed:demo-users": "node scripts/seed-demo-users.mjs",
     "seed:spice-malabar": "node scripts/seed-spice-malabar.mjs",
+    "seed:spice-malabar:production": "node scripts/seed-production.mjs seed-spice-malabar.mjs",
+    "rename:spice-malabar-slug:production": "node scripts/seed-production.mjs rename-spice-malabar-slug.mjs",
     "seed:spice-malabar-onam": "node scripts/seed-spice-malabar-onam.mjs",
     "scrape:spice-malabar": "node scripts/scrape-spice-malabar-menu.mjs",
     "seed:qa-testers": "node scripts/seed-qa-testers.mjs",

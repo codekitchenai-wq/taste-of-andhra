@@ -14,6 +14,7 @@ import {
 } from '@/constants/ORGANIZATION'
 import { setCurrentOrganizationId } from '@/services/currentOrganization'
 import { supabase } from '@/services/supabaseClient'
+import { organizationSlugCandidates } from '@/constants/TENANTS'
 import { isMissingColumnError } from '@/utils/supabaseSchema'
 import {
   customDomainHostVariants,
@@ -105,25 +106,29 @@ function fromRow(
 }
 
 async function fetchOrgBySlug(slug: string): Promise<Record<string, unknown> | null> {
-  const full = await supabase
-    .from('organizations')
-    .select(FULL_ORG_SELECT)
-    .eq('slug', slug)
-    .maybeSingle()
+  const candidates = organizationSlugCandidates(slug)
 
-  if (!full.error && isUsableOrg(full.data)) {
-    return full.data as Record<string, unknown>
-  }
-
-  if (full.error && isMissingColumnError(full.error.message)) {
-    const mini = await supabase
+  for (const candidate of candidates) {
+    const full = await supabase
       .from('organizations')
-      .select(MIN_ORG_SELECT)
-      .eq('slug', slug)
+      .select(FULL_ORG_SELECT)
+      .eq('slug', candidate)
       .maybeSingle()
 
-    if (!mini.error && isUsableOrg(mini.data)) {
-      return mini.data as Record<string, unknown>
+    if (!full.error && isUsableOrg(full.data)) {
+      return full.data as Record<string, unknown>
+    }
+
+    if (full.error && isMissingColumnError(full.error.message)) {
+      const mini = await supabase
+        .from('organizations')
+        .select(MIN_ORG_SELECT)
+        .eq('slug', candidate)
+        .maybeSingle()
+
+      if (!mini.error && isUsableOrg(mini.data)) {
+        return mini.data as Record<string, unknown>
+      }
     }
   }
 

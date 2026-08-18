@@ -43,6 +43,7 @@ cp .env.example .env.local
 > Only variables prefixed with `VITE_` are included in the client bundle. Never commit real credentials — `.env.local` is gitignored.
 
 Multi-tenant domains (`directapp.in` subdomains + custom domains): see [docs/DOMAIN_SETUP.md](docs/DOMAIN_SETUP.md).  
+**Production tenant setup** (menu shows locally but not after deploy): [docs/PRODUCTION_TENANT_SETUP.md](docs/PRODUCTION_TENANT_SETUP.md).  
 Marketing site (`www.directapp.in`): editable copy in `src/constants/PLATFORM_SITE.ts`. Local preview: `VITE_FORCE_PLATFORM_SITE=true`.
 
 ### 3. Supabase database

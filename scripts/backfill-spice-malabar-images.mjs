@@ -9,7 +9,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const SLUG = 'spice-malabar'
+const SLUGS = ['chopsticksspicemalabar', 'spice-malabar']
 const MENU_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
   'data/spice-malabar-menu.json',
@@ -159,7 +159,8 @@ console.log(`Menu JSON: filled ${filled} missing photos`)
 const { data: org, error: orgError } = await admin
   .from('organizations')
   .select('id')
-  .eq('slug', SLUG)
+  .in('slug', SLUGS)
+  .limit(1)
   .maybeSingle()
 
 if (orgError || !org?.id) {

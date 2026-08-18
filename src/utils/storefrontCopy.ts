@@ -3,6 +3,7 @@ import { APP_DESCRIPTION, CONTACT, OPENING_HOURS } from '@/constants/APP'
 import { SHOW_TEST_HELPERS } from '@/constants/DEMO_ACCOUNTS'
 import { heroContent, testimonials, whyChooseUsItems } from '@/data/home'
 import type { OrganizationContextValue } from '@/contexts/OrganizationContext'
+import { isSpiceMalabarSlug } from '@/constants/TENANTS'
 import { isAndhraLocalAsset, optimizeMenuImage } from '@/utils/menuImage'
 
 export const SPICE_MALABAR_HERO = '/images/tenants/spice-malabar-hero.png'
@@ -28,7 +29,7 @@ function brandingHeroUrl(
 }
 
 function isSpiceMalabar(org: OrganizationContextValue) {
-  return org.slug === 'spice-malabar'
+  return isSpiceMalabarSlug(org.slug)
 }
 
 export function isSpiceMalabarStorefront(org: OrganizationContextValue) {
@@ -43,7 +44,9 @@ export function showStorefrontQaHelpers(org: OrganizationContextValue) {
 }
 
 function isOtherTenant(org: OrganizationContextValue) {
-  return Boolean(org.resolvedFromHost && org.slug && org.slug !== 'spice-malabar')
+  return Boolean(
+    org.resolvedFromHost && org.slug && !isSpiceMalabarSlug(org.slug),
+  )
 }
 
 export function storefrontHero(org: OrganizationContextValue) {

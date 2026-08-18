@@ -17,7 +17,7 @@ Restaurant tenants: `{slug}.directapp.in` or a custom domain.
 1. `{slug}.directapp.in` → org by `slug`
 2. Otherwise `custom_domain` (with/without `www`)
 
-So Taste of Andhra can use **both** `thetasteofandhra.directapp.in` and `www.thetasteofandhra.com`. Prefer **not** `www.thetasteofandhra.directapp.in` (wildcard `*.directapp.in` does not cover that).
+Prefer **not** `www.{slug}.directapp.in` (wildcard `*.directapp.in` does not cover a `www` prefix on a tenant subdomain). Example: use `https://chopsticksspicemalabar.directapp.in`, not `https://www.chopsticksspicemalabar.directapp.in`.
 
 Editable marketing copy/plans/contact: `src/constants/PLATFORM_SITE.ts`.
 
@@ -99,6 +99,10 @@ Optional: change nameservers to Vercel’s (`ns1.vercel-dns.com` / `ns2.vercel-d
 4. Else → default Taste of Andhra org
 
 Code: `src/utils/platformHost.ts`, `src/utils/tenantHost.ts`, `src/contexts/OrganizationContext.tsx`, `src/routes/index.tsx`.
+
+## Production tenant data (menus, org rows)
+
+DNS and env vars alone do not create tenant menu data. After wildcard DNS is valid, seed each restaurant in **production Supabase** and confirm Vercel flags — see [PRODUCTION_TENANT_SETUP.md](./PRODUCTION_TENANT_SETUP.md).
 
 ## Demo / enroll leads
 

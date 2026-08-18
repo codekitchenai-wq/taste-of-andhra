@@ -5,7 +5,7 @@ import { Container } from '@/components/ui/Container'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { ROUTES } from '@/constants/ROUTES'
 import { useOrganization } from '@/contexts/OrganizationContext'
-import { storefrontContact, storefrontWhyChooseUs } from '@/utils/storefrontCopy'
+import { storefrontContact, storefrontWhyChooseUs, isSpiceMalabarStorefront } from '@/utils/storefrontCopy'
 
 const ANDHRA_MILESTONES = [
   {
@@ -54,7 +54,7 @@ export default function AboutPage() {
   const contact = storefrontContact(org)
   const highlights = storefrontWhyChooseUs(org)
   const milestones =
-    org.slug === 'spice-malabar' ? SPICE_MILESTONES : ANDHRA_MILESTONES
+    isSpiceMalabarStorefront(org) ? SPICE_MILESTONES : ANDHRA_MILESTONES
 
   return (
     <>
@@ -80,30 +80,30 @@ export default function AboutPage() {
             <div className="rounded-[var(--radius-card)] bg-primary p-6 text-white shadow-md">
               <ChefHat className="h-8 w-8 text-accent" aria-hidden="true" />
               <p className="mt-3 text-2xl font-bold">
-                {org.slug === 'spice-malabar' ? '500+' : '50+'}
+                {isSpiceMalabarStorefront(org) ? '500+' : '50+'}
               </p>
               <p className="text-sm text-white/85">Dishes on our menu</p>
             </div>
             <div className="rounded-[var(--radius-card)] bg-surface p-6 shadow-md">
               <Users className="h-8 w-8 text-primary" aria-hidden="true" />
               <p className="mt-3 text-2xl font-bold text-text-primary">
-                {org.slug === 'spice-malabar' ? 'Viman Nagar' : '10k+'}
+                {isSpiceMalabarStorefront(org) ? 'Viman Nagar' : '10k+'}
               </p>
               <p className="text-sm text-text-secondary">
-                {org.slug === 'spice-malabar' ? 'Pune kitchen' : 'Happy customers'}
+                {isSpiceMalabarStorefront(org) ? 'Pune kitchen' : 'Happy customers'}
               </p>
             </div>
             <div className="rounded-[var(--radius-card)] bg-surface p-6 shadow-md">
               <Heart className="h-8 w-8 text-primary" aria-hidden="true" />
               <p className="mt-3 text-2xl font-bold text-text-primary">
-                {org.slug === 'spice-malabar' ? '4.4' : '4.8'}
+                {isSpiceMalabarStorefront(org) ? '4.4' : '4.8'}
               </p>
               <p className="text-sm text-text-secondary">Average rating</p>
             </div>
             <div className="rounded-[var(--radius-card)] bg-surface p-6 shadow-md">
               <MapPin className="h-8 w-8 text-primary" aria-hidden="true" />
               <p className="mt-3 text-2xl font-bold text-text-primary">
-                {org.slug === 'spice-malabar' ? '20 min' : '45 min'}
+                {isSpiceMalabarStorefront(org) ? '20 min' : '45 min'}
               </p>
               <p className="text-sm text-text-secondary">Typical wait</p>
             </div>

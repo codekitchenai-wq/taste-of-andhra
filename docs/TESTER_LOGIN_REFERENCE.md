@@ -121,6 +121,12 @@ Always **log out** (or use a private window) before switching persona.
 
 All passwords: **`Test@123`**
 
+### Spice Malabar admin (this tenant only)
+
+| Email | Password | Login |
+|-------|----------|-------|
+| `spice-malabar@admin.test` | `Test@123` | https://chopsticksspicemalabar.directapp.in/admin/login |
+
 ---
 
 ## 5. Related docs
@@ -128,3 +134,4 @@ All passwords: **`Test@123`**
 - [SAAS_MULTI_TENANT_ARCHITECTURE.md](./SAAS_MULTI_TENANT_ARCHITECTURE.md)
 - [SAAS_DATABASE_DIAGRAM.md](./SAAS_DATABASE_DIAGRAM.md)
 - [QA_TESTER_1.md](./QA_TESTER_1.md) / [QA_TESTER_2.md](./QA_TESTER_2.md) — older guides; password and Master portal in this file supersede them for credentials.
+- [PRODUCTION_TENANT_SETUP.md](./PRODUCTION_TENANT_SETUP.md) — Spice Malabar production seed and admin login.

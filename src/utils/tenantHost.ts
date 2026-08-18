@@ -57,7 +57,7 @@ export function slugFromHostname(
   return null
 }
 
-/** Local-only: `?tenant=spice-malabar` (persisted for in-app navigation). */
+/** Local-only: `?tenant=chopsticksspicemalabar` (persisted for in-app navigation). */
 export function slugFromSearchParams(
   search: string,
   hostname: string,

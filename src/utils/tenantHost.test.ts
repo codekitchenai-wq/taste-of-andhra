@@ -20,6 +20,15 @@ describe('slugFromHostname', () => {
     expect(
       slugFromHostname('www.spice-malabar.localhost', 'directapp.in'),
     ).toBe('spice-malabar')
+    expect(
+      slugFromHostname('chopsticksspicemalabar.localhost', 'directapp.in'),
+    ).toBe('chopsticksspicemalabar')
+  })
+
+  it('extracts the Chopsticks Spice Malabar production subdomain', () => {
+    expect(
+      slugFromHostname('chopsticksspicemalabar.directapp.in', 'directapp.in'),
+    ).toBe('chopsticksspicemalabar')
   })
 
   it('extracts a single-label platform subdomain', () => {

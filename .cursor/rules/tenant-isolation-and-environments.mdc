@@ -1,0 +1,28 @@
+---
+description: Tenant isolation plus staging vs production Supabase — never assume a local seed or git push copies menus/customers to production
+alwaysApply: true
+---
+
+# Tenant data is per-org and per-environment
+
+Tenants (Taste of Andhra, Spice Malabar, others) **must not share** menus, categories, orders, customers-at-restaurant, or settings. All of those are scoped by `organization_id`.
+
+## Two databases
+
+| Env | Project | Typical access |
+|-----|---------|----------------|
+| Local / staging | `zsfjpapatepmnbtxvvaw` (`taste-of-andhra-staging`) | `.env.local` |
+| Production | `qixpsqlifwsztncjevgl` (`taste-of-andhra`) | Vercel `VITE_SUPABASE_*` |
+
+Pushing the frontend **does not** copy tenant rows. A tenant that works locally can show “Menu coming soon” on `{slug}.directapp.in` if production was never seeded.
+
+## When adding or changing a tenant
+
+1. Seed/onboard against **staging** first (`npm run seed:spice-malabar` with `.env.local`).
+2. Then seed **production**: `npm run seed:spice-malabar:production` (or `scripts/seed-production.mjs <seed-file>`).
+3. Confirm production: org row for the slug, plus dish/category counts for that `organization_id`.
+4. Require `VITE_ENABLE_HOST_TENANT_RESOLUTION=true` on Vercel Production; otherwise every host falls back to Taste of Andhra.
+
+Symptom: tenant branding on `https://{slug}.directapp.in` + empty menu → org resolved, **prod catalog missing**. See `docs/PRODUCTION_TENANT_SETUP.md`.
+
+Spice Malabar public URL is `https://chopsticksspicemalabar.directapp.in` (legacy `spice-malabar` still aliases). Do not use `www.{slug}.directapp.in` — wildcard DNS does not cover it.
