@@ -1,5 +1,7 @@
+import { Suspense } from 'react'
 import { Outlet } from 'react-router-dom'
 import { Container } from '@/components/ui/Container'
+import { LoadingState } from '@/components/ui/LoadingState'
 import { useOrganization } from '@/contexts/OrganizationContext'
 import { storefrontContact } from '@/utils/storefrontCopy'
 import { useTenantDocumentTitle } from '@/hooks/useTenantDocumentTitle'
@@ -22,7 +24,9 @@ export function AuthLayout() {
             </p>
           </div>
           <div className="rounded-[var(--radius-card)] bg-surface p-6 shadow-md md:p-8">
-            <Outlet />
+            <Suspense fallback={<LoadingState variant="inline" />}>
+              <Outlet />
+            </Suspense>
           </div>
         </div>
       </Container>

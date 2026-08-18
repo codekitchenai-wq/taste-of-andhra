@@ -154,7 +154,8 @@ export async function handoffOAuthSessionToTenantIfNeeded(): Promise<boolean> {
 export function recoverOAuthTenantHostIfNeeded(): boolean {
   if (typeof window === 'undefined') return false
 
-  const params = new URLSearchParams(window.location.search)
+  const search = window.location.search
+  const params = new URLSearchParams(search)
   const tenant =
     params.get('tenant')?.trim().toLowerCase() ||
     readOAuthTenantCookie()?.trim().toLowerCase() ||
@@ -163,6 +164,15 @@ export function recoverOAuthTenantHostIfNeeded(): boolean {
   if (!tenant) return false
 
   const hostname = window.location.hostname
+
+  // Bare localhost with ?tenant= is a supported local dev storefront URL.
+  if (
+    (hostname === 'localhost' || hostname === '127.0.0.1') &&
+    (params.has('tenant') || params.has('org'))
+  ) {
+    return false
+  }
+
   if (hostServesTenant(hostname, tenant)) return false
   if (isPlatformApexHost(hostname) || isTasteOfAndhraCustomHost(hostname)) {
     return false

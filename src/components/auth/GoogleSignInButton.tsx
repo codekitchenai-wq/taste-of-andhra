@@ -52,7 +52,7 @@ export function GoogleSignInButton({ redirectTo }: GoogleSignInButtonProps) {
       type="button"
       onClick={() => void handleClick()}
       disabled={isStarting}
-      className="flex w-full items-center justify-center gap-3 rounded-xl border border-black/10 bg-white px-4 py-3 text-sm font-medium text-text-primary transition hover:bg-black/[0.02] disabled:opacity-60"
+      className="flex w-full items-center justify-center gap-3 rounded-xl border-2 border-black/15 bg-white px-4 py-3 text-sm font-semibold text-[#212121] shadow-sm transition hover:bg-black/[0.03] disabled:opacity-60"
     >
       <GoogleGlyph />
       {isStarting ? 'Redirecting to Google...' : 'Continue with Google'}
