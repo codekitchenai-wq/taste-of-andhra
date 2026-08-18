@@ -17,6 +17,7 @@ import {
   storefrontSocialLinks,
 } from '@/utils/storefrontCopy'
 import { useStorefrontWhatsApp } from '@/hooks/useStorefrontWhatsApp'
+import { useIsLandingPage } from '@/hooks/useIsLandingPage'
 
 export function Footer() {
   const org = useOrganization()
@@ -26,6 +27,8 @@ export function Footer() {
     ? [footerQuickLinks[0], onamSpecialNavLink, ...footerQuickLinks.slice(1)]
     : footerQuickLinks
   const whatsApp = useStorefrontWhatsApp()
+  const isLandingPage = useIsLandingPage()
+  const showWhatsApp = whatsApp.enabled && whatsApp.orderUrl && !isLandingPage
   const socialLinks = storefrontSocialLinks(org)
   const blurb = contact.description
 
@@ -40,7 +43,7 @@ export function Footer() {
             <p className="mt-3 text-sm leading-relaxed text-text-secondary">
               {blurb}
             </p>
-            {socialLinks.length > 0 || whatsApp.enabled ? (
+            {socialLinks.length > 0 || showWhatsApp ? (
             <div className="mt-4 flex gap-3">
               {socialLinks.map((link) => (
               <a
@@ -58,8 +61,8 @@ export function Footer() {
                 )}
               </a>
               ))}
-              {whatsApp.enabled && whatsApp.orderUrl ? (
-                <WhatsAppLink href={whatsApp.orderUrl} variant="icon" className="h-9 w-9">
+              {showWhatsApp ? (
+                <WhatsAppLink href={whatsApp.orderUrl!} variant="icon" className="h-9 w-9">
                   WhatsApp
                 </WhatsAppLink>
               ) : null}
@@ -145,9 +148,9 @@ export function Footer() {
                   </a>
                 </li>
               ))}
-              {whatsApp.enabled && whatsApp.orderUrl ? (
+              {showWhatsApp ? (
                 <li>
-                  <WhatsAppLink href={whatsApp.orderUrl} variant="inline">
+                  <WhatsAppLink href={whatsApp.orderUrl!} variant="inline">
                     Order on WhatsApp
                   </WhatsAppLink>
                 </li>

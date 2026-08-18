@@ -16,6 +16,7 @@ import { useOrganization } from '@/contexts/OrganizationContext'
 import { storefrontContact, isSpiceMalabarStorefront } from '@/utils/storefrontCopy'
 import { WhatsAppLink } from '@/components/ui/WhatsAppLink'
 import { useStorefrontWhatsApp } from '@/hooks/useStorefrontWhatsApp'
+import { useIsLandingPage } from '@/hooks/useIsLandingPage'
 import { mainNavLinks, onamSpecialNavLink } from '@/data/navigation'
 import { Container } from '@/components/ui/Container'
 import { MobileMenu } from '@/components/layout/MobileMenu'
@@ -32,6 +33,8 @@ export function Navbar() {
     : mainNavLinks
   const { enabled: showWhatsApp, orderUrl: whatsAppOrderHref } =
     useStorefrontWhatsApp()
+  const isLandingPage = useIsLandingPage()
+  const showWhatsAppCta = showWhatsApp && whatsAppOrderHref && !isLandingPage
   const { itemCount } = useCart()
   const navigate = useNavigate()
   const [isMobileOpen, setIsMobileOpen] = useState(false)
@@ -91,7 +94,7 @@ export function Navbar() {
           </nav>
 
           <div className="flex items-center gap-2 md:gap-3">
-            {showWhatsApp && whatsAppOrderHref ? (
+            {showWhatsAppCta ? (
               <WhatsAppLink
                 href={whatsAppOrderHref}
                 variant="icon"
@@ -192,7 +195,7 @@ export function Navbar() {
         onClose={() => setIsMobileOpen(false)}
         links={navLinks}
         onLogout={handleLogout}
-        whatsAppOrderHref={showWhatsApp ? whatsAppOrderHref : null}
+        whatsAppOrderHref={showWhatsAppCta ? whatsAppOrderHref : null}
       />
     </>
   )

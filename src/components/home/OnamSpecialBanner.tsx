@@ -7,11 +7,9 @@ import { ONAM_SADHYA } from '@/constants/ONAM_SADHYA'
 import { ROUTES } from '@/constants/ROUTES'
 import { useOrganization } from '@/contexts/OrganizationContext'
 import { isSpiceMalabarStorefront } from '@/utils/storefrontCopy'
-import { useStorefrontWhatsApp } from '@/hooks/useStorefrontWhatsApp'
 
 export function OnamSpecialBanner() {
   const org = useOrganization()
-  const whatsApp = useStorefrontWhatsApp()
   if (!isSpiceMalabarStorefront(org)) return null
 
   return (
@@ -40,10 +38,7 @@ export function OnamSpecialBanner() {
               {ONAM_SADHYA.title}
             </h2>
             <p className="mt-2 text-sm text-text-secondary md:text-base">
-              Pre-book plates and a delivery slot, then{' '}
-              {whatsApp.enabled
-                ? 'WhatsApp the kitchen or place the order online.'
-                : 'place the order online.'}
+              Pre-book plates and a delivery slot, then place the order online.
             </p>
             <div className="mt-5">
               <Button type="button" className="pointer-events-none">

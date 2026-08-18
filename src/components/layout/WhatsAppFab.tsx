@@ -5,11 +5,13 @@ import { ROUTES } from '@/constants/ROUTES'
 import { useAuth } from '@/hooks/useAuth'
 import { useCart } from '@/hooks/useCart'
 import { useStorefrontWhatsApp } from '@/hooks/useStorefrontWhatsApp'
+import { useIsLandingPage } from '@/hooks/useIsLandingPage'
 import { cn } from '@/utils/cn'
 
 /** Mobile-friendly floating WhatsApp order button. Hidden unless admin enabled it. */
 export function WhatsAppFab() {
   const { pathname } = useLocation()
+  const isLandingPage = useIsLandingPage()
   const { isAuthenticated } = useAuth()
   const { cart } = useCart()
   const whatsApp = useStorefrontWhatsApp()
@@ -23,7 +25,7 @@ export function WhatsAppFab() {
   }, [cart, isAuthenticated, whatsApp])
 
   if (!href) return null
-  if (pathname === ROUTES.ONAM) return null
+  if (pathname === ROUTES.ONAM || isLandingPage) return null
 
   const aboveCheckoutBar =
     pathname === ROUTES.CART || pathname === ROUTES.CHECKOUT
