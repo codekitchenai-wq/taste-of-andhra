@@ -4,6 +4,7 @@ import {
   hostServesTenant,
   isOAuthCallbackHost,
   isPlatformHostname,
+  resolveTenantSlugFromLocation,
   slugFromHostname,
   slugFromSearchParams,
 } from './tenantHost'
@@ -67,7 +68,7 @@ describe('customDomainHostVariants', () => {
 })
 
 describe('slugFromSearchParams', () => {
-  it('reads tenant on localhost and platform subdomains', () => {
+  it('reads tenant on localhost, apex, and the Taste of Andhra Site URL', () => {
     expect(
       slugFromSearchParams('?tenant=spice-malabar', 'localhost'),
     ).toBe('spice-malabar')
@@ -75,16 +76,43 @@ describe('slugFromSearchParams', () => {
       'spice-malabar',
     )
     expect(
-      slugFromSearchParams('?tenant=spice-malabar', 'thetasteofandhra.directapp.in'),
+      slugFromSearchParams('?tenant=spice-malabar', 'www.directapp.in'),
     ).toBe('spice-malabar')
-    expect(
-      slugFromSearchParams('?tenant=spice-malabar', 'order.chopsticks.com'),
-    ).toBeNull()
     expect(
       slugFromSearchParams(
         '?tenant=chopsticksspicemalabar',
         'www.thetasteofandhra.com',
       ),
+    ).toBe('chopsticksspicemalabar')
+    expect(
+      slugFromSearchParams('?tenant=spice-malabar', 'order.chopsticks.com'),
+    ).toBeNull()
+  })
+
+  it('ignores leftover tenant query on a restaurant subdomain', () => {
+    expect(
+      slugFromSearchParams(
+        '?tenant=thetasteofandhra',
+        'chopsticksspicemalabar.directapp.in',
+      ),
+    ).toBeNull()
+    expect(
+      slugFromSearchParams(
+        '?tenant=chopsticksspicemalabar',
+        'thetasteofandhra.directapp.in',
+      ),
+    ).toBeNull()
+  })
+})
+
+describe('resolveTenantSlugFromLocation', () => {
+  it('prefers the hostname slug over a leftover tenant query', () => {
+    expect(
+      resolveTenantSlugFromLocation({
+        hostname: 'chopsticksspicemalabar.directapp.in',
+        search: '?tenant=thetasteofandhra',
+        persist: false,
+      }),
     ).toBe('chopsticksspicemalabar')
   })
 })
