@@ -316,6 +316,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     let cancelled = false
     const hostname =
       typeof window !== 'undefined' ? window.location.hostname : ''
+    const slugHint = initialSlugFromLocation()
 
     const applyResolved = (result: ResolvedOrganization) => {
       if (cancelled) return
@@ -339,15 +340,30 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       setIsLoading(false)
     }
 
-    // Do not leave the homepage on skeletons if host lookup hangs.
+    const applyFailedResolution = () => {
+      if (slugHint) {
+        applyResolved(
+          emptyResolved({
+            organizationId: UNMATCHED_ORGANIZATION_ID,
+            slug: slugHint,
+            name: displayNameFromSlug(slugHint),
+            resolvedFromHost: true,
+          }),
+        )
+        return
+      }
+      applyResolved(emptyResolved())
+    }
+
+    // Safety net when host lookup hangs — always sets org state, not just isLoading.
     const timeoutId = window.setTimeout(() => {
-      if (!cancelled) setIsLoading(false)
-    }, 2500)
+      if (!cancelled) applyFailedResolution()
+    }, 8000)
 
     void resolveOrganizationFromHostname(hostname)
       .then(applyResolved)
       .catch(() => {
-        if (!cancelled) setIsLoading(false)
+        if (!cancelled) applyFailedResolution()
       })
       .finally(() => {
         window.clearTimeout(timeoutId)

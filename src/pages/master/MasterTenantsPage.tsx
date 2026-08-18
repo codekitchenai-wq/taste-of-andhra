@@ -5,6 +5,8 @@ import {
   DEMO_PASSWORD,
   MASTER_ACCOUNT,
   TENANT_TASTE_OF_ANDHRA,
+  productionLoginUrl,
+  productionOriginForOrg,
   tenantPersonaAccounts,
 } from '@/constants/DEMO_ACCOUNTS'
 import { ROUTES } from '@/constants/ROUTES'
@@ -171,12 +173,10 @@ export default function MasterTenantsPage() {
               <h3 className="font-medium">{org.name}</h3>
               <ul className="mt-2 space-y-3">
                 {tenantPersonaAccounts(org).map((account) => {
-                  const loginTo =
-                    account.role === 'admin'
-                      ? ROUTES.ADMIN.LOGIN
-                      : account.role === 'delivery'
-                        ? ROUTES.DELIVERY.LOGIN
-                        : ROUTES.LOGIN
+                  const loginHref = productionLoginUrl(
+                    { productionOrigin: productionOriginForOrg(org) },
+                    account.role,
+                  )
                   return (
                   <li
                     key={account.email}
@@ -188,12 +188,14 @@ export default function MasterTenantsPage() {
                     <p className="mt-1 font-mono text-xs text-text-secondary">
                       {account.email} / {account.password}
                     </p>
-                    <Link
-                      to={loginTo}
+                    <a
+                      href={loginHref}
                       className="mt-2 inline-block text-primary hover:underline"
+                      target="_blank"
+                      rel="noreferrer"
                     >
                       Open {USER_ROLE[account.role]} login
-                    </Link>
+                    </a>
                   </li>
                   )
                 })}

@@ -178,6 +178,25 @@ export function productionLoginUrl(
   return `${tenant.productionOrigin}${loginPathForRole(role)}`
 }
 
+export function productionOriginForOrg(org: {
+  slug: string
+  homepage?: { homepageUrl?: string | null } | null
+}): string {
+  const demo = DEMO_TENANTS.find((tenant) => tenant.slug === org.slug)
+  if (demo) return demo.productionOrigin
+
+  const homepageUrl = org.homepage?.homepageUrl?.trim()
+  if (homepageUrl) {
+    try {
+      return new URL(homepageUrl).origin
+    } catch {
+      // fall through
+    }
+  }
+
+  return `https://${org.slug}.directapp.in`
+}
+
 export function accountsForRole(
   role: UserRole,
   tenantSlug?: string | null,

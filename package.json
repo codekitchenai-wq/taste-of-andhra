@@ -22,6 +22,7 @@
     "seed:spice-malabar:production": "node scripts/seed-production.mjs seed-spice-malabar.mjs",
     "rename:spice-malabar-slug:production": "node scripts/seed-production.mjs rename-spice-malabar-slug.mjs",
     "smoke:spice-malabar:production": "node scripts/seed-production.mjs smoke-spice-malabar-production.mjs",
+    "diagnose:tenant-isolation:production": "node scripts/seed-production.mjs diagnose-tenant-isolation.mjs",
     "seed:spice-malabar-onam": "node scripts/seed-spice-malabar-onam.mjs",
     "scrape:spice-malabar": "node scripts/scrape-spice-malabar-menu.mjs",
     "seed:qa-testers": "node scripts/seed-qa-testers.mjs",

@@ -259,14 +259,32 @@ export async function updateAddress(
     return createErrorResponse('No changes provided.')
   }
 
-  const { data, error } = await supabase
+  const userId = userResult.data
+  const orgId = getCurrentOrganizationId()
+
+  let query = supabase
     .from('addresses')
     .update(updates)
     .eq('id', id)
-    .eq('user_id', userResult.data)
-    .eq('organization_id', getCurrentOrganizationId())
-    .select()
-    .single()
+    .eq('user_id', userId)
+
+  if (orgId && orgId !== UNMATCHED_ORGANIZATION_ID) {
+    query = query.eq('organization_id', orgId)
+  }
+
+  let { data, error } = await query.select().single()
+
+  if (error && isMissingColumnError(error.message)) {
+    const fallback = await supabase
+      .from('addresses')
+      .update(updates)
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select()
+      .single()
+    data = fallback.data
+    error = fallback.error
+  }
 
   if (error) {
     return createErrorResponse('Unable to update address.', error.message)
@@ -284,12 +302,25 @@ export async function deleteAddress(
     return userResult
   }
 
-  const { error } = await supabase
-    .from('addresses')
-    .delete()
-    .eq('id', id)
-    .eq('user_id', userResult.data)
-    .eq('organization_id', getCurrentOrganizationId())
+  const userId = userResult.data
+  const orgId = getCurrentOrganizationId()
+
+  let query = supabase.from('addresses').delete().eq('id', id).eq('user_id', userId)
+
+  if (orgId && orgId !== UNMATCHED_ORGANIZATION_ID) {
+    query = query.eq('organization_id', orgId)
+  }
+
+  let { error } = await query
+
+  if (error && isMissingColumnError(error.message)) {
+    const fallback = await supabase
+      .from('addresses')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId)
+    error = fallback.error
+  }
 
   if (error) {
     return createErrorResponse('Unable to delete address.', error.message)
