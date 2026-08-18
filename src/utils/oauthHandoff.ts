@@ -101,6 +101,25 @@ export function isOAuthCompletionHost(hostname: string): boolean {
   )
 }
 
+/** True while Google OAuth still needs to hop to the restaurant that started it. */
+export function pendingOAuthTenantHandoff(
+  hostname: string = typeof window !== 'undefined' ? window.location.hostname : '',
+  search: string = typeof window !== 'undefined' ? window.location.search : '',
+): boolean {
+  if (!hostname) return false
+  if (shouldContinueGoogleOAuth(search)) return true
+  if (parseSessionFromUrlHash()) return true
+  if (!isOAuthCompletionHost(hostname)) return false
+
+  const params = new URLSearchParams(search)
+  const tenant =
+    params.get('tenant')?.trim().toLowerCase() ||
+    readOAuthTenantCookie()?.trim().toLowerCase() ||
+    null
+
+  return Boolean(tenant && !hostServesTenant(hostname, tenant))
+}
+
 /**
  * After Google returns to www / localhost, copy the session to the restaurant
  * host via a one-time URL hash, then sign out on the platform origin.

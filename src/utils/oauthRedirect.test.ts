@@ -6,16 +6,55 @@ import {
 } from './oauthRedirect'
 
 describe('google OAuth redirect', () => {
-  it('keeps production tenant subdomains on the same origin', () => {
+  it('hops production tenant subdomains through www with ?tenant=', () => {
     const location = {
       hostname: 'chopsticksspicemalabar.directapp.in',
       origin: 'https://chopsticksspicemalabar.directapp.in',
     }
 
     expect(googleOAuthRedirectTo('/login', null, location)).toBe(
-      'https://chopsticksspicemalabar.directapp.in/login',
+      'https://www.directapp.in/login?tenant=chopsticksspicemalabar',
     )
-    expect(googleOAuthPreflightUrl('/login', undefined, location)).toBeNull()
+    expect(googleOAuthPreflightUrl('/login', undefined, location)).toBe(
+      'https://www.directapp.in/login?tenant=chopsticksspicemalabar&continue=google',
+    )
+  })
+
+  it('does not preflight when already on the platform callback host', () => {
+    const location = {
+      hostname: 'www.directapp.in',
+      origin: 'https://www.directapp.in',
+    }
+
+    expect(
+      googleOAuthRedirectTo('/login', 'chopsticksspicemalabar', location),
+    ).toBe('https://www.directapp.in/login?tenant=chopsticksspicemalabar')
+    expect(
+      googleOAuthPreflightUrl(
+        '/login',
+        undefined,
+        location,
+        'chopsticksspicemalabar',
+      ),
+    ).toBeNull()
+  })
+
+  it('hops Taste of Andhra custom domain through www so Spice Malabar is not lost', () => {
+    const location = {
+      hostname: 'www.thetasteofandhra.com',
+      origin: 'https://www.thetasteofandhra.com',
+    }
+
+    expect(
+      googleOAuthPreflightUrl(
+        '/login',
+        undefined,
+        location,
+        'chopsticksspicemalabar',
+      ),
+    ).toBe(
+      'https://www.directapp.in/login?tenant=chopsticksspicemalabar&continue=google',
+    )
   })
 
   it('hops local tenant subdomains through bare localhost', () => {

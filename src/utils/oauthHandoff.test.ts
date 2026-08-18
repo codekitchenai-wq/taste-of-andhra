@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { recoverOAuthTenantHostIfNeeded } from './oauthHandoff'
+import {
+  pendingOAuthTenantHandoff,
+  recoverOAuthTenantHostIfNeeded,
+} from './oauthHandoff'
 
 describe('recoverOAuthTenantHostIfNeeded', () => {
   const replace = vi.fn()
@@ -57,5 +60,41 @@ describe('recoverOAuthTenantHostIfNeeded', () => {
 
     expect(recoverOAuthTenantHostIfNeeded()).toBe(false)
     expect(replace).not.toHaveBeenCalled()
+  })
+})
+
+describe('pendingOAuthTenantHandoff', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('holds the login screen on www until the restaurant hop runs', () => {
+    vi.stubGlobal('document', { cookie: '' })
+    expect(
+      pendingOAuthTenantHandoff(
+        'www.directapp.in',
+        '?tenant=chopsticksspicemalabar',
+      ),
+    ).toBe(true)
+  })
+
+  it('holds Taste of Andhra until Spice Malabar is restored', () => {
+    vi.stubGlobal('document', { cookie: '' })
+    expect(
+      pendingOAuthTenantHandoff(
+        'www.thetasteofandhra.com',
+        '?tenant=chopsticksspicemalabar',
+      ),
+    ).toBe(true)
+  })
+
+  it('does not hold when already on the restaurant host', () => {
+    vi.stubGlobal('document', { cookie: '' })
+    expect(
+      pendingOAuthTenantHandoff(
+        'chopsticksspicemalabar.directapp.in',
+        '?tenant=chopsticksspicemalabar',
+      ),
+    ).toBe(false)
   })
 })

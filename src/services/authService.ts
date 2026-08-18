@@ -227,7 +227,7 @@ export async function loginWithGoogle(
 
   persistOAuthTenantCookie(tenantSlug)
 
-  const preflight = googleOAuthPreflightUrl('/login', redirectToPath)
+  const preflight = googleOAuthPreflightUrl('/login', redirectToPath, undefined, tenantSlug)
   if (preflight) {
     window.location.assign(preflight)
     return createSuccessResponse(null)

@@ -1,11 +1,12 @@
 import { OAUTH_CONTINUE_GOOGLE } from '@/constants/AUTH'
-import { PLATFORM_ROOT_DOMAIN, PLATFORM_WWW_URL } from '@/constants/PLATFORM'
+import {
+  OAUTH_CALLBACK_ORIGIN,
+  PLATFORM_ROOT_DOMAIN,
+} from '@/constants/PLATFORM'
 import {
   isLocalDevHostname,
   isPlatformApexHost,
-  isPlatformHostname,
   resolveTenantSlugFromLocation,
-  slugFromHostname,
 } from '@/utils/tenantHost'
 
 export interface OAuthRedirectLocation {
@@ -41,9 +42,10 @@ export function shouldContinueGoogleOAuth(search: string): boolean {
 }
 
 /**
- * Supabase OAuth `redirectTo` for the current host.
- * Tenant `{slug}.directapp.in` returns on the same origin; local `{slug}.localhost`
- * and custom domains return through bare localhost / www with `?tenant=`.
+ * Supabase OAuth `redirectTo`.
+ * Production always returns to the platform callback origin with `?tenant=` so a
+ * Site URL fallback (Taste of Andhra) cannot drop the restaurant context.
+ * Local `{slug}.localhost` returns through bare localhost with `?tenant=`.
  */
 export function googleOAuthRedirectTo(
   path: string,
@@ -60,49 +62,35 @@ export function googleOAuthRedirectTo(
 
   const normalizedPath = normalizePath(path)
 
-  if (slug && location.hostname.endsWith('.localhost')) {
-    const port = location.port || '5173'
-    return `${localDevOrigin(port)}${normalizedPath}?tenant=${encodeURIComponent(slug)}`
-  }
-
-  if (slug && slugFromHostname(location.hostname) === slug) {
-    return `${location.origin}${normalizedPath}`
-  }
-
-  if (
-    slug &&
-    !isPlatformHostname(location.hostname, PLATFORM_ROOT_DOMAIN) &&
-    !isLocalDevHostname(location.hostname)
-  ) {
-    return `${PLATFORM_WWW_URL}${normalizedPath}?tenant=${encodeURIComponent(slug)}`
-  }
-
-  if (slug && isPlatformApexHost(location.hostname, PLATFORM_ROOT_DOMAIN)) {
-    return `${PLATFORM_WWW_URL}${normalizedPath}?tenant=${encodeURIComponent(slug)}`
-  }
-
   if (slug && isLocalDevHostname(location.hostname)) {
     const port = location.port || '5173'
     return `${localDevOrigin(port)}${normalizedPath}?tenant=${encodeURIComponent(slug)}`
+  }
+
+  if (slug) {
+    return `${OAUTH_CALLBACK_ORIGIN}${normalizedPath}?tenant=${encodeURIComponent(slug)}`
   }
 
   return `${location.origin}${normalizedPath}`
 }
 
 /**
- * When Google OAuth is started on `{slug}.localhost` or a custom domain, move to
- * localhost / www first so PKCE stays on one allowlisted origin.
+ * Move Google OAuth start onto the callback origin so PKCE and redirectTo match.
+ * `{slug}.directapp.in` and custom domains hop through www; `{slug}.localhost` through localhost.
  */
 export function googleOAuthPreflightUrl(
   loginPath: string,
   nextPath?: string,
   location: OAuthRedirectLocation = readLocation(),
+  tenantSlug?: string | null,
 ): string | null {
-  const slug = resolveTenantSlugFromLocation({
-    hostname: location.hostname,
-    search: typeof window !== 'undefined' ? window.location.search : '',
-    persist: false,
-  })
+  const slug =
+    tenantSlug?.trim().toLowerCase() ||
+    resolveTenantSlugFromLocation({
+      hostname: location.hostname,
+      search: typeof window !== 'undefined' ? window.location.search : '',
+      persist: false,
+    })
   if (!slug) return null
 
   const params = new URLSearchParams({
@@ -122,16 +110,21 @@ export function googleOAuthPreflightUrl(
     return `${localDevOrigin(port)}${normalizedPath}?${query}`
   }
 
-  if (slugFromHostname(location.hostname) === slug) {
+  if (isLocalDevHostname(location.hostname)) {
     return null
   }
 
-  if (
-    !isPlatformHostname(location.hostname, PLATFORM_ROOT_DOMAIN) &&
-    !isLocalDevHostname(location.hostname)
-  ) {
-    return `${PLATFORM_WWW_URL}${normalizedPath}?${query}`
+  if (isPlatformApexHost(location.hostname, PLATFORM_ROOT_DOMAIN)) {
+    return null
   }
 
-  return null
+  try {
+    if (new URL(OAUTH_CALLBACK_ORIGIN).hostname === location.hostname) {
+      return null
+    }
+  } catch {
+    // ignore invalid env
+  }
+
+  return `${OAUTH_CALLBACK_ORIGIN}${normalizedPath}?${query}`
 }
