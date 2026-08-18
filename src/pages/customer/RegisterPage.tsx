@@ -2,9 +2,9 @@ import { RegisterForm } from '@/components/auth/RegisterForm'
 import { useOrganization } from '@/contexts/OrganizationContext'
 
 export default function RegisterPage() {
-  const { storefrontWhatsAppEnabled } = useOrganization()
+  const { whatsappOtpLoginEnabled } = useOrganization()
   const methods = [
-    storefrontWhatsAppEnabled ? 'WhatsApp' : null,
+    whatsappOtpLoginEnabled ? 'WhatsApp' : null,
     'Google',
     'email',
   ]

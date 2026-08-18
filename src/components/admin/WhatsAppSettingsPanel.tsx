@@ -97,7 +97,11 @@ export function WhatsAppSettingsPanel() {
   const [storefrontEnabled, setStorefrontEnabled] = useState(
     org.storefrontWhatsAppEnabled,
   )
+  const [otpLoginEnabled, setOtpLoginEnabled] = useState(
+    org.whatsappOtpLoginEnabled,
+  )
   const [isSavingStorefront, setIsSavingStorefront] = useState(false)
+  const [isSavingOtpLogin, setIsSavingOtpLogin] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isSavingStatuses, setIsSavingStatuses] = useState(false)
   const [isConnecting, setIsConnecting] = useState(false)
@@ -190,9 +194,30 @@ export function WhatsAppSettingsPanel() {
     )
   }
 
+  const handleToggleOtpLogin = async (enabled: boolean) => {
+    setIsSavingOtpLogin(true)
+    const result = await settingsService.setWhatsAppOtpLoginEnabled(enabled)
+    setIsSavingOtpLogin(false)
+    if (!result.success) {
+      toast.error(result.message)
+      return
+    }
+    setOtpLoginEnabled(result.data)
+    org.setWhatsAppOtpLoginEnabled(result.data)
+    toast.success(
+      result.data
+        ? 'Customers can now sign in with WhatsApp on this restaurant website.'
+        : 'WhatsApp sign-in is hidden on this restaurant website.',
+    )
+  }
+
   useEffect(() => {
     setStorefrontEnabled(org.storefrontWhatsAppEnabled)
   }, [org.storefrontWhatsAppEnabled])
+
+  useEffect(() => {
+    setOtpLoginEnabled(org.whatsappOtpLoginEnabled)
+  }, [org.whatsappOtpLoginEnabled])
 
   const load = async () => {
     setIsLoading(true)
@@ -381,9 +406,9 @@ export function WhatsAppSettingsPanel() {
       <div>
         <h3 className="text-lg font-semibold text-text-primary">WhatsApp</h3>
         <p className="mt-1 text-sm text-text-secondary">
-          Turn on click-to-WhatsApp on this restaurant website, or connect
-          WhatsApp Business for order-status updates. Each restaurant has its
-          own setting — it does not follow another kitchen.
+          Turn on click-to-WhatsApp or WhatsApp OTP login on this restaurant
+          website, or connect WhatsApp Business for order-status updates. Each
+          restaurant has its own setting — it does not follow another kitchen.
         </p>
       </div>
 
@@ -402,6 +427,27 @@ export function WhatsAppSettingsPanel() {
           <span className="mt-1 block text-xs text-text-secondary">
             Header, menu, cart, and contact buttons. Off by default for new
             restaurants. Does not require WhatsApp Business API.
+          </span>
+        </span>
+      </label>
+
+      <label className="flex cursor-pointer items-start gap-3 rounded-[var(--radius-button)] border border-black/10 bg-background px-4 py-3">
+        <input
+          type="checkbox"
+          className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+          checked={otpLoginEnabled}
+          disabled={isSavingOtpLogin}
+          onChange={(event) => void handleToggleOtpLogin(event.target.checked)}
+        />
+        <span>
+          <span className="block text-sm font-medium text-text-primary">
+            Allow customers to sign in with WhatsApp
+          </span>
+          <span className="mt-1 block text-xs text-text-secondary">
+            Shows Continue with WhatsApp on this restaurant&apos;s login and
+            register pages. Needs a connected WhatsApp Business number and an
+            approved Authentication template named{' '}
+            <code className="font-mono">login_otp</code>.
           </span>
         </span>
       </label>

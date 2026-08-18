@@ -16,7 +16,7 @@ import { setCurrentOrganizationId } from '@/services/currentOrganization'
 import { supabase } from '@/services/supabaseClient'
 import { organizationSlugCandidates } from '@/constants/TENANTS'
 import { isMissingColumnError } from '@/utils/supabaseSchema'
-import { storefrontWhatsAppEnabledFromSettings } from '@/utils/tenantFeatures'
+import { storefrontWhatsAppEnabledFromSettings, whatsappOtpLoginEnabledFromSettings } from '@/utils/tenantFeatures'
 import {
   customDomainHostVariants,
   isPlatformHostname,
@@ -40,6 +40,9 @@ export interface OrganizationContextValue {
   /** Admin-controlled storefront click-to-WhatsApp. Off for new restaurants. */
   storefrontWhatsAppEnabled: boolean
   setStorefrontWhatsAppEnabled: (enabled: boolean) => void
+  /** Admin-controlled customer WhatsApp OTP login. Off for new restaurants. */
+  whatsappOtpLoginEnabled: boolean
+  setWhatsAppOtpLoginEnabled: (enabled: boolean) => void
   /** True when host resolution is on and a non-default host was mapped. */
   resolvedFromHost: boolean
   isLoading: boolean
@@ -47,7 +50,9 @@ export interface OrganizationContextValue {
 
 type ResolvedOrganization = Omit<
   OrganizationContextValue,
-  'isLoading' | 'setStorefrontWhatsAppEnabled'
+  | 'isLoading'
+  | 'setStorefrontWhatsAppEnabled'
+  | 'setWhatsAppOtpLoginEnabled'
 >
 
 const OrganizationContext = createContext<OrganizationContextValue | null>(null)
@@ -120,6 +125,10 @@ function fromRow(
       slug: resolvedSlug,
       organizationId,
     }),
+    whatsappOtpLoginEnabled: whatsappOtpLoginEnabledFromSettings(settings, {
+      slug: resolvedSlug,
+      organizationId,
+    }),
     resolvedFromHost: resolved,
   }
 }
@@ -170,6 +179,7 @@ function emptyResolved(overrides: Partial<ResolvedOrganization> = {}): ResolvedO
     branding: {},
     settings: {},
     storefrontWhatsAppEnabled: false,
+    whatsappOtpLoginEnabled: false,
     resolvedFromHost: false,
     ...overrides,
   }
@@ -178,6 +188,12 @@ function emptyResolved(overrides: Partial<ResolvedOrganization> = {}): ResolvedO
     storefrontWhatsAppEnabled:
       overrides.storefrontWhatsAppEnabled ??
       storefrontWhatsAppEnabledFromSettings(base.settings, {
+        slug: base.slug,
+        organizationId: base.organizationId,
+      }),
+    whatsappOtpLoginEnabled:
+      overrides.whatsappOtpLoginEnabled ??
+      whatsappOtpLoginEnabledFromSettings(base.settings, {
         slug: base.slug,
         organizationId: base.organizationId,
       }),
@@ -210,6 +226,7 @@ async function resolveOrganizationFromHostname(
       slug,
       resolvedFromHost: true,
       storefrontWhatsAppEnabled: false,
+      whatsappOtpLoginEnabled: false,
     })
   }
 
@@ -281,6 +298,15 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
           : DEFAULT_ORGANIZATION_ID,
       }),
   )
+  const [whatsappOtpLoginEnabled, setWhatsAppOtpLoginEnabled] = useState(
+    () =>
+      whatsappOtpLoginEnabledFromSettings({}, {
+        slug: initialSlugFromLocation(),
+        organizationId: initialSlugFromLocation()
+          ? UNMATCHED_ORGANIZATION_ID
+          : DEFAULT_ORGANIZATION_ID,
+      }),
+  )
   const [resolvedFromHost, setResolvedFromHost] = useState(
     () => Boolean(initialSlugFromLocation()),
   )
@@ -308,6 +334,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       setBranding(result.branding)
       setSettings(result.settings)
       setStorefrontWhatsAppEnabled(result.storefrontWhatsAppEnabled)
+      setWhatsAppOtpLoginEnabled(result.whatsappOtpLoginEnabled)
       setResolvedFromHost(result.resolvedFromHost)
       setIsLoading(false)
     })
@@ -334,6 +361,8 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       settings,
       storefrontWhatsAppEnabled,
       setStorefrontWhatsAppEnabled,
+      whatsappOtpLoginEnabled,
+      setWhatsAppOtpLoginEnabled,
       resolvedFromHost,
       isLoading,
     }),
@@ -352,6 +381,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       branding,
       settings,
       storefrontWhatsAppEnabled,
+      whatsappOtpLoginEnabled,
       resolvedFromHost,
       isLoading,
     ],
@@ -386,6 +416,11 @@ export function useOrganization(): OrganizationContextValue {
         { organizationId: DEFAULT_ORGANIZATION_ID },
       ),
       setStorefrontWhatsAppEnabled: () => undefined,
+      whatsappOtpLoginEnabled: whatsappOtpLoginEnabledFromSettings(
+        {},
+        { organizationId: DEFAULT_ORGANIZATION_ID },
+      ),
+      setWhatsAppOtpLoginEnabled: () => undefined,
       resolvedFromHost: false,
       isLoading: false,
     }

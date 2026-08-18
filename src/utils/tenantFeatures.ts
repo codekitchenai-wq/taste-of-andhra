@@ -7,6 +7,9 @@ import type { OrderNumberSequenceSettings } from '@/types/OrderNumberSequence'
 /** Restaurant-admin toggle stored on `organizations.settings`. */
 export const STOREFRONT_WHATSAPP_SETTING_KEY = 'storefront_whatsapp_enabled'
 
+/** Restaurant-admin toggle for customer WhatsApp OTP on /login and /register. */
+export const WHATSAPP_OTP_LOGIN_SETTING_KEY = 'whatsapp_otp_login_enabled'
+
 export function parseBooleanSetting(value: unknown): boolean | undefined {
   if (typeof value === 'boolean') return value
   if (typeof value === 'number') {
@@ -42,6 +45,21 @@ export function storefrontWhatsAppEnabledFromSettings(
 ): boolean {
   const stored = parseBooleanSetting(
     settings?.[STOREFRONT_WHATSAPP_SETTING_KEY],
+  )
+  if (stored !== undefined) return stored
+  return isDefaultAndhraTenant(input)
+}
+
+/**
+ * WhatsApp OTP login is off for every new restaurant unless an admin turns it
+ * on. Taste of Andhra stays on until an admin turns it off.
+ */
+export function whatsappOtpLoginEnabledFromSettings(
+  settings: Record<string, unknown> | null | undefined,
+  input: { slug?: string | null; organizationId?: string | null },
+): boolean {
+  const stored = parseBooleanSetting(
+    settings?.[WHATSAPP_OTP_LOGIN_SETTING_KEY],
   )
   if (stored !== undefined) return stored
   return isDefaultAndhraTenant(input)

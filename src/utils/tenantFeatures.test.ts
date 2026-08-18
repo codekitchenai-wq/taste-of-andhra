@@ -6,6 +6,7 @@ import {
   parseBooleanSetting,
   restaurantDisplayName,
   storefrontWhatsAppEnabledFromSettings,
+  whatsappOtpLoginEnabledFromSettings,
 } from './tenantFeatures'
 
 describe('parseBooleanSetting', () => {
@@ -45,6 +46,35 @@ describe('storefrontWhatsAppEnabledFromSettings', () => {
     expect(
       storefrontWhatsAppEnabledFromSettings(
         { storefront_whatsapp_enabled: true },
+        { slug: 'chopsticksspicemalabar' },
+      ),
+    ).toBe(true)
+  })
+})
+
+describe('whatsappOtpLoginEnabledFromSettings', () => {
+  it('defaults on for Taste of Andhra and off for other tenants', () => {
+    expect(
+      whatsappOtpLoginEnabledFromSettings({}, { slug: 'thetasteofandhra' }),
+    ).toBe(true)
+    expect(
+      whatsappOtpLoginEnabledFromSettings(
+        {},
+        { slug: 'chopsticksspicemalabar' },
+      ),
+    ).toBe(false)
+  })
+
+  it('honours an admin-saved setting over the tenant default', () => {
+    expect(
+      whatsappOtpLoginEnabledFromSettings(
+        { whatsapp_otp_login_enabled: false },
+        { slug: 'thetasteofandhra' },
+      ),
+    ).toBe(false)
+    expect(
+      whatsappOtpLoginEnabledFromSettings(
+        { whatsapp_otp_login_enabled: true },
         { slug: 'chopsticksspicemalabar' },
       ),
     ).toBe(true)

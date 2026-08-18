@@ -30,6 +30,8 @@ import {
   restaurantDisplayName,
   STOREFRONT_WHATSAPP_SETTING_KEY,
   storefrontWhatsAppEnabledFromSettings,
+  WHATSAPP_OTP_LOGIN_SETTING_KEY,
+  whatsappOtpLoginEnabledFromSettings,
 } from '@/utils/tenantFeatures'
 
 const DEFAULT_ETA_KEY = 'default_eta_minutes'
@@ -319,6 +321,43 @@ export async function setStorefrontWhatsAppEnabled(
   if (error) {
     return createErrorResponse(
       'Unable to save WhatsApp storefront setting.',
+      error.message,
+    )
+  }
+
+  return createSuccessResponse(enabled)
+}
+
+export async function getWhatsAppOtpLoginEnabled(): Promise<
+  ServiceResponse<boolean>
+> {
+  const org = await loadCurrentRestaurant()
+  return createSuccessResponse(
+    whatsappOtpLoginEnabledFromSettings(org.settings, {
+      slug: org.slug,
+      organizationId: getCurrentOrganizationId(),
+    }),
+  )
+}
+
+export async function setWhatsAppOtpLoginEnabled(
+  enabled: boolean,
+): Promise<ServiceResponse<boolean>> {
+  const orgId = getCurrentOrganizationId()
+  const org = await loadCurrentRestaurant()
+  const nextSettings = {
+    ...org.settings,
+    [WHATSAPP_OTP_LOGIN_SETTING_KEY]: enabled,
+  }
+
+  const { error } = await supabase
+    .from('organizations')
+    .update({ settings: nextSettings })
+    .eq('id', orgId)
+
+  if (error) {
+    return createErrorResponse(
+      'Unable to save WhatsApp login setting.',
       error.message,
     )
   }

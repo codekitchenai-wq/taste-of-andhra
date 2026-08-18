@@ -144,6 +144,7 @@ export async function onboardRestaurant(
     owner_phone: ownerPhone,
     homepage: homepageSettingsPayload(homepage),
     storefront_whatsapp_enabled: false,
+    whatsapp_otp_login_enabled: false,
   }
   const baseInsert = {
     name,

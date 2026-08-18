@@ -316,6 +316,7 @@ async function main() {
       locality: tenant.locality || 'Viman Nagar',
       city: tenant.city || 'Pune',
       storefront_whatsapp_enabled: false,
+      whatsapp_otp_login_enabled: false,
       homepage: {
         mode: 'platform_subdomain',
         custom_domain: null,
