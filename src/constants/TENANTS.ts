@@ -7,9 +7,6 @@ export const TASTE_OF_ANDHRA_CUSTOM_HOSTS = [
   'www.thetasteofandhra.com',
 ] as const
 
-/** Production Supabase Auth Site URL until migrated to {@link PLATFORM_WWW_URL}. */
-export const TASTE_OF_ANDHRA_WWW_URL = 'https://www.thetasteofandhra.com'
-
 export function isTasteOfAndhraSlug(
   slug: string | null | undefined,
 ): boolean {

@@ -71,7 +71,13 @@ VITE_AUTH_OAUTH_CALLBACK_ORIGIN=https://www.directapp.in
 
 Master console: `https://www.directapp.in/master/login` (not Taste of Andhra).
 
-Google OAuth: set Supabase **Site URL** to `https://www.directapp.in` and **Redirect URLs** to `https://www.directapp.in/**`, `https://www.thetasteofandhra.com/**`, and each live `{slug}.directapp.in/**` if listed. Restaurant Google login hops `{slug}.directapp.in` → `www.directapp.in` → Google → restaurant. Do not use Taste of Andhra as Site URL.
+Google OAuth: add these **Redirect URLs** in Supabase Auth (wildcard covers every restaurant):
+
+- `https://*.directapp.in/**`
+- `https://www.directapp.in/**`
+- `https://www.thetasteofandhra.com/**`
+
+Restaurant Google login stays on `{slug}.directapp.in`. Do not hop through Taste of Andhra.
 
 ## GoDaddy DNS (host on Vercel — do not use GoDaddy hosting)
 

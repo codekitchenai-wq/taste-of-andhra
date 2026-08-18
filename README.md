@@ -177,12 +177,13 @@ After deploying, update Supabase **Authentication → URL Configuration**:
 
 - **Site URL:** `https://www.directapp.in` (not Taste of Andhra)
 - **Redirect URLs** (add all that you use):
+  - `https://*.directapp.in/**`
   - `https://www.directapp.in/**`
   - `https://www.thetasteofandhra.com/**`
   - `http://localhost:5173/**`
   - `https://*.vercel.app/**` (preview deployments)
 
-Restaurant Google login hops `{slug}.directapp.in` → `www.directapp.in` → Google, then back to the restaurant. If Site URL is `https://www.thetasteofandhra.com`, Spice Malabar (and other tenants) will land on Taste of Andhra.
+Restaurant Google login stays on `{slug}.directapp.in`. If Site URL is `https://www.thetasteofandhra.com` and the restaurant origin is not in Redirect URLs, Google will fall back to Taste of Andhra.
 
 Email confirmation links use these settings. If Site URL is left as the default `http://localhost:3000`, verify links will break.
 

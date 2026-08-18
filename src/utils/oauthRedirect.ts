@@ -1,14 +1,9 @@
 import {
   AUTH_GOOGLE_CONTINUE_PARAM,
   AUTH_GOOGLE_CONTINUE_VALUE,
-  AUTH_OAUTH_CALLBACK_ORIGIN,
 } from '@/constants/AUTH'
 import { ROUTES } from '@/constants/ROUTES'
-import {
-  isLocalDevHostname,
-  resolveTenantSlugFromLocation,
-  slugFromHostname,
-} from '@/utils/tenantHost'
+import { resolveTenantSlugFromLocation } from '@/utils/tenantHost'
 
 function currentLocation() {
   if (typeof window === 'undefined') {
@@ -50,13 +45,10 @@ function withTenantAndNext(
 }
 
 /**
- * Google/Supabase allowlist typically includes localhost, not `{slug}.localhost`.
- * Bounce local tenant hosts through localhost and keep `?tenant=` on the URL
- * because sessionStorage is origin-scoped and would be lost on the hop.
+ * Google returns to the restaurant that started login.
+ * `{slug}.directapp.in` stays on that origin — do not hop through Taste of Andhra.
  *
- * Production `{slug}.directapp.in` hops to the Supabase Site URL
- * (`www.thetasteofandhra.com` until migrated) so Google accepts redirectTo
- * and `?tenant=` survives the callback.
+ * Local `{slug}.localhost` still rewrites to localhost (Google allowlist).
  */
 export function googleOAuthRedirectTo(
   loginPath: string = ROUTES.LOGIN,
@@ -72,17 +64,12 @@ export function googleOAuthRedirectTo(
     return `${localOrigin}${suffix}`
   }
 
-  if (slugFromHostname(host) && !isLocalDevHostname(host)) {
-    return `${AUTH_OAUTH_CALLBACK_ORIGIN}${suffix}`
-  }
-
   return `${origin}${suffix}`
 }
 
 /**
- * Local `{slug}.localhost` is not on the Google/Supabase allowlist, so hop to
- * localhost first. Production restaurant subdomains hop to the Supabase Site URL
- * so PKCE and the tenant cookie stay on an allowed redirect origin.
+ * Only `{slug}.localhost` needs a hop (not on the Google allowlist).
+ * Production restaurants start Google on their own host.
  */
 export function googleOAuthPreflightUrl(
   loginPath: string = ROUTES.LOGIN,
@@ -102,10 +89,6 @@ export function googleOAuthPreflightUrl(
   if (host.endsWith('.localhost') && host !== 'localhost') {
     const localOrigin = `http://localhost${port ? `:${port}` : ''}`
     return `${localOrigin}${path}?${query}`
-  }
-
-  if (slugFromHostname(host) && !isLocalDevHostname(host)) {
-    return `${AUTH_OAUTH_CALLBACK_ORIGIN}${path}?${query}`
   }
 
   return null
