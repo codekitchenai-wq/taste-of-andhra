@@ -11,11 +11,14 @@ import { LoadingState } from '@/components/ui/LoadingState'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { useAddresses } from '@/hooks/useAddresses'
+import { useSelectedBranch } from '@/hooks/useSelectedBranch'
 import * as addressService from '@/services/addressService'
 import type { Address } from '@/types/Address'
+import { restaurantLocationFromBranch } from '@/utils/nearbyAddress'
 
 export default function SavedAddressesPage() {
   const { addresses, isLoading, error, refetch } = useAddresses()
+  const { selectedBranch } = useSelectedBranch()
   const [searchParams, setSearchParams] = useSearchParams()
   const isSetup = searchParams.get('setup') === '1'
   const [isFormOpen, setIsFormOpen] = useState(false)
@@ -85,7 +88,7 @@ export default function SavedAddressesPage() {
           <p className="mt-3 max-w-2xl text-base text-text-secondary md:text-lg">
             {isSetup
               ? 'Add your delivery address so we can take your next order. You can save more addresses later.'
-              : 'Add and manage delivery addresses. Pin each one on the map so we can check delivery and calculate shipping.'}
+              : 'Add and manage delivery addresses for checkout.'}
           </p>
         </div>
         <Button type="button" onClick={openAddForm} className="shrink-0">
@@ -132,6 +135,7 @@ export default function SavedAddressesPage() {
       <AddressFormModal
         isOpen={isFormOpen}
         addressToEdit={editingAddress}
+        restaurantLocation={restaurantLocationFromBranch(selectedBranch)}
         onClose={closeForm}
         onSuccess={() => {
           void refetch()

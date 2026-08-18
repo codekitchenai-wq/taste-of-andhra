@@ -164,7 +164,7 @@ export function DeliverySettingsPanel() {
       isEnabled: form.isEnabled,
       servicePincodes: parsedPincodes.pincodes,
       maxDistanceKm,
-      requireLocationPin: form.requireLocationPin,
+      requireLocationPin: false,
       serviceAreaNote: form.serviceAreaNote,
       markupFlat: toNumberOrNull(form.markupFlat) ?? 0,
       markupPercent: toNumberOrNull(form.markupPercent) ?? 0,
@@ -261,8 +261,9 @@ export function DeliverySettingsPanel() {
         </div>
 
         <p className="-mt-2 text-xs text-text-secondary">
-          Measured in a straight line from your branch pin to the address the
-          customer pinned on the map.
+          Distance-based charges apply when both the branch and the delivery
+          address have coordinates. Otherwise only the base delivery charge is
+          used.
         </p>
 
         {maxDistanceKm !== null && branchesMissingCoordinates.length > 0 && (
@@ -303,27 +304,6 @@ export function DeliverySettingsPanel() {
             </p>
           )}
         </div>
-
-        <label className="flex cursor-pointer items-start gap-3 rounded-[var(--radius-card)] bg-background p-4">
-          <input
-            type="checkbox"
-            checked={form.requireLocationPin}
-            onChange={(event) =>
-              update('requireLocationPin', event.target.checked)
-            }
-            className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-          />
-          <span className="text-sm">
-            <span className="font-medium text-text-primary">
-              Require customers to pin their location
-            </span>
-            <span className="mt-1 block text-text-secondary">
-              Customers already pin new addresses on the map. Turn this on to
-              also reject older addresses saved without a pin, so the distance
-              limit cannot be skipped.
-            </span>
-          </span>
-        </label>
 
         <div className="space-y-2">
           <Textarea

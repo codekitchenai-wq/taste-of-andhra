@@ -4,8 +4,10 @@ import { AddressCard } from '@/components/checkout/AddressCard'
 import { AddressFormModal } from '@/components/checkout/AddressFormModal'
 import { Button } from '@/components/ui/Button'
 import { useAddresses } from '@/hooks/useAddresses'
+import { useSelectedBranch } from '@/hooks/useSelectedBranch'
 import type { Address } from '@/types/Address'
 import { formatAddressLine } from '@/utils/mapAddress'
+import { restaurantLocationFromBranch } from '@/utils/nearbyAddress'
 
 interface OnamDeliveryAddressProps {
   selectedAddressId: string | null
@@ -21,6 +23,7 @@ export function OnamDeliveryAddress({
   requestAddAddress,
 }: OnamDeliveryAddressProps) {
   const { addresses, isLoading, refetch } = useAddresses()
+  const { selectedBranch } = useSelectedBranch()
   const [isChanging, setIsChanging] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [addressToEdit, setAddressToEdit] = useState<Address | null>(null)
@@ -159,6 +162,7 @@ export function OnamDeliveryAddress({
       <AddressFormModal
         isOpen={isModalOpen}
         addressToEdit={addressToEdit}
+        restaurantLocation={restaurantLocationFromBranch(selectedBranch)}
         onClose={() => {
           setIsModalOpen(false)
           setAddressToEdit(null)

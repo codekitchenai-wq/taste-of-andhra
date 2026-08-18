@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { Crosshair, MapPin } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { LocationPicker } from '@/components/checkout/LocationPicker'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
@@ -11,11 +11,21 @@ import { useAuth } from '@/hooks/useAuth'
 import type { CreateAddressInput } from '@/services/addressService'
 import * as addressService from '@/services/addressService'
 import type { Address } from '@/types/Address'
-import { isGoogleMapsConfigured, type ResolvedPlace } from '@/utils/googleMaps'
-import { hasLocationPin } from '@/utils/mapAddress'
+import { cn } from '@/utils/cn'
+import {
+  isGoogleMapsConfigured,
+  loadGoogleMaps,
+  reverseGeocode,
+} from '@/utils/googleMaps'
+import {
+  distanceToRestaurantKm,
+  isWithinNearbyDelivery,
+  NEARBY_DELIVERY_MAX_KM,
+  readBrowserCoordinates,
+  type RestaurantLocation,
+} from '@/utils/nearbyAddress'
 
-const PIN_REQUIRED_MESSAGE =
-  'Pin your location on the map so we can check delivery and calculate shipping.'
+type EntryMode = 'nearby' | 'manual'
 
 interface AddressFormValues {
   addressType: string
@@ -35,6 +45,7 @@ interface AddressFormModalProps {
   onClose: () => void
   onSuccess: (addressId: string) => void
   addressToEdit?: Address | null
+  restaurantLocation?: RestaurantLocation | null
 }
 
 const emptyValues: AddressFormValues = {
@@ -70,22 +81,26 @@ export function AddressFormModal({
   onClose,
   onSuccess,
   addressToEdit = null,
+  restaurantLocation = null,
 }: AddressFormModalProps) {
   const isEditing = Boolean(addressToEdit)
+  const canUseNearby = Boolean(restaurantLocation) && !isEditing
   const { user } = useAuth()
+  const [entryMode, setEntryMode] = useState<EntryMode>('manual')
   const [coordinates, setCoordinates] = useState<{
     latitude: number
     longitude: number
   } | null>(null)
-  const [pinError, setPinError] = useState<string | undefined>()
-  const pinRequired = isGoogleMapsConfigured
+  const [isLocating, setIsLocating] = useState(false)
+  const [nearbyMessage, setNearbyMessage] = useState<string | null>(null)
+  const [nearbyError, setNearbyError] = useState<string | null>(null)
 
   const {
     register,
     handleSubmit,
     reset,
-    getValues,
     setValue,
+    getValues,
     watch,
     formState: { errors, isSubmitting },
   } = useForm<AddressFormValues>({
@@ -102,17 +117,21 @@ export function AddressFormModal({
   useEffect(() => {
     if (!isOpen) return
 
+    setNearbyMessage(null)
+    setNearbyError(null)
+    setIsLocating(false)
+
     if (addressToEdit) {
       reset(toFormValues(addressToEdit))
       setCoordinates(
-        hasLocationPin(addressToEdit)
+        addressToEdit.latitude != null && addressToEdit.longitude != null
           ? {
               latitude: addressToEdit.latitude,
               longitude: addressToEdit.longitude,
             }
           : null,
       )
-      setPinError(undefined)
+      setEntryMode('manual')
       return
     }
 
@@ -125,37 +144,95 @@ export function AddressFormModal({
       isDefault: true,
     })
     setCoordinates(null)
-    setPinError(undefined)
-  }, [isOpen, addressToEdit, user, reset])
+    setEntryMode(restaurantLocation ? 'nearby' : 'manual')
+  }, [isOpen, addressToEdit, user, reset, restaurantLocation])
 
-  // Pin fills the form; customers can still edit every field afterwards.
-  const handlePlaceSelected = (place: ResolvedPlace) => {
-    setCoordinates({ latitude: place.latitude, longitude: place.longitude })
-    setPinError(undefined)
-
+  const fillFromPlace = (place: {
+    addressLine1?: string
+    addressLine2?: string
+    landmark?: string
+    city?: string
+    state?: string
+    pincode?: string
+    formattedAddress?: string
+  }) => {
     const current = getValues()
-    reset(
-      {
-        ...current,
-        addressLine1:
-          place.addressLine1 || place.formattedAddress || current.addressLine1,
-        addressLine2: place.addressLine2 || current.addressLine2,
-        landmark: place.landmark || current.landmark,
-        city: place.city || current.city,
-        state: place.state || current.state,
-        pincode: place.pincode || current.pincode,
-      },
-      { keepDefaultValues: true },
+    const options = { shouldValidate: true, shouldDirty: true }
+    setValue(
+      'addressLine1',
+      place.addressLine1 || place.formattedAddress || current.addressLine1,
+      options,
     )
+    if (place.addressLine2) setValue('addressLine2', place.addressLine2, options)
+    if (place.landmark) setValue('landmark', place.landmark, options)
+    if (place.city) setValue('city', place.city, options)
+    if (place.state) setValue('state', place.state, options)
+    if (place.pincode) setValue('pincode', place.pincode, options)
   }
 
-  const onSubmit = async (values: AddressFormValues) => {
-    if (pinRequired && !hasLocationPin(coordinates)) {
-      setPinError(PIN_REQUIRED_MESSAGE)
-      toast.error('Please pin your location on the map')
+  const handleUseNearbyLocation = async () => {
+    if (!restaurantLocation) {
+      setEntryMode('manual')
+      setNearbyError('Restaurant location is not set. Enter your address.')
       return
     }
 
+    setIsLocating(true)
+    setNearbyError(null)
+    setNearbyMessage(null)
+
+    try {
+      const coords = await readBrowserCoordinates()
+      const distanceKm = distanceToRestaurantKm(
+        coords.latitude,
+        coords.longitude,
+        restaurantLocation,
+      )
+
+      if (!isWithinNearbyDelivery(distanceKm)) {
+        setCoordinates(null)
+        setEntryMode('manual')
+        setNearbyError(
+          `You are about ${distanceKm.toFixed(1)} km from ${restaurantLocation.name}. We deliver within ${NEARBY_DELIVERY_MAX_KM} km. Enter your address below.`,
+        )
+        return
+      }
+
+      setCoordinates(coords)
+
+      if (isGoogleMapsConfigured) {
+        try {
+          const maps = await loadGoogleMaps()
+          const lookup = await reverseGeocode(
+            maps,
+            coords.latitude,
+            coords.longitude,
+          )
+          if (lookup.ok) {
+            fillFromPlace(lookup.place)
+          }
+        } catch {
+          // Coordinates still count; the customer can type the remaining fields.
+        }
+      }
+
+      setNearbyMessage(
+        `You are about ${distanceKm.toFixed(1)} km from ${restaurantLocation.name}. Check the address below, then save.`,
+      )
+    } catch (error) {
+      setCoordinates(null)
+      setEntryMode('manual')
+      setNearbyError(
+        error instanceof Error
+          ? error.message
+          : 'Could not read your location. Enter your address instead.',
+      )
+    } finally {
+      setIsLocating(false)
+    }
+  }
+
+  const onSubmit = async (values: AddressFormValues) => {
     const payload: CreateAddressInput = {
       addressType: values.addressType,
       fullName: values.fullName,
@@ -166,8 +243,8 @@ export function AddressFormModal({
       city: values.city,
       state: values.state,
       pincode: values.pincode,
-      latitude: coordinates?.latitude ?? null,
-      longitude: coordinates?.longitude ?? null,
+      latitude: coordinates?.latitude ?? addressToEdit?.latitude ?? null,
+      longitude: coordinates?.longitude ?? addressToEdit?.longitude ?? null,
       isDefault: values.isDefault,
     }
 
@@ -224,28 +301,100 @@ export function AddressFormModal({
         className="space-y-4"
         noValidate
       >
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-text-primary">
-            Pin your location
-            {pinRequired ? (
-              <span className="text-error" aria-hidden="true">
-                {' '}
-                *
-              </span>
+        {canUseNearby ? (
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-text-primary">
+              Choose how to add this address
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                aria-pressed={entryMode === 'nearby'}
+                onClick={() => {
+                  setEntryMode('nearby')
+                  setNearbyError(null)
+                }}
+                className={cn(
+                  'flex min-h-[72px] flex-col items-start gap-1 rounded-[var(--radius-button)] border p-3 text-left text-sm transition-colors',
+                  entryMode === 'nearby'
+                    ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
+                    : 'border-gray-200 hover:border-primary/30',
+                )}
+              >
+                <Crosshair
+                  className={cn(
+                    'h-4 w-4',
+                    entryMode === 'nearby'
+                      ? 'text-primary'
+                      : 'text-text-secondary',
+                  )}
+                  aria-hidden="true"
+                />
+                <span className="font-semibold text-text-primary">
+                  Nearby location
+                </span>
+                <span className="text-xs text-text-secondary">
+                  Within {NEARBY_DELIVERY_MAX_KM} km of{' '}
+                  {restaurantLocation?.name}
+                </span>
+              </button>
+              <button
+                type="button"
+                aria-pressed={entryMode === 'manual'}
+                onClick={() => setEntryMode('manual')}
+                className={cn(
+                  'flex min-h-[72px] flex-col items-start gap-1 rounded-[var(--radius-button)] border p-3 text-left text-sm transition-colors',
+                  entryMode === 'manual'
+                    ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
+                    : 'border-gray-200 hover:border-primary/30',
+                )}
+              >
+                <MapPin
+                  className={cn(
+                    'h-4 w-4',
+                    entryMode === 'manual'
+                      ? 'text-primary'
+                      : 'text-text-secondary',
+                  )}
+                  aria-hidden="true"
+                />
+                <span className="font-semibold text-text-primary">
+                  Enter address
+                </span>
+                <span className="text-xs text-text-secondary">
+                  Type house, street and pincode
+                </span>
+              </button>
+            </div>
+
+            {entryMode === 'nearby' ? (
+              <div className="space-y-3 rounded-[var(--radius-card)] border border-gray-200 bg-background p-3">
+                <p className="text-xs text-text-secondary">
+                  We use your phone location and check it against{' '}
+                  {restaurantLocation?.name}. No map is shown.
+                </p>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => void handleUseNearbyLocation()}
+                  disabled={isLocating}
+                >
+                  <Crosshair className="h-4 w-4" aria-hidden="true" />
+                  {isLocating ? 'Checking location...' : 'Use my location'}
+                </Button>
+                {nearbyMessage ? (
+                  <p className="text-sm text-text-primary">{nearbyMessage}</p>
+                ) : null}
+              </div>
             ) : null}
+          </div>
+        ) : null}
+
+        {nearbyError ? (
+          <p className="text-sm text-error" role="alert">
+            {nearbyError}
           </p>
-          <p className="text-xs text-text-secondary">
-            Search, use your current location, or tap the map. We use this pin
-            to check if we deliver and to calculate shipping.
-          </p>
-          <LocationPicker
-            latitude={coordinates?.latitude ?? null}
-            longitude={coordinates?.longitude ?? null}
-            onChange={handlePlaceSelected}
-            required={pinRequired}
-            error={pinError}
-          />
-        </div>
+        ) : null}
 
         <Select
           label="Address Type"
@@ -374,11 +523,6 @@ export function AddressFormModal({
             })
           }
         />
-
-        <p className="text-xs text-text-secondary">
-          Pin fills these fields automatically. Change house number, landmark,
-          or any detail before saving.
-        </p>
 
         <label className="flex items-center gap-3 text-sm text-text-primary">
           <input
