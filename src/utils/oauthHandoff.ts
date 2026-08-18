@@ -1,0 +1,220 @@
+import { AUTH_REDIRECT_STORAGE_KEY } from '@/constants/AUTH'
+import { PLATFORM_ROOT_DOMAIN, PLATFORM_WWW_URL } from '@/constants/PLATFORM'
+import {
+  TASTE_OF_ANDHRA_CUSTOM_HOSTS,
+  isTasteOfAndhraSlug,
+} from '@/constants/TENANTS'
+import { enrollCurrentCustomer } from '@/services/customerEnrollmentService'
+import { supabase } from '@/services/supabaseClient'
+import {
+  clearOAuthTenantCookie,
+  persistOAuthTenantCookie,
+  readOAuthTenantCookie,
+} from '@/utils/authTenantCookie'
+import {
+  googleOAuthRedirectTo,
+  shouldContinueGoogleOAuth,
+} from '@/utils/oauthRedirect'
+import {
+  hostServesTenant,
+  isLocalDevHostname,
+  isPlatformApexHost,
+  isTasteOfAndhraCustomHost,
+  resolveTenantSlugFromLocation,
+} from '@/utils/tenantHost'
+
+/** Storefront origin to return the customer after Google OAuth. */
+export function tenantStorefrontOrigin(
+  slug: string,
+  port = typeof window !== 'undefined' ? window.location.port || '5173' : '5173',
+): string {
+  const key = slug.trim().toLowerCase()
+  if (!key) return PLATFORM_WWW_URL
+
+  if (typeof window !== 'undefined' && isLocalDevHostname(window.location.hostname)) {
+    return `http://${key}.localhost:${port}`
+  }
+
+  if (isTasteOfAndhraSlug(key)) {
+    return `https://${TASTE_OF_ANDHRA_CUSTOM_HOSTS[1]}`
+  }
+
+  return `https://${key}.${PLATFORM_ROOT_DOMAIN}`
+}
+
+export function parseSessionFromUrlHash(
+  hash: string = typeof window !== 'undefined' ? window.location.hash : '',
+): { access_token: string; refresh_token: string } | null {
+  if (!hash || !hash.includes('access_token=')) return null
+
+  const params = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash)
+  const access_token = params.get('access_token')
+  const refresh_token = params.get('refresh_token')
+  if (!access_token || !refresh_token) return null
+  return { access_token, refresh_token }
+}
+
+export function stripUrlHash(): void {
+  if (typeof window === 'undefined') return
+  const url = new URL(window.location.href)
+  if (!url.hash) return
+  url.hash = ''
+  window.history.replaceState({}, '', `${url.pathname}${url.search}`)
+}
+
+/** Apply `#access_token` tokens on the restaurant host (PKCE does not auto-set them). */
+export async function applySessionFromUrlHash(): Promise<boolean> {
+  const tokens = parseSessionFromUrlHash()
+  if (!tokens) return false
+
+  const { error } = await supabase.auth.setSession(tokens)
+  stripUrlHash()
+  clearOAuthTenantCookie()
+
+  if (error) return false
+
+  const slug = resolveTenantSlugFromLocation({ persist: false })
+  if (slug) {
+    await enrollCurrentCustomerForSlug(slug)
+  }
+
+  return true
+}
+
+async function enrollCurrentCustomerForSlug(slug: string): Promise<void> {
+  const { data } = await supabase
+    .from('organizations')
+    .select('id')
+    .eq('slug', slug)
+    .maybeSingle()
+
+  if (data?.id) {
+    await enrollCurrentCustomer(String(data.id))
+  }
+}
+
+export function isOAuthCompletionHost(hostname: string): boolean {
+  return (
+    isPlatformApexHost(hostname) ||
+    isTasteOfAndhraCustomHost(hostname) ||
+    isLocalDevHostname(hostname)
+  )
+}
+
+/**
+ * After Google returns to www / localhost, copy the session to the restaurant
+ * host via a one-time URL hash, then sign out on the platform origin.
+ */
+export async function handoffOAuthSessionToTenantIfNeeded(): Promise<boolean> {
+  if (typeof window === 'undefined') return false
+
+  const hostname = window.location.hostname
+  if (!isOAuthCompletionHost(hostname)) return false
+  if (shouldContinueGoogleOAuth(window.location.search)) return false
+  if (parseSessionFromUrlHash()) return false
+
+  const params = new URLSearchParams(window.location.search)
+  const tenant =
+    params.get('tenant')?.trim().toLowerCase() ||
+    readOAuthTenantCookie()?.trim().toLowerCase() ||
+    null
+
+  if (!tenant) return false
+  if (hostServesTenant(hostname, tenant)) return false
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+
+  if (!session?.access_token || !session.refresh_token) return false
+
+  const targetOrigin = tenantStorefrontOrigin(tenant)
+  const next = params.get('next')
+  const loginParams = new URLSearchParams({ tenant })
+  if (next?.startsWith('/') && !next.startsWith('//')) {
+    loginParams.set('next', next)
+  }
+
+  const hash = new URLSearchParams({
+    access_token: session.access_token,
+    refresh_token: session.refresh_token,
+    token_type: 'bearer',
+  }).toString()
+
+  await supabase.auth.signOut()
+  clearOAuthTenantCookie()
+
+  window.location.replace(
+    `${targetOrigin}/login?${loginParams.toString()}#${hash}`,
+  )
+  return true
+}
+
+/** Bounce to the restaurant that started OAuth when the wrong tenant host loaded. */
+export function recoverOAuthTenantHostIfNeeded(): boolean {
+  if (typeof window === 'undefined') return false
+
+  const params = new URLSearchParams(window.location.search)
+  const tenant =
+    params.get('tenant')?.trim().toLowerCase() ||
+    readOAuthTenantCookie()?.trim().toLowerCase() ||
+    null
+
+  if (!tenant) return false
+
+  const hostname = window.location.hostname
+  if (hostServesTenant(hostname, tenant)) return false
+  if (isPlatformApexHost(hostname) || isTasteOfAndhraCustomHost(hostname)) {
+    return false
+  }
+
+  const targetOrigin = tenantStorefrontOrigin(tenant)
+  const next = params.get('next')
+  const loginParams = new URLSearchParams({ tenant })
+  if (next?.startsWith('/') && !next.startsWith('//')) {
+    loginParams.set('next', next)
+  }
+  if (shouldContinueGoogleOAuth(window.location.search)) {
+    loginParams.set('continue', 'google')
+  }
+
+  window.location.replace(
+    `${targetOrigin}/login?${loginParams.toString()}${window.location.hash}`,
+  )
+  return true
+}
+
+/** Start Google OAuth from the platform login hop (`continue=google`). */
+export async function continueGoogleOAuthFromPreflight(): Promise<string | null> {
+  const params = new URLSearchParams(window.location.search)
+  const tenant =
+    params.get('tenant')?.trim().toLowerCase() ||
+    readOAuthTenantCookie()?.trim().toLowerCase() ||
+    null
+
+  if (!tenant) {
+    return 'Missing restaurant context for Google sign-in.'
+  }
+
+  persistOAuthTenantCookie(tenant)
+
+  const next = params.get('next')
+  if (next?.startsWith('/') && !next.startsWith('//')) {
+    try {
+      sessionStorage.setItem(AUTH_REDIRECT_STORAGE_KEY, next)
+    } catch {
+      // ignore
+    }
+  }
+
+  const redirectTo = googleOAuthRedirectTo('/login', tenant)
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo,
+      queryParams: { prompt: 'select_account' },
+    },
+  })
+
+  return error?.message ?? null
+}

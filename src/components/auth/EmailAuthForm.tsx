@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { WhatsAppOtpForm } from '@/components/auth/WhatsAppOtpForm'
+import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton'
 import { TestCredentialsHint } from '@/components/auth/TestCredentialsHint'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -176,6 +177,17 @@ export function EmailAuthForm({
 
   return (
     <div>
+      {role === 'customer' ? (
+        <div className="mb-6 space-y-4">
+          <GoogleSignInButton redirectTo={resolvedRedirect} />
+          <div className="flex items-center gap-3 text-xs text-text-secondary">
+            <span className="h-px flex-1 bg-black/10" />
+            <span>or continue with</span>
+            <span className="h-px flex-1 bg-black/10" />
+          </div>
+        </div>
+      ) : null}
+
       {allowWhatsApp ? (
         <div className="mb-6 space-y-4">
           <WhatsAppOtpForm
