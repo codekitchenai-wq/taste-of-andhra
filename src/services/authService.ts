@@ -5,7 +5,7 @@ import {
 } from '@/types/api'
 import type { Profile } from '@/types/Profile'
 import type { UserRole } from '@/types/enums'
-import { AUTH_REDIRECT_STORAGE_KEY, MIN_PASSWORD_LENGTH } from '@/constants/AUTH'
+import { AUTH_OAUTH_IN_FLIGHT_STORAGE_KEY, AUTH_REDIRECT_STORAGE_KEY, MIN_PASSWORD_LENGTH } from '@/constants/AUTH'
 import { ROUTES } from '@/constants/ROUTES'
 import { supabase } from '@/services/supabaseClient'
 import { mapProfile } from '@/utils/mapProfile'
@@ -438,6 +438,14 @@ export async function loginWithGoogle(
     window.location.assign(preflight)
     return createSuccessResponse(null)
   }
+
+  try {
+    sessionStorage.setItem(AUTH_OAUTH_IN_FLIGHT_STORAGE_KEY, '1')
+  } catch {
+    // ignore
+  }
+
+  await supabase.auth.signOut({ scope: 'local' })
 
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',

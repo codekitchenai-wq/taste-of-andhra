@@ -1,5 +1,9 @@
-import { describe, expect, it } from 'vitest'
-import { parseSessionFromLocationHash, tenantSessionHandoffUrl } from './oauthHandoff'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import {
+  parseSessionFromLocationHash,
+  shouldHandoffOAuthSession,
+  tenantSessionHandoffUrl,
+} from './oauthHandoff'
 
 describe('tenantSessionHandoffUrl', () => {
   it('copies the session to the tenant login hash', () => {
@@ -44,5 +48,31 @@ describe('tenantSessionHandoffUrl', () => {
         '#access_token=tok&refresh_token=ref&token_type=bearer',
       ),
     ).toEqual({ access_token: 'tok', refresh_token: 'ref' })
+  })
+})
+
+describe('shouldHandoffOAuthSession', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('skips handoff during the continue=google hop', () => {
+    vi.stubGlobal('window', {
+      location: {
+        search: '?tenant=chopsticksspicemalabar&continue=google',
+        hash: '',
+      },
+    })
+    expect(shouldHandoffOAuthSession()).toBe(false)
+  })
+
+  it('hands off after Google returns with a code', () => {
+    vi.stubGlobal('window', {
+      location: {
+        search: '?tenant=chopsticksspicemalabar&code=abc',
+        hash: '',
+      },
+    })
+    expect(shouldHandoffOAuthSession()).toBe(true)
   })
 })

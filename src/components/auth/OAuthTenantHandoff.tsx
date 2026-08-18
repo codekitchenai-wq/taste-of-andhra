@@ -1,7 +1,10 @@
 import { useEffect, useRef } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { persistOAuthTenantCookie, readOAuthTenantCookie } from '@/utils/authTenantCookie'
-import { handoffOAuthSessionToTenant } from '@/utils/oauthHandoff'
+import {
+  handoffOAuthSessionToTenant,
+  shouldHandoffOAuthSession,
+} from '@/utils/oauthHandoff'
 import { resolveTenantSlugFromLocation } from '@/utils/tenantHost'
 
 /**
@@ -23,6 +26,7 @@ export function OAuthTenantHandoff() {
   useEffect(() => {
     if (isLoading || started.current) return
     if (!isAuthenticated) return
+    if (!shouldHandoffOAuthSession()) return
 
     started.current = true
     void handoffOAuthSessionToTenant()

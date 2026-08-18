@@ -1,3 +1,4 @@
+import { AUTH_OAUTH_IN_FLIGHT_STORAGE_KEY } from '@/constants/AUTH'
 import { ROUTES } from '@/constants/ROUTES'
 import { supabase } from '@/services/supabaseClient'
 import {
@@ -5,6 +6,7 @@ import {
   readOAuthTenantCookie,
   tenantStorefrontOrigin,
 } from '@/utils/authTenantCookie'
+import { shouldContinueGoogleOAuth } from '@/utils/oauthRedirect'
 import { hostServesTenant, resolveTenantSlugFromLocation } from '@/utils/tenantHost'
 
 export function tenantSessionHandoffUrl(input: {
@@ -36,6 +38,32 @@ export function tenantSessionHandoffUrl(input: {
   return `${target}#${hash}`
 }
 
+export function shouldHandoffOAuthSession(): boolean {
+  if (typeof window === 'undefined') return false
+  if (shouldContinueGoogleOAuth(window.location.search)) return false
+
+  try {
+    if (sessionStorage.getItem(AUTH_OAUTH_IN_FLIGHT_STORAGE_KEY) === '1') {
+      return true
+    }
+  } catch {
+    // ignore
+  }
+
+  const params = new URLSearchParams(window.location.search)
+  return (
+    params.has('code') || window.location.hash.includes('access_token')
+  )
+}
+
+function clearOAuthInFlight(): void {
+  try {
+    sessionStorage.removeItem(AUTH_OAUTH_IN_FLIGHT_STORAGE_KEY)
+  } catch {
+    // ignore
+  }
+}
+
 function intendedTenantAndNext(): { tenant: string; next?: string } | null {
   const fromCookie = readOAuthTenantCookie()
   const fromUrl = resolveTenantSlugFromLocation({ persist: false })
@@ -58,6 +86,7 @@ function intendedTenantAndNext(): { tenant: string; next?: string } | null {
  */
 export async function handoffOAuthSessionToTenant(): Promise<boolean> {
   if (typeof window === 'undefined') return false
+  if (!shouldHandoffOAuthSession()) return false
 
   const intended = intendedTenantAndNext()
   if (!intended) return false
@@ -77,6 +106,8 @@ export async function handoffOAuthSessionToTenant(): Promise<boolean> {
   })
   if (!target) return false
 
+  await supabase.auth.signOut({ scope: 'local' })
+  clearOAuthInFlight()
   clearOAuthTenantCookie()
   window.location.replace(target)
   return true

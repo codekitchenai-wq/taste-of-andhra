@@ -26,6 +26,9 @@ export const AUTH_OAUTH_CALLBACK_ORIGIN = (
 export const AUTH_GOOGLE_CONTINUE_PARAM = 'continue'
 export const AUTH_GOOGLE_CONTINUE_VALUE = 'google'
 
+/** sessionStorage: Google OAuth was started on the Site URL; hand off when it returns. */
+export const AUTH_OAUTH_IN_FLIGHT_STORAGE_KEY = 'toa_oauth_in_flight'
+
 export const WHATSAPP_OTP_LENGTH = 6
 export const WHATSAPP_OTP_RESEND_SECONDS = 45
 

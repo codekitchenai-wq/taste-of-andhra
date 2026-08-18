@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { clearOAuthTenantCookie, readOAuthTenantCookie } from '@/utils/authTenantCookie'
 import { isPlatformMasterUser } from '@/utils/platformMaster'
 import { resolveCustomerPostAuthRedirect } from '@/utils/postAuthRedirect'
+import { shouldContinueGoogleOAuth } from '@/utils/oauthRedirect'
 import { hostServesTenant, resolveTenantSlugFromLocation } from '@/utils/tenantHost'
 
 function readAuthRedirect(): string {
@@ -36,6 +37,7 @@ function readAuthRedirect(): string {
 
 function pendingTenantHandoff(): boolean {
   if (typeof window === 'undefined') return false
+  if (shouldContinueGoogleOAuth(window.location.search)) return false
   const tenant =
     readOAuthTenantCookie()?.tenant ??
     resolveTenantSlugFromLocation({ persist: false })
@@ -62,7 +64,11 @@ export function GuestRoute() {
     !isPlatformMasterUser(user)
 
   useEffect(() => {
-    if (!isCustomer || pendingTenantHandoff()) {
+    if (
+      !isCustomer ||
+      pendingTenantHandoff() ||
+      shouldContinueGoogleOAuth(window.location.search)
+    ) {
       setCustomerPath(null)
       return
     }
@@ -86,6 +92,9 @@ export function GuestRoute() {
   }
 
   if (isAuthenticated) {
+    if (shouldContinueGoogleOAuth(window.location.search)) {
+      return <Outlet />
+    }
     if (pendingTenantHandoff()) {
       return <LoadingState fullPage variant="inline" />
     }
