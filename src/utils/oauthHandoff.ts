@@ -1,3 +1,4 @@
+import { ENABLE_TASTE_OF_ANDHRA_CUSTOM_DOMAIN } from '@/constants/ARCHITECTURE_GATES'
 import { AUTH_REDIRECT_STORAGE_KEY } from '@/constants/AUTH'
 import { PLATFORM_ROOT_DOMAIN, PLATFORM_WWW_URL } from '@/constants/PLATFORM'
 import {
@@ -36,6 +37,9 @@ export function tenantStorefrontOrigin(
   }
 
   if (isTasteOfAndhraSlug(key)) {
+    if (!ENABLE_TASTE_OF_ANDHRA_CUSTOM_DOMAIN) {
+      return `https://${key}.${PLATFORM_ROOT_DOMAIN}`
+    }
     return `https://${TASTE_OF_ANDHRA_CUSTOM_HOSTS[1]}`
   }
 
@@ -52,6 +56,76 @@ export function parseSessionFromUrlHash(
   const refresh_token = params.get('refresh_token')
   if (!access_token || !refresh_token) return null
   return { access_token, refresh_token }
+}
+
+export function isGoogleOAuthReturn(
+  search: string,
+  hash: string = '',
+): boolean {
+  if (hash.includes('access_token=')) return true
+  const params = new URLSearchParams(search.startsWith('?') ? search : `?${search}`)
+  return (
+    params.has('code') ||
+    params.has('error') ||
+    shouldContinueGoogleOAuth(search)
+  )
+}
+
+/** Send thetasteofandhra.com visitors to www until that custom domain is re-enabled. */
+export function disabledTasteOfAndhraRedirectUrl(location: {
+  hostname: string
+  pathname: string
+  search?: string
+  hash?: string
+}): string | null {
+  if (ENABLE_TASTE_OF_ANDHRA_CUSTOM_DOMAIN) return null
+  if (!isTasteOfAndhraCustomHost(location.hostname)) return null
+  if (isGoogleOAuthReturn(location.search ?? '', location.hash ?? '')) {
+    return null
+  }
+
+  const path = location.pathname || '/'
+  return `${PLATFORM_WWW_URL}${path}${location.search ?? ''}${location.hash ?? ''}`
+}
+
+export function redirectDisabledTasteOfAndhraHost(): boolean {
+  if (typeof window === 'undefined') return false
+  const url = disabledTasteOfAndhraRedirectUrl(window.location)
+  if (!url) return false
+  window.location.replace(url)
+  return true
+}
+
+function sessionHash(accessToken: string, refreshToken: string): string {
+  return new URLSearchParams({
+    access_token: accessToken,
+    refresh_token: refreshToken,
+    token_type: 'bearer',
+  }).toString()
+}
+
+async function hopSessionToOrigin(
+  targetOrigin: string,
+  tenant: string | null,
+  next: string | null,
+  accessToken: string,
+  refreshToken: string,
+  clearCookie: boolean,
+): Promise<void> {
+  const loginParams = new URLSearchParams()
+  if (tenant) loginParams.set('tenant', tenant)
+  if (next?.startsWith('/') && !next.startsWith('//')) {
+    loginParams.set('next', next)
+  }
+
+  await supabase.auth.signOut()
+  if (clearCookie) clearOAuthTenantCookie()
+
+  const query = loginParams.toString()
+  const suffix = query ? `?${query}` : ''
+  window.location.replace(
+    `${targetOrigin}/login${suffix}#${sessionHash(accessToken, refreshToken)}`,
+  )
 }
 
 export function stripUrlHash(): void {
@@ -109,6 +183,12 @@ export function pendingOAuthTenantHandoff(
   if (!hostname) return false
   if (shouldContinueGoogleOAuth(search)) return true
   if (parseSessionFromUrlHash()) return true
+  if (
+    !ENABLE_TASTE_OF_ANDHRA_CUSTOM_DOMAIN &&
+    isTasteOfAndhraCustomHost(hostname)
+  ) {
+    return true
+  }
   if (!isOAuthCompletionHost(hostname)) return false
 
   const params = new URLSearchParams(search)
@@ -138,8 +218,14 @@ export async function handoffOAuthSessionToTenantIfNeeded(): Promise<boolean> {
     readOAuthTenantCookie()?.trim().toLowerCase() ||
     null
 
-  if (!tenant) return false
-  if (hostServesTenant(hostname, tenant)) return false
+  const leaveTasteOfAndhra =
+    !ENABLE_TASTE_OF_ANDHRA_CUSTOM_DOMAIN &&
+    isTasteOfAndhraCustomHost(hostname)
+
+  if (!tenant && !leaveTasteOfAndhra) return false
+  if (tenant && hostServesTenant(hostname, tenant) && !leaveTasteOfAndhra) {
+    return false
+  }
 
   const {
     data: { session },
@@ -147,24 +233,18 @@ export async function handoffOAuthSessionToTenantIfNeeded(): Promise<boolean> {
 
   if (!session?.access_token || !session.refresh_token) return false
 
-  const targetOrigin = tenantStorefrontOrigin(tenant)
   const next = params.get('next')
-  const loginParams = new URLSearchParams({ tenant })
-  if (next?.startsWith('/') && !next.startsWith('//')) {
-    loginParams.set('next', next)
-  }
+  const targetOrigin = tenant
+    ? tenantStorefrontOrigin(tenant)
+    : PLATFORM_WWW_URL
 
-  const hash = new URLSearchParams({
-    access_token: session.access_token,
-    refresh_token: session.refresh_token,
-    token_type: 'bearer',
-  }).toString()
-
-  await supabase.auth.signOut()
-  clearOAuthTenantCookie()
-
-  window.location.replace(
-    `${targetOrigin}/login?${loginParams.toString()}#${hash}`,
+  await hopSessionToOrigin(
+    targetOrigin,
+    tenant,
+    next,
+    session.access_token,
+    session.refresh_token,
+    Boolean(tenant),
   )
   return true
 }
@@ -193,7 +273,11 @@ export function recoverOAuthTenantHostIfNeeded(): boolean {
   }
 
   if (hostServesTenant(hostname, tenant)) return false
-  if (isPlatformApexHost(hostname) || isTasteOfAndhraCustomHost(hostname)) {
+  if (isPlatformApexHost(hostname)) return false
+  if (
+    isTasteOfAndhraCustomHost(hostname) &&
+    ENABLE_TASTE_OF_ANDHRA_CUSTOM_DOMAIN
+  ) {
     return false
   }
 

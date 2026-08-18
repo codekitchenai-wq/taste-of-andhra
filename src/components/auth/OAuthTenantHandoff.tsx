@@ -13,34 +13,40 @@ import { shouldContinueGoogleOAuth } from '@/utils/oauthRedirect'
  * preflight → Google → platform host → restaurant host with session hash.
  */
 export function OAuthTenantHandoff() {
-  const { refreshUser } = useAuth()
-  const started = useRef(false)
+  const { refreshUser, isAuthenticated, isLoading } = useAuth()
+  const hashApplied = useRef(false)
+  const googleStarted = useRef(false)
 
   useEffect(() => {
-    if (started.current || typeof window === 'undefined') return
-    started.current = true
+    if (typeof window === 'undefined') return
 
     const run = async () => {
-      const applied = await applySessionFromUrlHash()
-      if (applied) {
-        await refreshUser()
-        return
+      if (!hashApplied.current) {
+        const applied = await applySessionFromUrlHash()
+        if (applied) {
+          hashApplied.current = true
+          await refreshUser()
+          return
+        }
       }
 
       if (shouldContinueGoogleOAuth(window.location.search)) {
+        if (googleStarted.current) return
+        googleStarted.current = true
         const errorMessage = await continueGoogleOAuthFromPreflight()
         if (errorMessage) {
+          googleStarted.current = false
           toast.error('Unable to start Google sign-in. Please try again.')
         }
         return
       }
 
-      const handedOff = await handoffOAuthSessionToTenantIfNeeded()
-      if (handedOff) return
+      if (isLoading) return
+      await handoffOAuthSessionToTenantIfNeeded()
     }
 
     void run()
-  }, [refreshUser])
+  }, [refreshUser, isAuthenticated, isLoading])
 
   return null
 }

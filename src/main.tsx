@@ -1,9 +1,13 @@
 import { redirectToCanonicalHost } from '@/utils/canonicalHost'
-import { recoverOAuthTenantHostIfNeeded } from '@/utils/oauthHandoff'
+import {
+  recoverOAuthTenantHostIfNeeded,
+  redirectDisabledTasteOfAndhraHost,
+} from '@/utils/oauthHandoff'
 import '@/index.css'
 
 async function boot() {
   if (redirectToCanonicalHost()) return
+  if (redirectDisabledTasteOfAndhraHost()) return
   if (recoverOAuthTenantHostIfNeeded()) return
 
   const [{ StrictMode }, { createRoot }, { default: App }] = await Promise.all([

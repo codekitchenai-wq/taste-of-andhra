@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  disabledTasteOfAndhraRedirectUrl,
   pendingOAuthTenantHandoff,
   recoverOAuthTenantHostIfNeeded,
 } from './oauthHandoff'
@@ -61,6 +62,22 @@ describe('recoverOAuthTenantHostIfNeeded', () => {
     expect(recoverOAuthTenantHostIfNeeded()).toBe(false)
     expect(replace).not.toHaveBeenCalled()
   })
+
+  it('bounces Taste of Andhra custom domain to Spice Malabar when tenant is known', () => {
+    vi.stubGlobal('window', {
+      location: {
+        hostname: 'www.thetasteofandhra.com',
+        search: '?tenant=chopsticksspicemalabar',
+        hash: '',
+        replace,
+      },
+    })
+
+    expect(recoverOAuthTenantHostIfNeeded()).toBe(true)
+    expect(replace).toHaveBeenCalledWith(
+      'https://chopsticksspicemalabar.directapp.in/login?tenant=chopsticksspicemalabar',
+    )
+  })
 })
 
 describe('pendingOAuthTenantHandoff', () => {
@@ -96,5 +113,34 @@ describe('pendingOAuthTenantHandoff', () => {
         '?tenant=chopsticksspicemalabar',
       ),
     ).toBe(false)
+  })
+
+  it('holds Taste of Andhra custom domain while it is disabled', () => {
+    vi.stubGlobal('document', { cookie: '' })
+    expect(pendingOAuthTenantHandoff('www.thetasteofandhra.com', '')).toBe(true)
+  })
+})
+
+describe('disabledTasteOfAndhraRedirectUrl', () => {
+  it('sends the custom domain to www.directapp.in', () => {
+    expect(
+      disabledTasteOfAndhraRedirectUrl({
+        hostname: 'www.thetasteofandhra.com',
+        pathname: '/login',
+        search: '',
+        hash: '',
+      }),
+    ).toBe('https://www.directapp.in/login')
+  })
+
+  it('lets Google finish PKCE on the Site URL before bouncing', () => {
+    expect(
+      disabledTasteOfAndhraRedirectUrl({
+        hostname: 'www.thetasteofandhra.com',
+        pathname: '/login',
+        search: '?code=abc',
+        hash: '',
+      }),
+    ).toBeNull()
   })
 })

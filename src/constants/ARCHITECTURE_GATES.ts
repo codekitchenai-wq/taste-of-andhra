@@ -36,3 +36,13 @@ export const ENABLE_META_EMBEDDED_SIGNUP = envFlag(
 
 /** Reserved: AI entry points. */
 export const ENABLE_AI = envFlag('VITE_ENABLE_AI', false)
+
+/**
+ * Taste of Andhra custom domains (thetasteofandhra.com).
+ * Off: those hosts bounce to www.directapp.in so Google Site URL cannot
+ * leave customers on Taste of Andhra. Re-enable with VITE_ENABLE_TASTE_OF_ANDHRA_CUSTOM_DOMAIN=true.
+ */
+export const ENABLE_TASTE_OF_ANDHRA_CUSTOM_DOMAIN = envFlag(
+  'VITE_ENABLE_TASTE_OF_ANDHRA_CUSTOM_DOMAIN',
+  false,
+)
