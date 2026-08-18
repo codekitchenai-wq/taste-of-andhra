@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  closeDeferredTab,
   navigateDeferredTab,
   openDeferredTab,
   type DeferredWindowHandle,
@@ -25,6 +26,21 @@ describe('openDeferredTab', () => {
     expect(open).toHaveBeenCalledWith('', '_blank')
     expect(result).toBe(handle)
     expect(handle.document?.title).toBe('Loading...')
+  })
+})
+
+describe('closeDeferredTab', () => {
+  it('closes a reserved tab when close is available', () => {
+    const close = vi.fn()
+    const handle: DeferredWindowHandle = {
+      closed: false,
+      location: { href: '' },
+      close,
+    }
+
+    closeDeferredTab(handle)
+
+    expect(close).toHaveBeenCalledTimes(1)
   })
 })
 

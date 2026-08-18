@@ -5,6 +5,7 @@ import { heroContent, testimonials, whyChooseUsItems } from '@/data/home'
 import type { OrganizationContextValue } from '@/contexts/OrganizationContext'
 import { isSpiceMalabarSlug, isTasteOfAndhraSlug } from '@/constants/TENANTS'
 import { restaurantDisplayName } from '@/utils/tenantFeatures'
+import { isAndhraLocalAsset, optimizeMenuImage } from '@/utils/menuImage'
 
 export const SPICE_MALABAR_HERO = '/images/tenants/spice-malabar-hero.png'
 

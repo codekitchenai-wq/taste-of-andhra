@@ -13,7 +13,7 @@
           "value": "taste-of-andhra.vercel.app"
         }
       ],
-      "destination": "https://www.thetasteofandhra.com/",
+      "destination": "https://www.directapp.in/",
       "permanent": true
     },
     {
@@ -24,7 +24,7 @@
           "value": "taste-of-andhra.vercel.app"
         }
       ],
-      "destination": "https://www.thetasteofandhra.com/:path*",
+      "destination": "https://www.directapp.in/:path*",
       "permanent": true
     }
   ],

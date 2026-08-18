@@ -34,7 +34,7 @@ export function OnamSpecialBanner() {
           </div>
           <div className="flex flex-col justify-center p-6 md:p-8">
             <p className="text-sm font-medium uppercase tracking-widest text-primary">
-              25 & 26 August · {ONAM_SADHYA.hoursLabel}
+              25 & 26 August
             </p>
             <h2 className="mt-2 font-heading text-2xl font-bold md:text-3xl">
               {ONAM_SADHYA.title}

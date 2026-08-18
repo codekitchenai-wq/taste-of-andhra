@@ -59,6 +59,7 @@ import { hasLocationPin } from '@/utils/mapAddress'
 import { calculateOrderTotals } from '@/utils/orderTotals'
 import { cn } from '@/utils/cn'
 import { formatPrice } from '@/utils/format'
+import { readCheckoutAddressId } from '@/utils/checkoutAddress'
 import {
   clearOnamPrebook,
   isFutureOnamSchedule,
@@ -139,9 +140,14 @@ export default function CheckoutPage() {
     if (addresses.length === 0) return
     if (selectedAddressId) return
 
+    const storedId = readCheckoutAddressId()
+    const storedAddress =
+      storedId && addresses.some((address) => address.id === storedId)
+        ? storedId
+        : null
     const defaultAddress =
       addresses.find((address) => address.is_default) ?? addresses[0]
-    setSelectedAddressId(defaultAddress?.id ?? null)
+    setSelectedAddressId(storedAddress ?? defaultAddress?.id ?? null)
   }, [addresses, selectedAddressId])
 
   useEffect(() => {

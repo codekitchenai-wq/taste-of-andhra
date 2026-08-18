@@ -90,7 +90,7 @@ export function parseOnamPrebook(raw: unknown): OnamPrebook | null {
   const value = raw as Record<string, unknown>
   const service =
     value.service === 'dine_in' || value.service === 'parcel'
-      ? value.service
+      ? 'parcel'
       : null
   const date =
     typeof value.date === 'string' &&

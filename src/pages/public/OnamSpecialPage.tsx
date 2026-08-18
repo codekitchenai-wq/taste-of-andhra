@@ -2,14 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   CalendarDays,
-  Clock,
   Leaf,
-  MessageCircle,
   Minus,
   Plus,
   Share2,
-  ShoppingBag,
-  UtensilsCrossed,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Badge } from '@/components/ui/Badge'
@@ -18,14 +14,15 @@ import { Container } from '@/components/ui/Container'
 import { Input } from '@/components/ui/Input'
 import { LazyImage } from '@/components/ui/LazyImage'
 import { Select } from '@/components/ui/Select'
-import { ONAM_SADHYA, type OnamServiceId } from '@/constants/ONAM_SADHYA'
+import { WhatsAppLink } from '@/components/ui/WhatsAppLink'
+import { OnamDeliveryAddress } from '@/components/checkout/OnamDeliveryAddress'
+import { ONAM_SADHYA } from '@/constants/ONAM_SADHYA'
 import { AUTH_REDIRECT_STORAGE_KEY } from '@/constants/AUTH'
 import { ROUTES } from '@/constants/ROUTES'
 import { useAuth } from '@/hooks/useAuth'
 import { useCart } from '@/hooks/useCart'
 import { useOrganization } from '@/contexts/OrganizationContext'
 import * as dishService from '@/services/dishService'
-import { cn } from '@/utils/cn'
 import { formatPrice } from '@/utils/format'
 import {
   clampOnamPlates,
@@ -37,6 +34,7 @@ import {
   writeOnamPrebook,
   type OnamPrebook,
 } from '@/utils/onamPrebook'
+import { writeCheckoutAddressId } from '@/utils/checkoutAddress'
 import { isSpiceMalabarStorefront } from '@/utils/storefrontCopy'
 import { useStorefrontWhatsApp } from '@/hooks/useStorefrontWhatsApp'
 
@@ -49,7 +47,12 @@ export default function OnamSpecialPage() {
   const { addItem, isUpdating } = useCart()
   const [prebook, setPrebook] = useState<OnamPrebook>(defaultOnamPrebook)
   const [isPlacing, setIsPlacing] = useState(false)
-  const autoCheckoutRef = useRef(false)
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
+    null,
+  )
+  const [requestAddAddress, setRequestAddAddress] = useState(0)
+  const [isAddressLoading, setIsAddressLoading] = useState(false)
+  const promptedCheckoutRef = useRef(false)
 
   const slots = useMemo(() => onamTimeSlots(), [])
   const service = ONAM_SADHYA.services[prebook.service]
@@ -68,7 +71,7 @@ export default function OnamSpecialPage() {
 
   useEffect(() => {
     const saved = readOnamPrebook()
-    if (saved) setPrebook(saved)
+    if (saved) setPrebook({ ...saved, service: 'parcel' })
   }, [])
 
   const placeOnlineOrder = async (fromForm = false) => {
@@ -87,6 +90,14 @@ export default function OnamSpecialPage() {
       navigate(ROUTES.LOGIN, { state: { from: next } })
       return
     }
+
+    if (!selectedAddressId) {
+      setRequestAddAddress((current) => current + 1)
+      toast.error('Add a delivery address to continue')
+      return
+    }
+
+    writeCheckoutAddressId(selectedAddressId)
 
     setIsPlacing(true)
     const dishResult = await dishService.getDishBySlug(offer.dishSlug)
@@ -113,14 +124,10 @@ export default function OnamSpecialPage() {
   }
 
   useEffect(() => {
-    if (!shouldCheckout || isAuthLoading || !isAuthenticated || isPlacing) {
-      return
-    }
-    if (autoCheckoutRef.current) return
-    autoCheckoutRef.current = true
-    void placeOnlineOrder()
-    // Auto-run once after login returns to this page.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!shouldCheckout || isAuthLoading || !isAuthenticated) return
+    if (promptedCheckoutRef.current) return
+    promptedCheckoutRef.current = true
+    toast('Confirm your delivery address, then place the order')
   }, [shouldCheckout, isAuthLoading, isAuthenticated])
 
   const sharePage = async () => {
@@ -189,10 +196,6 @@ export default function OnamSpecialPage() {
                   <CalendarDays className="h-4 w-4 text-primary" />
                   25 & 26 August
                 </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1">
-                  <Clock className="h-4 w-4 text-primary" />
-                  {ONAM_SADHYA.hoursLabel}
-                </span>
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1 text-success">
                   <Leaf className="h-4 w-4" />
                   Vegetarian sadhya
@@ -221,42 +224,14 @@ export default function OnamSpecialPage() {
               Prices are per plate, plus tax.
             </p>
 
-            <div className="mt-5 grid grid-cols-2 gap-2">
-              {(
-                Object.values(ONAM_SADHYA.services) as Array<{
-                  id: OnamServiceId
-                  label: string
-                  price: number
-                }>
-              ).map((option) => {
-                const selected = prebook.service === option.id
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => update({ service: option.id })}
-                    className={cn(
-                      'rounded-[var(--radius-button)] border p-3 text-left transition-colors',
-                      selected
-                        ? 'border-primary bg-primary/5'
-                        : 'border-black/10 hover:border-primary/40',
-                    )}
-                  >
-                    <span className="flex items-center gap-1.5 text-sm font-semibold">
-                      {option.id === 'parcel' ? (
-                        <ShoppingBag className="h-4 w-4 text-primary" />
-                      ) : (
-                        <UtensilsCrossed className="h-4 w-4 text-primary" />
-                      )}
-                      {option.label}
-                    </span>
-                    <span className="mt-1 block text-lg font-bold text-primary">
-                      {formatPrice(option.price)}
-                    </span>
-                    <span className="text-xs text-text-secondary">+ tax</span>
-                  </button>
-                )
-              })}
+            <div className="mt-5 rounded-[var(--radius-button)] border border-primary bg-primary/5 p-3">
+              <p className="text-sm font-semibold">{service.label}</p>
+              <p className="mt-1 text-lg font-bold text-primary">
+                {formatPrice(service.price)}
+                <span className="ml-1 text-xs font-medium text-text-secondary">
+                  + tax per plate
+                </span>
+              </p>
             </div>
 
             <div className="mt-5 space-y-4">
@@ -322,6 +297,20 @@ export default function OnamSpecialPage() {
               />
             </div>
 
+            {isAuthenticated ? (
+              <OnamDeliveryAddress
+                selectedAddressId={selectedAddressId}
+                onSelect={setSelectedAddressId}
+                onLoadingChange={setIsAddressLoading}
+                requestAddAddress={requestAddAddress}
+              />
+            ) : !isAuthLoading ? (
+              <p className="mt-5 text-sm text-text-secondary">
+                After you sign in, confirm your delivery address or add a new
+                one.
+              </p>
+            ) : null}
+
             <div className="mt-5 rounded-[var(--radius-button)] bg-background px-4 py-3">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-text-secondary">
@@ -335,31 +324,32 @@ export default function OnamSpecialPage() {
 
             <div className="mt-5 space-y-3">
               {whatsApp.enabled ? (
-              <a
-                href={onamWhatsAppUrl(prebook)}
-                target="_blank"
-                rel="noreferrer"
-                className="block"
-              >
-                <Button type="button" fullWidth size="lg">
-                  <MessageCircle className="h-4 w-4" />
+                <WhatsAppLink
+                  href={onamWhatsAppUrl(prebook)}
+                  variant="button"
+                  fullWidth
+                  className="h-12 text-base"
+                >
                   Message restaurant
-                </Button>
-              </a>
+                </WhatsAppLink>
               ) : null}
               <Button
                 type="button"
                 variant="secondary"
                 fullWidth
                 size="lg"
-                disabled={isPlacing || isUpdating}
+                disabled={
+                  isPlacing ||
+                  isUpdating ||
+                  (isAuthenticated && isAddressLoading)
+                }
                 onClick={() => void placeOnlineOrder(true)}
               >
                 {isPlacing || isUpdating
                   ? 'Adding to order…'
-                  : prebook.service === 'parcel'
-                    ? 'Place delivery order'
-                    : 'Place dine-in order'}
+                  : isAuthenticated && isAddressLoading
+                    ? 'Loading address…'
+                    : 'Place delivery order'}
               </Button>
               <Button
                 type="button"

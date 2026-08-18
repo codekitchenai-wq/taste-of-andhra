@@ -36,6 +36,17 @@ describe('parseOnamPrebook', () => {
     })
   })
 
+  it('treats a saved dine-in booking as parcel', () => {
+    expect(
+      parseOnamPrebook({
+        service: 'dine_in',
+        date: '2026-08-25',
+        slot: '13:00',
+        plates: 2,
+      }),
+    ).toMatchObject({ service: 'parcel' })
+  })
+
   it('rejects unknown dates', () => {
     expect(
       parseOnamPrebook({

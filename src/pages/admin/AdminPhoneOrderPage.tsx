@@ -41,7 +41,12 @@ import { formatPrice } from '@/utils/format'
 import { useOrganization } from '@/contexts/OrganizationContext'
 import { storefrontContact } from '@/utils/storefrontCopy'
 import { cn } from '@/utils/cn'
-import { navigateDeferredTab, openDeferredTab } from '@/utils/deferredWindow'
+import {
+  closeDeferredTab,
+  navigateDeferredTab,
+  openDeferredTab,
+  type DeferredWindowHandle,
+} from '@/utils/deferredWindow'
 import { isValidPhone } from '@/utils/validation'
 
 type PaymentCollection = 'counter' | 'delivery' | 'link'
@@ -701,14 +706,14 @@ export default function AdminPhoneOrderPage() {
   const openShareForOrder = async (
     order: orderService.CreatePhoneOrderResult,
     options?: {
-      paymentTab?: Window | null
-      whatsappTab?: Window | null
+      paymentTab?: DeferredWindowHandle | null
+      whatsappTab?: DeferredWindowHandle | null
     },
   ) => {
     const token = order.payment_share_token
     if (!token) {
-      options?.paymentTab?.close()
-      options?.whatsappTab?.close()
+      closeDeferredTab(options?.paymentTab)
+      closeDeferredTab(options?.whatsappTab)
       toast.error(
         'Payment link is unavailable until the database migration is applied.',
       )
@@ -846,8 +851,8 @@ export default function AdminPhoneOrderPage() {
     setIsSubmitting(false)
 
     if (!result.success) {
-      paymentTab?.close()
-      whatsappTab?.close()
+      closeDeferredTab(paymentTab)
+      closeDeferredTab(whatsappTab)
       toast.error(
         result.error ? `${result.message} (${result.error})` : result.message,
       )

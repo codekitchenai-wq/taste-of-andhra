@@ -38,3 +38,9 @@ export function navigateDeferredTab(
   }
   fallbackOpen(url, '_blank', 'noopener,noreferrer')
 }
+
+export function closeDeferredTab(
+  handle: DeferredWindowHandle | null | undefined,
+): void {
+  handle?.close?.()
+}
