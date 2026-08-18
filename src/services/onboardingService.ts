@@ -143,6 +143,7 @@ export async function onboardRestaurant(
     owner_name: ownerName,
     owner_phone: ownerPhone,
     homepage: homepageSettingsPayload(homepage),
+    storefront_whatsapp_enabled: false,
   }
   const baseInsert = {
     name,
@@ -294,6 +295,30 @@ export async function getMasterOrganization(
   }
 
   return createSuccessResponse(mapMasterOrganization(data))
+}
+
+export async function updateOrganizationDisplayName(
+  organizationId: string,
+  name: string,
+): Promise<ServiceResponse<MasterOrganizationDetail>> {
+  const trimmed = name.trim()
+  if (!trimmed) {
+    return createErrorResponse('Restaurant name is required.')
+  }
+
+  const { error } = await supabase
+    .from('organizations')
+    .update({ name: trimmed })
+    .eq('id', organizationId)
+
+  if (error) {
+    return createErrorResponse(
+      'Unable to update restaurant name.',
+      error.message,
+    )
+  }
+
+  return getMasterOrganization(organizationId)
 }
 
 export async function updateOrganizationHomepage(

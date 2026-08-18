@@ -2,9 +2,12 @@ import { Outlet } from 'react-router-dom'
 import { Container } from '@/components/ui/Container'
 import { useOrganization } from '@/contexts/OrganizationContext'
 import { storefrontContact } from '@/utils/storefrontCopy'
+import { useTenantDocumentTitle } from '@/hooks/useTenantDocumentTitle'
 
 export function AuthLayout() {
-  const contact = storefrontContact(useOrganization())
+  const org = useOrganization()
+  const contact = storefrontContact(org)
+  useTenantDocumentTitle('Sign in')
 
   return (
     <div className="flex min-h-svh flex-col bg-background">

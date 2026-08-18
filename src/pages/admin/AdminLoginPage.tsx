@@ -1,15 +1,20 @@
 import { Navigate } from 'react-router-dom'
 import { AdminLoginForm } from '@/components/auth/AdminLoginForm'
 import { LoadingState } from '@/components/ui/LoadingState'
-import { APP_NAME } from '@/constants/APP'
 import { ROUTES } from '@/constants/ROUTES'
 import { Container } from '@/components/ui/Container'
 import { useAuth } from '@/hooks/useAuth'
+import { useOrganization } from '@/contexts/OrganizationContext'
+import { storefrontContact } from '@/utils/storefrontCopy'
+import { useTenantDocumentTitle } from '@/hooks/useTenantDocumentTitle'
 
 export default function AdminLoginPage() {
   const { isAuthenticated, role, isLoading } = useAuth()
+  const org = useOrganization()
+  const contact = storefrontContact(org)
+  useTenantDocumentTitle('Admin')
 
-  if (isLoading) {
+  if (isLoading || org.isLoading) {
     return (
       <div className="flex min-h-svh items-center justify-center bg-background">
         <LoadingState fullPage variant="inline" />
@@ -27,7 +32,7 @@ export default function AdminLoginPage() {
         <div className="w-full max-w-md">
           <div className="mb-8 text-center">
             <h1 className="font-heading text-3xl font-bold text-primary">
-              {APP_NAME}
+              {contact.name}
             </h1>
             <p className="mt-2 text-sm text-text-secondary">Admin Portal</p>
           </div>

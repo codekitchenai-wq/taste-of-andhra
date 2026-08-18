@@ -21,7 +21,7 @@ const GROWTH_PLAN_ID = 'b0000000-0000-4000-8000-000000000002'
 const PASSWORD = 'Test@123'
 const SLUG = 'chopsticksspicemalabar'
 const LEGACY_SLUGS = ['spice-malabar']
-const ORG_NAME = 'Spice Malabar'
+const ORG_NAME = 'Chopstick Spice Malabar'
 const MENU_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
   'data/spice-malabar-menu.json',
@@ -315,6 +315,7 @@ async function main() {
       ],
       locality: tenant.locality || 'Viman Nagar',
       city: tenant.city || 'Pune',
+      storefront_whatsapp_enabled: false,
       homepage: {
         mode: 'platform_subdomain',
         custom_domain: null,
@@ -450,6 +451,20 @@ async function main() {
       enabled: true,
       source: 'manual',
       notes: 'Viman Nagar own delivery',
+    },
+    {
+      organization_id: orgId,
+      feature_key: 'whatsapp_notifications',
+      enabled: false,
+      source: 'manual',
+      notes: 'WhatsApp off until restaurant admin enables storefront WhatsApp',
+    },
+    {
+      organization_id: orgId,
+      feature_key: 'whatsapp_ordering',
+      enabled: false,
+      source: 'manual',
+      notes: 'WhatsApp off until restaurant admin enables storefront WhatsApp',
     },
   ].filter((row) => knownFeatures.has(row.feature_key))
   if (entitlementRows.length) {

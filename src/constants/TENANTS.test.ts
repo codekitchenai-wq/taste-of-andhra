@@ -15,18 +15,22 @@ describe('Taste of Andhra slug', () => {
 })
 
 describe('Spice Malabar slugs', () => {
-  it('matches only the live public slug', () => {
+  it('matches the live slug and the one-s host typo', () => {
     expect(isSpiceMalabarSlug(SPICE_MALABAR_SLUG)).toBe(true)
+    expect(isSpiceMalabarSlug('chopstickspicemalabar')).toBe(true)
     expect(isSpiceMalabarSlug('spice-malabar')).toBe(false)
     expect(isSpiceMalabarSlug('thetasteofandhra')).toBe(false)
   })
 
-  it('does not alias the retired spice-malabar host', () => {
-    expect(organizationSlugCandidates('spice-malabar')).toEqual([
-      'spice-malabar',
+  it('looks up aliases against the canonical org slug', () => {
+    expect(organizationSlugCandidates('chopstickspicemalabar')).toEqual([
+      SPICE_MALABAR_SLUG,
     ])
     expect(organizationSlugCandidates(SPICE_MALABAR_SLUG)).toEqual([
       SPICE_MALABAR_SLUG,
+    ])
+    expect(organizationSlugCandidates('spice-malabar')).toEqual([
+      'spice-malabar',
     ])
   })
 })

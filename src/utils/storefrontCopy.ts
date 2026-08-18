@@ -3,13 +3,13 @@ import { APP_DESCRIPTION, CONTACT, OPENING_HOURS } from '@/constants/APP'
 import { SHOW_TEST_HELPERS } from '@/constants/DEMO_ACCOUNTS'
 import { heroContent, testimonials, whyChooseUsItems } from '@/data/home'
 import type { OrganizationContextValue } from '@/contexts/OrganizationContext'
-import { isSpiceMalabarSlug } from '@/constants/TENANTS'
-import { isAndhraLocalAsset, optimizeMenuImage } from '@/utils/menuImage'
+import { isSpiceMalabarSlug, isTasteOfAndhraSlug } from '@/constants/TENANTS'
+import { restaurantDisplayName } from '@/utils/tenantFeatures'
 
 export const SPICE_MALABAR_HERO = '/images/tenants/spice-malabar-hero.png'
 
 export const SPICE_MALABAR_CONTACT = {
-  name: 'Spice Malabar',
+  name: 'Chopstick Spice Malabar',
   legalName: 'Chopsticks Spice Malabar',
   tagline: 'Kerala speciality restaurant',
   description:
@@ -39,8 +39,7 @@ export function isSpiceMalabarStorefront(org: OrganizationContextValue) {
 /** QA footer/login helpers stay on Taste of Andhra only. */
 export function showStorefrontQaHelpers(org: OrganizationContextValue) {
   if (!SHOW_TEST_HELPERS) return false
-  if (!org.slug || org.slug === 'thetasteofandhra') return true
-  return false
+  return isTasteOfAndhraSlug(org.slug) || (!org.slug && !org.resolvedFromHost)
 }
 
 function isOtherTenant(org: OrganizationContextValue) {
@@ -130,6 +129,10 @@ export function storefrontTestimonials(org: OrganizationContextValue) {
     return testimonials
   }
 
+  if (!isSpiceMalabar(org)) {
+    return []
+  }
+
   const name = org.name || 'the restaurant'
   return [
     {
@@ -178,7 +181,7 @@ export function categoryImageFallback(
       ? optimizeMenuImage(imageUrl, 480)
       : null
   if (remote) return remote
-  if (orgSlug && orgSlug !== 'thetasteofandhra') return SPICE_MALABAR_HERO
+  if (orgSlug && !isTasteOfAndhraSlug(orgSlug)) return SPICE_MALABAR_HERO
   return (
     {
       starters: LOCAL_IMAGES.categories.starters,
@@ -200,7 +203,7 @@ export function dishImageFallback(
       ? optimizeMenuImage(imageUrl, 400)
       : null
   if (remote) return remote
-  if (orgSlug && orgSlug !== 'thetasteofandhra') return SPICE_MALABAR_HERO
+  if (orgSlug && !isTasteOfAndhraSlug(orgSlug)) return SPICE_MALABAR_HERO
   return LOCAL_IMAGES.hero
 }
 
@@ -251,18 +254,16 @@ export function storefrontContact(
       (spice ? SPICE_MALABAR_CONTACT.weekendHours : OPENING_HOURS.weekends)
 
     return {
-      name:
-        org.name?.trim() ||
-        (spice ? SPICE_MALABAR_CONTACT.name : 'our restaurant'),
+      name: restaurantDisplayName(org),
       tagline:
         org.tagline?.trim() ||
         (spice ? SPICE_MALABAR_CONTACT.tagline : 'Order online'),
       description:
         org.description?.trim() ||
         (spice ? SPICE_MALABAR_CONTACT.description : ''),
-      phone: phone || SPICE_MALABAR_CONTACT.phone,
+      phone: phone || (spice ? SPICE_MALABAR_CONTACT.phone : ''),
       alternatePhone: alternate || null,
-      phones: phones.length > 0 ? phones : [SPICE_MALABAR_CONTACT.phone],
+      phones: phones.length > 0 ? phones : spice ? [SPICE_MALABAR_CONTACT.phone] : [],
       email: publicEmail(org.email),
       address,
       mapsUrl: mapsUrlFor(address),
@@ -272,7 +273,7 @@ export function storefrontContact(
   }
 
   return {
-    name: org.name?.trim() || 'The Taste of Andhra',
+    name: restaurantDisplayName(org),
     tagline: org.tagline?.trim() || 'Authentic Andhra Cuisine',
     description: org.description?.trim() || APP_DESCRIPTION,
     phone: CONTACT.phone,
@@ -285,3 +286,37 @@ export function storefrontContact(
     weekendHours: OPENING_HOURS.weekends,
   }
 }
+
+export interface StorefrontSocialLink {
+  label: string
+  href: string
+}
+
+export function storefrontSocialLinks(
+  org: OrganizationContextValue,
+): StorefrontSocialLink[] {
+  const branding = org.branding || {}
+  const fromBranding: StorefrontSocialLink[] = [
+    ['Instagram', branding.instagram_url],
+    ['Facebook', branding.facebook_url],
+    ['Twitter', branding.twitter_url],
+  ]
+    .filter(
+      (entry): entry is [string, string] =>
+        typeof entry[1] === 'string' && /^https?:\/\//i.test(entry[1]),
+    )
+    .map(([label, href]) => ({ label, href }))
+
+  if (fromBranding.length > 0) return fromBranding
+
+  if (isTasteOfAndhraSlug(org.slug) || (!org.slug && !org.resolvedFromHost)) {
+    return [
+      { label: 'Instagram', href: 'https://instagram.com' },
+      { label: 'Facebook', href: 'https://facebook.com' },
+      { label: 'Twitter', href: 'https://twitter.com' },
+    ]
+  }
+
+  return []
+}
+

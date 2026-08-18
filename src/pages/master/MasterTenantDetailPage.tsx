@@ -7,11 +7,13 @@ import { RestaurantSetupImport } from '@/components/master/RestaurantSetupImport
 import { TenantHomepageFields } from '@/components/master/TenantHomepageFields'
 import { MasterSubscriptionPanel } from '@/components/master/MasterSubscriptionPanel'
 import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { LoadingState } from '@/components/ui/LoadingState'
 import { ROUTES } from '@/constants/ROUTES'
 import {
   getMasterOrganization,
+  updateOrganizationDisplayName,
   updateOrganizationHomepage,
   type MasterOrganizationDetail,
 } from '@/services/onboardingService'
@@ -23,6 +25,7 @@ import {
 export default function MasterTenantDetailPage() {
   const { orgId = '' } = useParams()
   const [org, setOrg] = useState<MasterOrganizationDetail | null>(null)
+  const [displayName, setDisplayName] = useState('')
   const [homepageDraft, setHomepageDraft] = useState<TenantHomepageDraft>({
     mode: 'platform_subdomain',
     customDomain: '',
@@ -31,6 +34,7 @@ export default function MasterTenantDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [savingHomepage, setSavingHomepage] = useState(false)
+  const [savingName, setSavingName] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -46,6 +50,7 @@ export default function MasterTenantDetailPage() {
         return
       }
       setOrg(result.data)
+      setDisplayName(result.data.name)
       setHomepageDraft(draftFromHomepage(result.data.homepage))
       setError(null)
       setLoading(false)
@@ -56,6 +61,21 @@ export default function MasterTenantDetailPage() {
       cancelled = true
     }
   }, [orgId])
+
+  async function onSaveDisplayName(event: FormEvent) {
+    event.preventDefault()
+    if (!org) return
+    setSavingName(true)
+    const result = await updateOrganizationDisplayName(org.id, displayName)
+    setSavingName(false)
+    if (!result.success) {
+      toast.error(result.message)
+      return
+    }
+    setOrg(result.data)
+    setDisplayName(result.data.name)
+    toast.success('Restaurant name updated')
+  }
 
   async function onSaveHomepage(event: FormEvent) {
     event.preventDefault()
@@ -91,7 +111,9 @@ export default function MasterTenantDetailPage() {
           {org.slug} · {org.status}
         </p>
         <p className="mt-2 max-w-2xl text-sm text-text-secondary">
-          Manage subscription, setup sheet, menu sheet, and public homepage.
+          Manage the public restaurant name, subscription, setup sheet, menu
+          sheet, and homepage. The name appears on admin login, the storefront,
+          and customer receipts.
         </p>
         {org.homepage.homepageUrl ? (
           <p className="mt-2 text-sm">
@@ -111,6 +133,26 @@ export default function MasterTenantDetailPage() {
           </p>
         )}
       </div>
+
+      <form
+        className="space-y-4 rounded-[var(--radius-card)] border border-black/10 bg-surface p-5"
+        onSubmit={(event) => void onSaveDisplayName(event)}
+      >
+        <h2 className="text-lg font-semibold">Restaurant name</h2>
+        <p className="text-sm text-text-secondary">
+          Shown on this restaurant’s admin portal, storefront, and login
+          screens. Change it anytime.
+        </p>
+        <Input
+          label="Display name"
+          value={displayName}
+          onChange={(event) => setDisplayName(event.target.value)}
+          required
+        />
+        <Button type="submit" disabled={savingName}>
+          {savingName ? 'Saving…' : 'Save restaurant name'}
+        </Button>
+      </form>
 
       <MasterSubscriptionPanel
         organizationId={org.id}
