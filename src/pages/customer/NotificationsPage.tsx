@@ -18,7 +18,8 @@ import { cn } from '@/utils/cn'
 
 export default function NotificationsPage() {
   const navigate = useNavigate()
-  const contact = storefrontContact(useOrganization())
+  const org = useOrganization()
+  const contact = storefrontContact(org)
   const [notifications, setNotifications] = useState<AppNotification[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -38,7 +39,7 @@ export default function NotificationsPage() {
     }
 
     setIsLoading(false)
-  }, [])
+  }, [org.organizationId])
 
   useEffect(() => {
     void refetch()

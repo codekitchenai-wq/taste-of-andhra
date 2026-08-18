@@ -6,7 +6,7 @@
  *   VITE_SUPABASE_URL=...
  *   SUPABASE_SERVICE_ROLE_KEY=...
  *
- * Prefers demo customer: customer@tasteofandhra.test (run npm run seed:demo-users first).
+ * Prefers demo customer: democustomer@tasteofandhra.test (run npm run seed:qa-testers first).
  */
 import { createClient } from '@supabase/supabase-js'
 import { readFileSync, existsSync } from 'node:fs'
@@ -140,7 +140,7 @@ async function resolveCustomer() {
   const { data: demo, error: demoError } = await admin
     .from('profiles')
     .select('id, email, full_name')
-    .eq('email', 'customer@tasteofandhra.test')
+    .eq('email', 'democustomer@tasteofandhra.test')
     .maybeSingle()
 
   if (demoError) {

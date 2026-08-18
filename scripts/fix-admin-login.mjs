@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 import { readFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-const EMAIL = 'admin@tasteofandhra.test'
+const EMAIL = 'demoadmin@tasteofandhra.test'
 const PASSWORD = 'Test@123'
 const ACCOUNT = {
   email: EMAIL,

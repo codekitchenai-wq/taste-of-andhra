@@ -4,6 +4,7 @@ export function mapAddress(row: Record<string, unknown>): Address {
   return {
     id: row.id as string,
     user_id: row.user_id as string,
+    organization_id: (row.organization_id as string) ?? '',
     address_type: row.address_type as string,
     full_name: row.full_name as string,
     phone: row.phone as string,

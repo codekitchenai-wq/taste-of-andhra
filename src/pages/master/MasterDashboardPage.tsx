@@ -3,7 +3,6 @@ import {
   ALL_TEST_ACCOUNTS,
   DEMO_PASSWORD,
   MASTER_ACCOUNT,
-  TENANT_TASTE_OF_ANDHRA,
 } from '@/constants/DEMO_ACCOUNTS'
 import { ROUTES } from '@/constants/ROUTES'
 import { USER_ROLE } from '@/constants/USER_ROLE'
@@ -25,9 +24,8 @@ export default function MasterDashboardPage() {
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-text-secondary">
           You are signed in as DirectApp Master. Only you can turn modules on
-          or off for each restaurant — restaurant admins cannot. Use this
-          console to review tenants, manage entitlements, and open QA login
-          personas.
+          or off for each restaurant — restaurant admins cannot. Demo logins
+          below are per tenant and cannot sign in on another restaurant.
         </p>
       </div>
 
@@ -51,17 +49,11 @@ export default function MasterDashboardPage() {
       </div>
 
       <section className="rounded-[var(--radius-card)] border border-black/10 bg-surface p-5">
-        <h2 className="text-lg font-semibold">Active tenant</h2>
+        <h2 className="text-lg font-semibold">Control plane</h2>
         <p className="mt-1 text-sm text-text-secondary">
-          {TENANT_TASTE_OF_ANDHRA.name} ({TENANT_TASTE_OF_ANDHRA.slug})
+          Master login lives only at www.directapp.in/master/login
         </p>
         <div className="mt-4 flex flex-wrap gap-3 text-sm">
-          <Link to={ROUTES.ADMIN.LOGIN} className="text-primary hover:underline">
-            Restaurant admin login
-          </Link>
-          <Link to={ROUTES.HOME} className="text-primary hover:underline">
-            Customer storefront
-          </Link>
           <Link to={ROUTES.MASTER.FEATURES} className="text-primary hover:underline">
             Feature catalog
           </Link>
@@ -80,17 +72,17 @@ export default function MasterDashboardPage() {
           {MASTER_ACCOUNT.email} / {DEMO_PASSWORD}
         </p>
         <p className="mt-2 text-xs text-text-secondary">
-          Full tester reference: docs/TESTER_LOGIN_REFERENCE.md
+          Platform level only. Does not replace restaurant admin logins.
         </p>
       </section>
 
       <section>
-        <h2 className="text-lg font-semibold">All test accounts</h2>
+        <h2 className="text-lg font-semibold">Per-tenant demo accounts</h2>
         <div className="mt-3 overflow-x-auto rounded-[var(--radius-card)] border border-black/10">
           <table className="min-w-full text-left text-sm">
             <thead className="bg-black/5 text-xs uppercase tracking-wide text-text-secondary">
               <tr>
-                <th className="px-3 py-2">Group</th>
+                <th className="px-3 py-2">Level</th>
                 <th className="px-3 py-2">Persona</th>
                 <th className="px-3 py-2">Email / username</th>
                 <th className="px-3 py-2">Password</th>
@@ -100,7 +92,9 @@ export default function MasterDashboardPage() {
             <tbody>
               {ALL_TEST_ACCOUNTS.map((account) => (
                 <tr key={account.email} className="border-t border-black/5">
-                  <td className="px-3 py-2">{account.group ?? '—'}</td>
+                  <td className="px-3 py-2">
+                    {account.role === 'platform_master' ? 'Master' : 'Tenant'}
+                  </td>
                   <td className="px-3 py-2">{USER_ROLE[account.role]}</td>
                   <td className="px-3 py-2 font-mono text-xs">{account.email}</td>
                   <td className="px-3 py-2 font-mono text-xs">

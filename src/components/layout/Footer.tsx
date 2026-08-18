@@ -84,16 +84,18 @@ export function Footer() {
                 </li>
               ))}
               {showQa &&
-                footerTestPersonaLinks.map((link) => (
-                  <li key={link.to}>
-                    <Link
-                      to={link.to}
-                      className="text-sm text-text-secondary transition-colors hover:text-primary"
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
+                footerTestPersonaLinks
+                  .filter((link) => !link.to.startsWith('/master'))
+                  .map((link) => (
+                    <li key={link.to}>
+                      <Link
+                        to={link.to}
+                        className="text-sm text-text-secondary transition-colors hover:text-primary"
+                      >
+                        {link.label}
+                      </Link>
+                    </li>
+                  ))}
             </ul>
           </div>
 

@@ -28,6 +28,32 @@ export async function enrollCurrentCustomer(
     return createSuccessResponse(false)
   }
 
+  const [{ data: existingCustomers }, { data: existingMembers }] =
+    await Promise.all([
+      supabase
+        .from('organization_customers')
+        .select('organization_id')
+        .eq('user_id', user.id),
+      supabase
+        .from('organization_members')
+        .select('organization_id, is_active')
+        .eq('user_id', user.id),
+    ])
+
+  const customerOrgIds = (existingCustomers ?? []).map((row) =>
+    String(row.organization_id),
+  )
+  if (customerOrgIds.includes(organizationId)) {
+    return createSuccessResponse(true)
+  }
+
+  const staffElsewhere = (existingMembers ?? []).some(
+    (row) => row.is_active !== false,
+  )
+  if (customerOrgIds.length > 0 || staffElsewhere) {
+    return createSuccessResponse(false)
+  }
+
   const { error } = await supabase.from('organization_customers').upsert(
     {
       organization_id: organizationId,

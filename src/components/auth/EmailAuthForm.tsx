@@ -11,6 +11,7 @@ import { MIN_PASSWORD_LENGTH } from '@/constants/AUTH'
 import { primaryAccountForRole } from '@/constants/DEMO_ACCOUNTS'
 import { ROUTES } from '@/constants/ROUTES'
 import { useAuth } from '@/hooks/useAuth'
+import { useOrganization } from '@/contexts/OrganizationContext'
 import type { UserRole } from '@/types/enums'
 import { canAccessPortal } from '@/utils/platformMaster'
 import { shouldContinueGoogleOAuth } from '@/utils/oauthRedirect'
@@ -64,6 +65,7 @@ export function EmailAuthForm({
   footer,
 }: EmailAuthFormProps) {
   const { login, register: registerAccount, logout, loginWithGoogle } = useAuth()
+  const { slug: tenantSlug } = useOrganization()
   const navigate = useNavigate()
   const location = useLocation()
   const [mode, setMode] = useState<AuthMode>(initialMode)
@@ -87,7 +89,7 @@ export function EmailAuthForm({
           ? ROUTES.DELIVERY.DASHBOARD
           : ROUTES.HOME)
 
-  const demo = primaryAccountForRole(role)
+  const demo = primaryAccountForRole(role, tenantSlug)
 
   useEffect(() => {
     if (!allowGoogle || googleContinueStarted) return

@@ -173,7 +173,7 @@ export default function CheckoutPage() {
     void loyaltyService.getOrCreateAccount().then((result) => {
       if (result.success) setLoyaltyAccount(result.data)
     })
-  }, [user?.id])
+  }, [user?.id, org.organizationId])
 
   const maxLoyalty = useMemo(() => {
     if (!loyaltyAccount || !cart) {
@@ -814,7 +814,13 @@ export default function CheckoutPage() {
         amount={pendingOrder?.total ?? totals.total}
         orderNumber={pendingOrder?.orderNumber ?? ''}
         isProcessing={isPaying}
-        isDemoMode={!isRazorpayConfigured()}
+        isDemoMode={
+          !isRazorpayConfigured({
+            settings: org.settings,
+            slug: org.slug,
+            organizationId: org.organizationId,
+          })
+        }
         initialChannel={onlineChannel}
         onClose={() => {
           if (isPaying) return

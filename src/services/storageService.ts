@@ -4,15 +4,17 @@ import {
   type ServiceResponse,
 } from '@/types/api'
 import { STORAGE_BUCKET } from '@/constants/APP'
+import { getResolvedOrganizationId } from '@/services/currentOrganization'
 import { supabase } from '@/services/supabaseClient'
+import { restaurantImageObjectPath } from '@/utils/restaurantImagePath'
 
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
 
 /**
- * Admin uploads go to Supabase Storage under the same folder layout as
- * public/images (dishes/ and categories/). A static Vite/Vercel host cannot
- * write into /public at runtime, so cloud storage is required for uploads.
+ * Admin uploads go to the shared restaurant-images bucket under
+ * orgs/{organizationId}/ so Taste of Andhra and other restaurants never share
+ * object keys. DirectApp Master can still write any prefix via RLS.
  */
 async function uploadImage(
   file: File,
@@ -27,8 +29,18 @@ async function uploadImage(
     return createErrorResponse('Image must be smaller than 5 MB.')
   }
 
+  const organizationId = getResolvedOrganizationId()
+  if (!organizationId) {
+    return createErrorResponse('Restaurant is not ready. Refresh and try again.')
+  }
+
   const extension = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
-  const path = `${folder}/${entityId}/${Date.now()}.${extension}`
+  const path = restaurantImageObjectPath(
+    organizationId,
+    folder,
+    entityId,
+    `${Date.now()}.${extension}`,
+  )
 
   const { error } = await supabase.storage
     .from(STORAGE_BUCKET)

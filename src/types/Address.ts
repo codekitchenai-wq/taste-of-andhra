@@ -1,6 +1,7 @@
 export interface Address {
   id: string
   user_id: string
+  organization_id: string
   address_type: string
   full_name: string
   phone: string

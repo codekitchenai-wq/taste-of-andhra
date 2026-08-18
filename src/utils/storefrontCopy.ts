@@ -6,6 +6,7 @@ import type { OrganizationContextValue } from '@/contexts/OrganizationContext'
 import { isSpiceMalabarSlug, isTasteOfAndhraSlug } from '@/constants/TENANTS'
 import { restaurantDisplayName } from '@/utils/tenantFeatures'
 import { isAndhraLocalAsset, optimizeMenuImage } from '@/utils/menuImage'
+import { isPlatformMarketingHost } from '@/utils/platformHost'
 
 export const SPICE_MALABAR_HERO = '/images/tenants/spice-malabar-hero.png'
 
@@ -37,10 +38,12 @@ export function isSpiceMalabarStorefront(org: OrganizationContextValue) {
   return isSpiceMalabar(org)
 }
 
-/** QA footer/login helpers stay on Taste of Andhra only. */
+/** QA footer/login helpers — current restaurant only, never other tenants’ logins. */
 export function showStorefrontQaHelpers(org: OrganizationContextValue) {
   if (!SHOW_TEST_HELPERS) return false
-  return isTasteOfAndhraSlug(org.slug) || (!org.slug && !org.resolvedFromHost)
+  if (org.isLoading) return false
+  if (isPlatformMarketingHost()) return false
+  return true
 }
 
 function isOtherTenant(org: OrganizationContextValue) {

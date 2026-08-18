@@ -10,7 +10,7 @@ const CANONICAL = 'chopsticksspicemalabar'
 const LEGACY = 'spice-malabar'
 const url = process.env.VITE_SUPABASE_URL?.trim()
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
-const adminEmail = 'spice-malabar@admin.test'
+const adminEmail = 'demoadmin@chopsticksspicemalabar.test'
 const password = 'Test@123'
 
 if (!url || !serviceKey) {

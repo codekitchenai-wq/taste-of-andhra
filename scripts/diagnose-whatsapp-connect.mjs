@@ -38,7 +38,7 @@ const client = createClient(url, anon, {
   auth: { persistSession: false, autoRefreshToken: false },
 })
 
-const email = 'admin@tasteofandhra.test'
+const email = 'demoadmin@tasteofandhra.test'
 const password = 'Test@123'
 const orgId = 'a0000000-0000-4000-8000-000000000001'
 

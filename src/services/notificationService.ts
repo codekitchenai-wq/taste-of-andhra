@@ -4,7 +4,7 @@
  * Providers are never called directly from order logic.
  */
 import { APP_NAME } from '@/constants/APP'
-import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
+import { UNMATCHED_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
 import {
   createErrorResponse,
   createSuccessResponse,
@@ -15,6 +15,7 @@ import type {
   NotificationChannel,
 } from '@/types/Notification'
 import * as communicationService from '@/services/communicationService'
+import { getResolvedOrganizationId } from '@/services/currentOrganization'
 import { requireUserId } from '@/services/requireUserId'
 import { supabase } from '@/services/supabaseClient'
 import { orderStatusToCommunicationEvent } from '@/utils/communicationEvents'
@@ -99,7 +100,13 @@ export async function notifyUser(
   input: CreateNotificationInput,
 ): Promise<ServiceResponse<AppNotification[]>> {
   const channels = input.channels ?? ['in_app', 'sms']
-  const organizationId = input.organizationId ?? DEFAULT_ORGANIZATION_ID
+  const organizationId =
+    input.organizationId ?? getResolvedOrganizationId() ?? undefined
+  if (!organizationId || organizationId === UNMATCHED_ORGANIZATION_ID) {
+    return createErrorResponse(
+      'Restaurant is not ready. Refresh and try again.',
+    )
+  }
   const created: AppNotification[] = []
 
   for (const channel of channels) {
@@ -163,10 +170,16 @@ export async function getMyNotifications(
   const userResult = await requireUserId()
   if (!userResult.success) return userResult
 
+  const orgId = getResolvedOrganizationId()
+  if (!orgId) {
+    return createSuccessResponse([])
+  }
+
   const { data, error } = await supabase
     .from('notifications')
     .select('*')
     .eq('user_id', userResult.data)
+    .eq('organization_id', orgId)
     .eq('channel', 'in_app')
     .order('created_at', { ascending: false })
     .limit(limit)
@@ -182,10 +195,16 @@ export async function getUnreadCount(): Promise<ServiceResponse<number>> {
   const userResult = await requireUserId()
   if (!userResult.success) return userResult
 
+  const orgId = getResolvedOrganizationId()
+  if (!orgId) {
+    return createSuccessResponse(0)
+  }
+
   const { count, error } = await supabase
     .from('notifications')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', userResult.data)
+    .eq('organization_id', orgId)
     .eq('channel', 'in_app')
     .eq('is_read', false)
 
@@ -221,10 +240,16 @@ export async function markAllAsRead(): Promise<ServiceResponse<null>> {
   const userResult = await requireUserId()
   if (!userResult.success) return userResult
 
+  const orgId = getResolvedOrganizationId()
+  if (!orgId) {
+    return createSuccessResponse(null)
+  }
+
   const { error } = await supabase
     .from('notifications')
     .update({ is_read: true })
     .eq('user_id', userResult.data)
+    .eq('organization_id', orgId)
     .eq('is_read', false)
 
   if (error) {
@@ -283,8 +308,8 @@ export async function notifyOrderStatus(
     .eq('id', orderId)
     .maybeSingle()
 
-  const organizationId =
-    (order?.organization_id as string | undefined) ?? DEFAULT_ORGANIZATION_ID
+  const organizationId = (order?.organization_id as string | undefined) ?? null
+  if (!organizationId) return
   const optedIn = Boolean(order?.whatsapp_updates_opt_in)
 
   let restaurantName = APP_NAME

@@ -6,6 +6,14 @@ import { createRequire } from 'node:module'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import {
+  DEMO_PASSWORD,
+  KNOWN_TENANTS,
+  MASTER_EMAIL,
+  localLoginUrl,
+  productionLoginUrl,
+  tenantDemoAccounts,
+} from './lib/tenant-demo-accounts.mjs'
 
 const require = createRequire(import.meta.url)
 const PDFDocument = require('pdfkit')
@@ -13,21 +21,21 @@ const PDFDocument = require('pdfkit')
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const outPath = join(__dirname, '..', 'docs', 'LOGIN_CREDENTIALS.pdf')
 
-const PASSWORD = 'Test@123'
+const PASSWORD = DEMO_PASSWORD
 const LOCAL = 'http://127.0.0.1:5173'
-const PROD = 'https://www.thetasteofandhra.com'
+const PROD = 'https://www.directapp.in'
 
 const accounts = [
-  ['DirectApp Master', 'master@tasteofandhra.test', '/master/login', '/master'],
-  ['Demo Customer', 'customer@tasteofandhra.test', '/login', '/'],
-  ['Demo Admin', 'admin@tasteofandhra.test', '/admin/login', '/admin'],
-  ['Demo Delivery', 'delivery@tasteofandhra.test', '/delivery/login', '/delivery'],
-  ['Tester 1 Customer', 'tester1.customer@thetasteofandhra.com', '/login', '/'],
-  ['Tester 1 Admin', 'tester1.admin@thetasteofandhra.com', '/admin/login', '/admin'],
-  ['Tester 1 Delivery', 'tester1.delivery@thetasteofandhra.com', '/delivery/login', '/delivery'],
-  ['Tester 2 Customer', 'tester2.customer@thetasteofandhra.com', '/login', '/'],
-  ['Tester 2 Admin', 'tester2.admin@thetasteofandhra.com', '/admin/login', '/admin'],
-  ['Tester 2 Delivery', 'tester2.delivery@thetasteofandhra.com', '/delivery/login', '/delivery'],
+  ['DirectApp Master', MASTER_EMAIL, '/master/login', '/master', 'https://www.directapp.in/master/login'],
+  ...KNOWN_TENANTS.flatMap((tenant) =>
+    tenantDemoAccounts(tenant).map((account) => [
+      `${tenant.name} ${account.role}`,
+      account.email,
+      localLoginUrl(tenant.slug, account.role).replace(LOCAL, ''),
+      '/',
+      productionLoginUrl(tenant.productionOrigin, account.role),
+    ]),
+  ),
 ]
 
 mkdirSync(dirname(outPath), { recursive: true })
@@ -104,8 +112,10 @@ drawHeader()
 let y = tableTop + 18
 
 accounts.forEach((row, i) => {
-  const [persona, email, loginPath] = row
+  const [persona, email, loginPath, , productionUrl] = row
   const bg = i % 2 === 0 ? '#fafafa' : '#ffffff'
+  const localUrl = loginPath.startsWith('http') ? loginPath : `${LOCAL}${loginPath}`
+  const prodUrl = productionUrl || `${PROD}${loginPath}`
   doc.rect(42, y, doc.page.width - 84, rowH).fill(bg)
   doc.fillColor('#222222').font('Helvetica').fontSize(8)
   doc.text(String(i + 1), col.n, y + 5, { width: 14 })
@@ -118,11 +128,11 @@ accounts.forEach((row, i) => {
     .font('Helvetica')
     .fillColor('#1a5fb4')
     .fontSize(7)
-    .text(`${LOCAL}${loginPath}`, col.login, y + 4, { width: 150, link: `${LOCAL}${loginPath}` })
+    .text(localUrl, col.login, y + 4, { width: 150, link: localUrl })
   doc
     .fillColor('#555555')
     .fontSize(6.5)
-    .text(`${PROD}${loginPath}`, col.login, y + 15, { width: 150, link: `${PROD}${loginPath}` })
+    .text(prodUrl, col.login, y + 15, { width: 150, link: prodUrl })
   y += rowH
 })
 
@@ -145,7 +155,8 @@ doc.moveDown(0.8)
 heading('Notes', 13)
 body('• Use the matching login URL for each persona (do not use /login for admin or delivery).')
 body('• Log out or use a private window before switching persona.')
-body('• Seed accounts: npm run seed:all-test-users')
+body('• Seed accounts: npm run seed:qa-testers')
+body('• Excel: docs/TENANT_LOGIN_CREDENTIALS.xlsx')
 body('• Source: docs/LOGIN_CREDENTIALS.md')
 
 doc.end()

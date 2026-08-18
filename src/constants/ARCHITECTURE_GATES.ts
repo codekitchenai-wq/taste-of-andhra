@@ -19,10 +19,10 @@ export const ENABLE_HOST_TENANT_RESOLUTION = envFlag(
   false,
 )
 
-/** Admin/delivery routes require organization_members for active org. */
+/** Admin/delivery routes require organization_members for the active org. */
 export const ENABLE_SCOPED_ORG_ADMIN_AUTH = envFlag(
   'VITE_ENABLE_SCOPED_ORG_ADMIN_AUTH',
-  false,
+  true,
 )
 
 /** Reserved: Route mode UI/API (never expose until backend ready). */

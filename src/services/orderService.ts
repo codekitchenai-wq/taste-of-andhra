@@ -343,6 +343,7 @@ export async function getCustomerOrders(): Promise<
     .from('orders')
     .select('*')
     .eq('user_id', userResult.data)
+    .eq('organization_id', getCurrentOrganizationId())
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -366,6 +367,7 @@ export async function getOrderDetails(
     .select(ORDER_DETAILS_SELECT)
     .eq('id', orderId)
     .eq('user_id', userResult.data)
+    .eq('organization_id', getCurrentOrganizationId())
     .maybeSingle()
 
   if (error) {
@@ -442,6 +444,7 @@ export async function createOrder(
     .select('id')
     .eq('id', input.addressId)
     .eq('user_id', userId)
+    .eq('organization_id', getCurrentOrganizationId())
     .maybeSingle()
 
   if (addressError) {

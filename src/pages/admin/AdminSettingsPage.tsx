@@ -27,7 +27,8 @@ import { formatPrice } from '@/utils/format'
 import { storefrontContact } from '@/utils/storefrontCopy'
 
 export default function AdminSettingsPage() {
-  const contact = storefrontContact(useOrganization())
+  const org = useOrganization()
+  const contact = storefrontContact(org)
   const [etaMinutes, setEtaMinutes] = useState(String(DEFAULT_ETA_MINUTES))
   const [isLoadingEta, setIsLoadingEta] = useState(true)
   const [isSavingEta, setIsSavingEta] = useState(false)
@@ -35,7 +36,19 @@ export default function AdminSettingsPage() {
   const [upiPayeeName, setUpiPayeeName] = useState(contact.name)
   const [isLoadingUpi, setIsLoadingUpi] = useState(true)
   const [isSavingUpi, setIsSavingUpi] = useState(false)
+  const [razorpayKeyId, setRazorpayKeyId] = useState('')
+  const [isLoadingRazorpay, setIsLoadingRazorpay] = useState(true)
+  const [isSavingRazorpay, setIsSavingRazorpay] = useState(false)
   const [pidgeStatus, setPidgeStatus] = useState<PidgeConfigStatus | null>(null)
+
+  const razorpayLive = isRazorpayConfigured({
+    settings: {
+      ...org.settings,
+      razorpay_key_id: razorpayKeyId || org.settings.razorpay_key_id,
+    },
+    slug: org.slug,
+    organizationId: org.organizationId,
+  })
 
   useEffect(() => {
     let cancelled = false
@@ -43,11 +56,14 @@ export default function AdminSettingsPage() {
     const load = async () => {
       setIsLoadingEta(true)
       setIsLoadingUpi(true)
-      const [etaResult, upiResult, pidgeResult] = await Promise.all([
-        settingsService.getDefaultEtaMinutes(),
-        settingsService.getUpiSettings(),
-        deliveryQuoteService.getPidgeStatus(),
-      ])
+      setIsLoadingRazorpay(true)
+      const [etaResult, upiResult, razorpayResult, pidgeResult] =
+        await Promise.all([
+          settingsService.getDefaultEtaMinutes(),
+          settingsService.getUpiSettings(),
+          settingsService.getRazorpayPublishableKey(),
+          deliveryQuoteService.getPidgeStatus(),
+        ])
       if (cancelled) return
 
       if (etaResult.success) {
@@ -57,11 +73,15 @@ export default function AdminSettingsPage() {
         setUpiVpa(upiResult.data.vpa)
         setUpiPayeeName(upiResult.data.payeeName)
       }
+      if (razorpayResult.success) {
+        setRazorpayKeyId(razorpayResult.data)
+      }
       if (pidgeResult.success) {
         setPidgeStatus(pidgeResult.data)
       }
       setIsLoadingEta(false)
       setIsLoadingUpi(false)
+      setIsLoadingRazorpay(false)
     }
 
     void load()
@@ -101,6 +121,20 @@ export default function AdminSettingsPage() {
     setUpiVpa(result.data.vpa)
     setUpiPayeeName(result.data.payeeName)
     toast.success('UPI payment settings saved')
+  }
+
+  const handleSaveRazorpay = async () => {
+    setIsSavingRazorpay(true)
+    const result = await settingsService.setRazorpayPublishableKey(razorpayKeyId)
+    setIsSavingRazorpay(false)
+
+    if (!result.success) {
+      toast.error(result.message)
+      return
+    }
+
+    setRazorpayKeyId(result.data)
+    toast.success('Razorpay Key ID saved for this restaurant')
   }
 
   return (
@@ -149,8 +183,8 @@ export default function AdminSettingsPage() {
           UPI payment QR
         </h3>
         <p className="mt-1 text-sm text-text-secondary">
-          Used for phone orders and pay-later collection. Customers scan a QR
-          with this UPI ID and the billed amount.
+          Used for phone orders and pay-later collection at this restaurant
+          only. Other tenants never inherit this UPI ID.
         </p>
         <div className="mt-4 grid max-w-xl gap-3 sm:grid-cols-2">
           <Input
@@ -175,6 +209,33 @@ export default function AdminSettingsPage() {
           onClick={() => void handleSaveUpi()}
         >
           {isSavingUpi ? 'Saving…' : 'Save UPI settings'}
+        </Button>
+      </section>
+
+      <section className="rounded-[var(--radius-card)] bg-surface p-6 shadow-md">
+        <h3 className="text-lg font-semibold text-text-primary">
+          Razorpay
+        </h3>
+        <p className="mt-1 text-sm text-text-secondary">
+          Publishable Key ID for this restaurant. Leave blank to collect in demo
+          mode. Do not paste the Key Secret here.
+        </p>
+        <div className="mt-4 max-w-xl">
+          <Input
+            label="Razorpay Key ID"
+            value={razorpayKeyId}
+            disabled={isLoadingRazorpay || isSavingRazorpay}
+            onChange={(event) => setRazorpayKeyId(event.target.value)}
+            placeholder="rzp_live_… or rzp_test_…"
+          />
+        </div>
+        <Button
+          type="button"
+          className="mt-4"
+          disabled={isLoadingRazorpay || isSavingRazorpay}
+          onClick={() => void handleSaveRazorpay()}
+        >
+          {isSavingRazorpay ? 'Saving…' : 'Save Razorpay Key ID'}
         </Button>
       </section>
 
@@ -281,12 +342,12 @@ export default function AdminSettingsPage() {
             <span className="text-text-primary">Razorpay (online payments)</span>
             <span
               className={
-                isRazorpayConfigured()
+                razorpayLive
                   ? 'font-medium text-success'
                   : 'font-medium text-text-secondary'
               }
             >
-              {isRazorpayConfigured() ? 'Live mode' : 'Demo mode'}
+              {razorpayLive ? 'Live mode' : 'Demo mode'}
             </span>
           </li>
           <li className="flex items-center justify-between rounded-[var(--radius-button)] bg-background px-4 py-3">
@@ -312,7 +373,7 @@ export default function AdminSettingsPage() {
           type="button"
           onClick={() =>
             toast(
-              'Supabase and Razorpay use environment variables. Pidge uses Admin → Delivery settings plus Edge Function secrets — see docs/PIDGE_SETUP.md.',
+              'Razorpay Key ID is saved per restaurant in Settings above. UPI and GSTIN are also per restaurant. DirectApp Master stays platform-wide.',
             )
           }
           className="mt-4 text-sm font-medium text-primary hover:text-primary-dark"

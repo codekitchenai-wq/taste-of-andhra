@@ -1,8 +1,9 @@
 /**
  * Seeds Devi Home Foods test tenant (Starter / Direct UPI).
  *
- * Admin:    devihomefoodsadmin@devihomefoods.test / Test@123
- * Customer: demo@devihomefoods.test / Test@123
+ * Admin:    demoadmin@devihomefoods.test / Test@123
+ * Customer: democustomer@devihomefoods.test / Test@123
+ * Delivery: demodelivery@devihomefoods.test / Test@123
  *
  * Usage: node scripts/seed-devihomefoods.mjs
  * Requires: VITE_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY in .env.local
@@ -11,6 +12,7 @@ import { createClient } from '@supabase/supabase-js'
 import { randomUUID } from 'node:crypto'
 import { readFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { demoPersonaEmail, phoneForTenantPersona } from './lib/tenant-demo-accounts.mjs'
 
 const STARTER_PLAN_ID = 'b0000000-0000-4000-8000-000000000001'
 const PASSWORD = 'Test@123'
@@ -18,18 +20,26 @@ const SLUG = 'devihomefoods'
 const ORG_NAME = 'Devi Home Foods'
 
 const ADMIN = {
-  email: 'devihomefoodsadmin@devihomefoods.test',
+  email: demoPersonaEmail(SLUG, 'admin'),
   password: PASSWORD,
   fullName: 'Devi Home Foods Admin',
-  phone: '9876500101',
+  phone: phoneForTenantPersona(SLUG, 'admin'),
   role: 'admin',
 }
 
+const DELIVERY = {
+  email: demoPersonaEmail(SLUG, 'delivery'),
+  password: PASSWORD,
+  fullName: 'Devi Home Foods Delivery',
+  phone: phoneForTenantPersona(SLUG, 'delivery'),
+  role: 'delivery',
+}
+
 const CUSTOMER = {
-  email: 'demo@devihomefoods.test',
+  email: demoPersonaEmail(SLUG, 'customer'),
   password: PASSWORD,
   fullName: 'Devi Home Foods Demo Customer',
-  phone: '9876500102',
+  phone: phoneForTenantPersona(SLUG, 'customer'),
   role: 'customer',
 }
 
@@ -465,8 +475,30 @@ async function main() {
   )
   if (memberError) throw new Error(`org member: ${memberError.message}`)
 
+  const deliveryUser = await ensureAuthUser(DELIVERY)
+  await upsertProfile(deliveryUser.id, DELIVERY)
+  const { error: deliveryMemberError } = await admin.from('organization_members').upsert(
+    {
+      organization_id: orgId,
+      user_id: deliveryUser.id,
+      role: 'delivery',
+      is_active: true,
+    },
+    { onConflict: 'organization_id,user_id' },
+  )
+  if (deliveryMemberError) {
+    throw new Error(`delivery member: ${deliveryMemberError.message}`)
+  }
+
   const customerUser = await ensureAuthUser(CUSTOMER)
   await upsertProfile(customerUser.id, CUSTOMER)
+  await admin.from('organization_customers').upsert(
+    {
+      organization_id: orgId,
+      user_id: customerUser.id,
+    },
+    { onConflict: 'organization_id,user_id' },
+  )
 
   console.log('')
   console.log('Ready — Devi Home Foods (Starter / Direct UPI)')
@@ -484,6 +516,11 @@ async function main() {
   console.log(`  Email:    ${CUSTOMER.email}`)
   console.log(`  Password: ${PASSWORD}`)
   console.log('  URL:      /login')
+  console.log('')
+  console.log('Delivery demo login')
+  console.log(`  Email:    ${DELIVERY.email}`)
+  console.log(`  Password: ${PASSWORD}`)
+  console.log('  URL:      /delivery/login')
   console.log('')
   console.log('Master: /master/tenants → Subscription & details for this tenant')
   console.log(

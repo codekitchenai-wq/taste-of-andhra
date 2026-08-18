@@ -21,4 +21,5 @@ export const OPENING_HOURS = {
   weekends: '10:00 AM – 11:30 PM',
 } as const
 
+/** Shared Supabase bucket; object keys are `orgs/{organizationId}/…` so restaurants do not mix files. */
 export const STORAGE_BUCKET = 'restaurant-images'

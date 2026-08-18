@@ -6,6 +6,11 @@ import {
 import { DEFAULT_ETA_MINUTES } from '@/constants/ORDER'
 import { getCurrentOrganizationId } from '@/services/currentOrganization'
 import { supabase } from '@/services/supabaseClient'
+import {
+  envUpiFallback,
+  RAZORPAY_KEY_SETTING,
+  razorpayKeyIdForTenant,
+} from '@/utils/tenantPayments'
 import type { StoreOperatingHours } from '@/types/StoreHours'
 import type { OrderNumberSequenceSettings } from '@/types/OrderNumberSequence'
 import { isMissingColumnError } from '@/utils/supabaseSchema'
@@ -244,13 +249,15 @@ async function loadCurrentRestaurant(): Promise<{
 }
 
 export async function getUpiSettings(): Promise<ServiceResponse<UpiSettings>> {
-  const envVpa = import.meta.env.VITE_UPI_VPA?.trim() ?? ''
-  const envName = import.meta.env.VITE_UPI_PAYEE_NAME?.trim() ?? ''
   const org = await loadCurrentRestaurant()
-  const fallbackName = restaurantDisplayName({
-    name: org.name,
+  const tenant = {
     slug: org.slug,
     organizationId: getCurrentOrganizationId(),
+  }
+  const envFallback = envUpiFallback(tenant)
+  const fallbackName = restaurantDisplayName({
+    name: org.name,
+    ...tenant,
   })
 
   const [vpaRaw, nameRaw] = await Promise.all([
@@ -259,9 +266,54 @@ export async function getUpiSettings(): Promise<ServiceResponse<UpiSettings>> {
   ])
 
   return createSuccessResponse({
-    vpa: (vpaRaw?.trim() || envVpa || '').trim(),
-    payeeName: (nameRaw?.trim() || envName || fallbackName).trim(),
+    vpa: (vpaRaw?.trim() || envFallback.vpa || '').trim(),
+    payeeName: (nameRaw?.trim() || envFallback.payeeName || fallbackName).trim(),
   })
+}
+
+export async function getRazorpayPublishableKey(): Promise<
+  ServiceResponse<string>
+> {
+  const org = await loadCurrentRestaurant()
+  const key =
+    razorpayKeyIdForTenant({
+      settings: org.settings,
+      slug: org.slug,
+      organizationId: getCurrentOrganizationId(),
+    }) ?? ''
+  return createSuccessResponse(key)
+}
+
+export async function setRazorpayPublishableKey(
+  keyId: string,
+): Promise<ServiceResponse<string>> {
+  const trimmed = keyId.trim()
+  if (trimmed && !trimmed.startsWith('rzp_')) {
+    return createErrorResponse(
+      'Enter a Razorpay Key ID starting with rzp_test_ or rzp_live_.',
+    )
+  }
+
+  const orgId = getCurrentOrganizationId()
+  const org = await loadCurrentRestaurant()
+  const nextSettings = {
+    ...org.settings,
+    [RAZORPAY_KEY_SETTING]: trimmed,
+  }
+
+  const { error } = await supabase
+    .from('organizations')
+    .update({ settings: nextSettings })
+    .eq('id', orgId)
+
+  if (error) {
+    return createErrorResponse(
+      'Unable to save Razorpay Key ID.',
+      error.message,
+    )
+  }
+
+  return createSuccessResponse(trimmed)
 }
 
 export async function setUpiSettings(

@@ -36,7 +36,7 @@ const client = createClient(fileEnv.VITE_SUPABASE_URL, fileEnv.VITE_SUPABASE_ANO
   auth: { persistSession: false, autoRefreshToken: false },
 })
 
-const email = 'admin@tasteofandhra.test'
+const email = 'demoadmin@tasteofandhra.test'
 const password = 'Test@123'
 
 const { data: login, error: loginErr } = await client.auth.signInWithPassword({

@@ -7,6 +7,7 @@ import type { Address } from '@/types/Address'
 import type { Profile } from '@/types/Profile'
 import { getCurrentOrganizationId } from '@/services/currentOrganization'
 import { supabase } from '@/services/supabaseClient'
+import { insertWithOrgFallback } from '@/utils/insertWithOrgFallback'
 import { mapAddress } from '@/utils/mapAddress'
 import { mapProfile } from '@/utils/mapProfile'
 import { isMissingRelationError } from '@/utils/supabaseSchema'
@@ -112,6 +113,7 @@ export async function getCustomerDetails(
     .from('orders')
     .select('total')
     .eq('user_id', customerId)
+    .eq('organization_id', getCurrentOrganizationId())
     .neq('order_status', 'cancelled')
 
   if (ordersError) {
@@ -282,6 +284,7 @@ export async function lookupCustomerForPhoneOrder(
   const { data: addressRows, error: addressError } = await supabase
     .from('addresses')
     .select('*, profiles!inner(*)')
+    .eq('organization_id', getCurrentOrganizationId())
     .or(`phone.eq.${local},phone.eq.+91${local},phone.eq.91${local}`)
     .order('created_at', { ascending: false })
     .limit(20)
@@ -326,6 +329,7 @@ export async function lookupCustomerForPhoneOrder(
       created_at
     `,
     )
+    .eq('organization_id', getCurrentOrganizationId())
     .not('guest_phone', 'is', null)
     .order('created_at', { ascending: false })
     .limit(100)
@@ -406,6 +410,7 @@ export async function getCustomerAddresses(
     .from('addresses')
     .select('*')
     .eq('user_id', customerId)
+    .eq('organization_id', getCurrentOrganizationId())
     .order('is_default', { ascending: false })
     .order('created_at', { ascending: false })
 
@@ -497,26 +502,23 @@ export async function addAddressForCustomer(
     return createErrorResponse('State is required.')
   }
 
-  const { data, error } = await supabase
-    .from('addresses')
-    .insert({
-      user_id: customerId,
-      address_type: 'other',
-      full_name: input.fullName.trim(),
-      phone: input.phone.trim(),
-      address_line1: input.addressLine1.trim(),
-      address_line2: input.addressLine2?.trim() || null,
-      landmark: input.landmark?.trim() || null,
-      city: input.city.trim(),
-      state: input.state.trim(),
-      pincode: input.pincode.trim(),
-      is_default: false,
-    })
-    .select()
-    .single()
+  const { data, error } = await insertWithOrgFallback(supabase, 'addresses', {
+    user_id: customerId,
+    organization_id: getCurrentOrganizationId(),
+    address_type: 'other',
+    full_name: input.fullName.trim(),
+    phone: input.phone.trim(),
+    address_line1: input.addressLine1.trim(),
+    address_line2: input.addressLine2?.trim() || null,
+    landmark: input.landmark?.trim() || null,
+    city: input.city.trim(),
+    state: input.state.trim(),
+    pincode: input.pincode.trim(),
+    is_default: false,
+  })
 
-  if (error) {
-    return createErrorResponse('Unable to save address.', error.message)
+  if (error || !data) {
+    return createErrorResponse('Unable to save address.', error?.message)
   }
 
   return createSuccessResponse(mapAddress(data))

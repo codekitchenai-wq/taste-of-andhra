@@ -25,6 +25,8 @@
     "seed:spice-malabar-onam": "node scripts/seed-spice-malabar-onam.mjs",
     "scrape:spice-malabar": "node scripts/scrape-spice-malabar-menu.mjs",
     "seed:qa-testers": "node scripts/seed-qa-testers.mjs",
+    "seed:qa-testers:production": "node scripts/seed-production.mjs seed-qa-testers.mjs",
+    "docs:login-excel": "node scripts/generate-tenant-login-excel.mjs",
     "seed:superuser": "node scripts/seed-superuser.mjs",
     "seed:all-test-users": "node scripts/seed-all-test-users.mjs",
     "seed:test-coupons": "node scripts/seed-test-coupons.mjs",

@@ -11,10 +11,13 @@ import { mapPayment } from '@/utils/mapPayment'
 
 describe('architecture gates defaults', () => {
   it('keeps unfinished capabilities held (off) by default', () => {
-    expect(ENABLE_SCOPED_ORG_ADMIN_AUTH).toBe(false)
     expect(ENABLE_RAZORPAY_ROUTE).toBe(false)
     expect(ENABLE_META_EMBEDDED_SIGNUP).toBe(false)
     expect(ENABLE_AI).toBe(false)
+  })
+
+  it('scopes admin and delivery logins to the current restaurant', () => {
+    expect(ENABLE_SCOPED_ORG_ADMIN_AUTH).toBe(true)
   })
 
   it('reads host tenant resolution from env when set', () => {

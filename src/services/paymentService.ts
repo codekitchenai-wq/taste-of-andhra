@@ -7,6 +7,7 @@ import type { OnlinePaymentChannel } from '@/constants/PAYMENT_METHOD'
 import { supabase } from '@/services/supabaseClient'
 import type { Payment } from '@/types/Payment'
 import { mapPayment } from '@/utils/mapPayment'
+import { razorpayKeyIdForTenant } from '@/utils/tenantPayments'
 
 export interface RazorpayCheckoutInput {
   orderId: string
@@ -35,14 +36,48 @@ declare global {
   }
 }
 
-export function getRazorpayKeyId(): string | undefined {
-  const key = import.meta.env.VITE_RAZORPAY_KEY_ID?.trim()
-  if (!key || key.includes('your_razorpay')) return undefined
-  return key
+export function getRazorpayKeyId(input?: {
+  settings?: Record<string, unknown> | null
+  slug?: string | null
+  organizationId?: string | null
+}): string | undefined {
+  return razorpayKeyIdForTenant(input ?? {})
 }
 
-export function isRazorpayConfigured(): boolean {
-  return Boolean(getRazorpayKeyId())
+export function isRazorpayConfigured(input?: {
+  settings?: Record<string, unknown> | null
+  slug?: string | null
+  organizationId?: string | null
+}): boolean {
+  return Boolean(getRazorpayKeyId(input))
+}
+
+async function razorpayKeyForOrder(
+  orderId: string,
+): Promise<string | undefined> {
+  const { data: order } = await supabase
+    .from('orders')
+    .select('organization_id')
+    .eq('id', orderId)
+    .maybeSingle()
+
+  const organizationId = (order?.organization_id as string | undefined) ?? null
+  if (!organizationId) return undefined
+
+  const { data: org } = await supabase
+    .from('organizations')
+    .select('slug, settings')
+    .eq('id', organizationId)
+    .maybeSingle()
+
+  return razorpayKeyIdForTenant({
+    settings:
+      org?.settings && typeof org.settings === 'object'
+        ? (org.settings as Record<string, unknown>)
+        : {},
+    slug: typeof org?.slug === 'string' ? org.slug : null,
+    organizationId,
+  })
 }
 
 function loadRazorpayScript(): Promise<boolean> {
@@ -168,13 +203,14 @@ export async function markPaymentCollected(
 }
 
 /**
- * Opens Razorpay Checkout when VITE_RAZORPAY_KEY_ID is set.
- * Otherwise confirms a demo payment via the server function.
+ * Opens Razorpay Checkout with this restaurant's Key ID.
+ * Other tenants never inherit Taste of Andhra's env key.
+ * Without a tenant key, payment is confirmed in demo mode.
  */
 export async function processOnlinePayment(
   input: RazorpayCheckoutInput,
 ): Promise<ServiceResponse<RazorpayCheckoutResult>> {
-  const key = getRazorpayKeyId()
+  const key = await razorpayKeyForOrder(input.orderId)
 
   if (!key) {
     const transactionId = `demo_${input.channel}_${Date.now()}`

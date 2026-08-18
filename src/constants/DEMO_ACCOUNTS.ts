@@ -1,3 +1,5 @@
+import { TASTE_OF_ANDHRA_ORG_ID } from '@/constants/ORGANIZATION'
+import { SPICE_MALABAR_SLUG, TASTE_OF_ANDHRA_SLUG } from '@/constants/TENANTS'
 import type { AppPersonaRole, UserRole } from '@/types/enums'
 
 export interface DemoAccount {
@@ -10,6 +12,17 @@ export interface DemoAccount {
   group?: string
   /** Tenant this account belongs to (display). */
   tenant?: string
+  /** Organization slug used to scope login helpers. */
+  tenantSlug?: string
+}
+
+export interface DemoTenant {
+  id?: string
+  name: string
+  slug: string
+  /** Domain used in demo emails (`demoadmin@{emailSlug}.test`). */
+  emailSlug: string
+  productionOrigin: string
 }
 
 /**
@@ -21,12 +34,89 @@ export const SHOW_TEST_HELPERS = true
 /** Shared password for all seeded test personas (including DirectApp Master). */
 export const DEMO_PASSWORD = 'Test@123'
 
+const PERSONA_META: Record<
+  AppPersonaRole,
+  { fullNamePrefix: string; phoneOffset: number }
+> = {
+  customer: { fullNamePrefix: 'Demo Customer', phoneOffset: 1 },
+  admin: { fullNamePrefix: 'Demo Admin', phoneOffset: 2 },
+  delivery: { fullNamePrefix: 'Demo Delivery', phoneOffset: 3 },
+}
+
 /** Taste of Andhra — first restaurant tenant. */
 export const TENANT_TASTE_OF_ANDHRA = {
-  id: 'a0000000-0000-4000-8000-000000000001',
+  id: TASTE_OF_ANDHRA_ORG_ID,
   name: 'The Taste of Andhra',
-  slug: 'thetasteofandhra',
+  slug: TASTE_OF_ANDHRA_SLUG,
 } as const
+
+/**
+ * Login emails use `.test` because the form requires a valid address.
+ * Local-part matches the requested persona (`demoadmin`, `democustomer`, `demodelivery`).
+ */
+export function demoEmailSlug(orgSlug: string | null | undefined): string {
+  const slug = orgSlug?.trim().toLowerCase() ?? ''
+  if (!slug) return 'tasteofandhra'
+  if (slug === TASTE_OF_ANDHRA_SLUG || slug === 'taste-of-andhra') {
+    return 'tasteofandhra'
+  }
+  if (slug === SPICE_MALABAR_SLUG || slug === 'spice-malabar') {
+    return 'chopsticksspicemalabar'
+  }
+  return slug.replace(/-/g, '')
+}
+
+export function demoPersonaEmail(
+  orgSlug: string,
+  persona: AppPersonaRole,
+): string {
+  return `demo${persona}@${demoEmailSlug(orgSlug)}.test`
+}
+
+export const DEMO_TENANTS: DemoTenant[] = [
+  {
+    id: TASTE_OF_ANDHRA_ORG_ID,
+    name: 'The Taste of Andhra',
+    slug: TASTE_OF_ANDHRA_SLUG,
+    emailSlug: 'tasteofandhra',
+    productionOrigin: 'https://www.thetasteofandhra.com',
+  },
+  {
+    name: 'Chopstick Spice Malabar',
+    slug: SPICE_MALABAR_SLUG,
+    emailSlug: 'chopsticksspicemalabar',
+    productionOrigin: 'https://chopsticksspicemalabar.directapp.in',
+  },
+  {
+    name: 'Devi Home Foods',
+    slug: 'devihomefoods',
+    emailSlug: 'devihomefoods',
+    productionOrigin: 'https://devihomefoods.directapp.in',
+  },
+]
+
+function phoneForTenantPersona(emailSlug: string, persona: AppPersonaRole): string {
+  const seed = [...emailSlug].reduce((sum, char) => sum + char.charCodeAt(0), 0)
+  const prefix = 9000000000 + (seed % 800000) * 10
+  return String(prefix + PERSONA_META[persona].phoneOffset)
+}
+
+export function tenantPersonaAccounts(org: {
+  slug: string
+  name?: string | null
+}): DemoAccount[] {
+  const name = org.name?.trim() || org.slug
+  return (['customer', 'admin', 'delivery'] as const).map((persona) => ({
+    email: demoPersonaEmail(org.slug, persona),
+    password: DEMO_PASSWORD,
+    fullName: `${name} ${PERSONA_META[persona].fullNamePrefix}`,
+    phone: phoneForTenantPersona(demoEmailSlug(org.slug), persona),
+    role: persona,
+    group: 'Demo',
+    tenant: name,
+    tenantSlug: org.slug,
+  }))
+}
 
 /**
  * DirectApp Master — controls tenants, features, and entitlements.
@@ -43,111 +133,70 @@ export const MASTER_ACCOUNT: DemoAccount = {
 }
 
 /**
- * Primary one-click demo accounts shown on each persona login screen.
- * Password: Test@123
+ * Primary Taste of Andhra demo accounts (legacy shape for callers that
+ * still index by persona without a tenant slug).
  */
 export const DEMO_ACCOUNTS: Record<AppPersonaRole, DemoAccount> = {
-  customer: {
-    email: 'customer@tasteofandhra.test',
-    password: DEMO_PASSWORD,
-    fullName: 'Demo Customer',
-    phone: '9876543210',
-    role: 'customer',
-    group: 'Demo',
-    tenant: TENANT_TASTE_OF_ANDHRA.name,
-  },
-  admin: {
-    email: 'admin@tasteofandhra.test',
-    password: DEMO_PASSWORD,
-    fullName: 'Demo Admin',
-    phone: '9876543211',
-    role: 'admin',
-    group: 'Demo',
-    tenant: TENANT_TASTE_OF_ANDHRA.name,
-  },
-  delivery: {
-    email: 'delivery@tasteofandhra.test',
-    password: DEMO_PASSWORD,
-    fullName: 'Demo Delivery',
-    phone: '9876543212',
-    role: 'delivery',
-    group: 'Demo',
-    tenant: TENANT_TASTE_OF_ANDHRA.name,
-  },
+  customer: tenantPersonaAccounts(TENANT_TASTE_OF_ANDHRA).find(
+    (account) => account.role === 'customer',
+  )!,
+  admin: tenantPersonaAccounts(TENANT_TASTE_OF_ANDHRA).find(
+    (account) => account.role === 'admin',
+  )!,
+  delivery: tenantPersonaAccounts(TENANT_TASTE_OF_ANDHRA).find(
+    (account) => account.role === 'delivery',
+  )!,
 }
 
-/** Parallel QA testers (Tester 1 / Tester 2) — same password, separate users. */
-export const TESTER_ACCOUNTS: DemoAccount[] = [
-  {
-    email: 'tester1.customer@thetasteofandhra.com',
-    password: DEMO_PASSWORD,
-    fullName: 'Tester 1 Customer',
-    phone: '9000000001',
-    role: 'customer',
-    group: 'Tester 1',
-    tenant: TENANT_TASTE_OF_ANDHRA.name,
-  },
-  {
-    email: 'tester1.admin@thetasteofandhra.com',
-    password: DEMO_PASSWORD,
-    fullName: 'Tester 1 Admin',
-    phone: '9000000011',
-    role: 'admin',
-    group: 'Tester 1',
-    tenant: TENANT_TASTE_OF_ANDHRA.name,
-  },
-  {
-    email: 'tester1.delivery@thetasteofandhra.com',
-    password: DEMO_PASSWORD,
-    fullName: 'Tester 1 Delivery',
-    phone: '9000000021',
-    role: 'delivery',
-    group: 'Tester 1',
-    tenant: TENANT_TASTE_OF_ANDHRA.name,
-  },
-  {
-    email: 'tester2.customer@thetasteofandhra.com',
-    password: DEMO_PASSWORD,
-    fullName: 'Tester 2 Customer',
-    phone: '9000000002',
-    role: 'customer',
-    group: 'Tester 2',
-    tenant: TENANT_TASTE_OF_ANDHRA.name,
-  },
-  {
-    email: 'tester2.admin@thetasteofandhra.com',
-    password: DEMO_PASSWORD,
-    fullName: 'Tester 2 Admin',
-    phone: '9000000012',
-    role: 'admin',
-    group: 'Tester 2',
-    tenant: TENANT_TASTE_OF_ANDHRA.name,
-  },
-  {
-    email: 'tester2.delivery@thetasteofandhra.com',
-    password: DEMO_PASSWORD,
-    fullName: 'Tester 2 Delivery',
-    phone: '9000000022',
-    role: 'delivery',
-    group: 'Tester 2',
-    tenant: TENANT_TASTE_OF_ANDHRA.name,
-  },
-]
-
-/** Every seeded login (DirectApp Master + demos + testers) for docs and Master UI. */
+/** Every seeded login (DirectApp Master + per-tenant demos) for docs and Master UI. */
 export const ALL_TEST_ACCOUNTS: DemoAccount[] = [
   MASTER_ACCOUNT,
-  ...Object.values(DEMO_ACCOUNTS),
-  ...TESTER_ACCOUNTS,
+  ...DEMO_TENANTS.flatMap((tenant) => tenantPersonaAccounts(tenant)),
 ]
 
-export function accountsForRole(role: UserRole): DemoAccount[] {
-  return ALL_TEST_ACCOUNTS.filter((account) => account.role === role)
+export function loginPathForRole(role: UserRole): string {
+  if (role === 'platform_master') return '/master/login'
+  if (role === 'admin') return '/admin/login'
+  if (role === 'delivery') return '/delivery/login'
+  return '/login'
 }
 
-export function primaryAccountForRole(role: UserRole): DemoAccount {
+export function localLoginUrl(orgSlug: string | undefined, role: UserRole): string {
+  const path = loginPathForRole(role)
+  if (role === 'platform_master') return `http://127.0.0.1:5173${path}`
+  if (!orgSlug || orgSlug === TASTE_OF_ANDHRA_SLUG) {
+    return `http://127.0.0.1:5173${path}`
+  }
+  return `http://127.0.0.1:5173${path}?tenant=${encodeURIComponent(orgSlug)}`
+}
+
+export function productionLoginUrl(
+  tenant: Pick<DemoTenant, 'productionOrigin'>,
+  role: UserRole,
+): string {
+  if (role === 'platform_master') return 'https://www.directapp.in/master/login'
+  return `${tenant.productionOrigin}${loginPathForRole(role)}`
+}
+
+export function accountsForRole(
+  role: UserRole,
+  tenantSlug?: string | null,
+): DemoAccount[] {
+  if (role === 'platform_master') return [MASTER_ACCOUNT]
+  return tenantPersonaAccounts({
+    slug: tenantSlug || TASTE_OF_ANDHRA_SLUG,
+  }).filter((account) => account.role === role)
+}
+
+export function primaryAccountForRole(
+  role: UserRole,
+  tenantSlug?: string | null,
+): DemoAccount {
   if (role === 'platform_master') return MASTER_ACCOUNT
-  return DEMO_ACCOUNTS[role as AppPersonaRole]
+  return (
+    accountsForRole(role, tenantSlug)[0] ??
+    DEMO_ACCOUNTS[role as AppPersonaRole]
+  )
 }
 
 export function isAppPersonaRole(role: UserRole): role is AppPersonaRole {

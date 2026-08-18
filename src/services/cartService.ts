@@ -5,7 +5,10 @@ import {
 } from '@/types/api'
 import type { CartWithItems } from '@/types/Cart'
 import type { ModifierSelectionSnapshot } from '@/types/Modifier'
+import { getResolvedOrganizationId } from '@/services/currentOrganization'
 import { supabase } from '@/services/supabaseClient'
+import { insertWithOrgFallback } from '@/utils/insertWithOrgFallback'
+import { isMissingColumnError } from '@/utils/supabaseSchema'
 import * as modifierService from '@/services/modifierService'
 import { buildCartWithItems } from '@/utils/mapCart'
 import {
@@ -14,6 +17,19 @@ import {
   modifierSnapshotsEqual,
   parseModifierSnapshots,
 } from '@/utils/modifiers'
+
+function scopedCart(cart: CartWithItems): CartWithItems {
+  const orgId = getResolvedOrganizationId()
+  if (!orgId) return cart
+  const items = cart.items.filter(
+    (item) => !item.dish || item.dish.organization_id === orgId,
+  )
+  const subtotal = items.reduce(
+    (total, item) => total + item.unit_price * item.quantity,
+    0,
+  )
+  return { ...cart, items, subtotal }
+}
 
 const CART_SELECT = `
   id,
@@ -50,11 +66,29 @@ async function requireUserId(): Promise<ServiceResponse<string>> {
 }
 
 async function getOrCreateCartId(userId: string): Promise<ServiceResponse<string>> {
-  const { data: existing, error: fetchError } = await supabase
+  const orgId = getResolvedOrganizationId()
+  if (!orgId) {
+    return createErrorResponse('Restaurant is not ready. Refresh and try again.')
+  }
+
+  let existingQuery = supabase
     .from('cart')
     .select('id')
     .eq('user_id', userId)
+    .eq('organization_id', orgId)
     .maybeSingle()
+
+  let { data: existing, error: fetchError } = await existingQuery
+
+  if (fetchError && isMissingColumnError(fetchError.message)) {
+    const legacy = await supabase
+      .from('cart')
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle()
+    existing = legacy.data
+    fetchError = legacy.error
+  }
 
   if (fetchError) {
     return createErrorResponse('Unable to load cart.', fetchError.message)
@@ -64,17 +98,19 @@ async function getOrCreateCartId(userId: string): Promise<ServiceResponse<string
     return createSuccessResponse(existing.id)
   }
 
-  const { data, error } = await supabase
-    .from('cart')
-    .insert({ user_id: userId })
-    .select('id')
-    .single()
+  const inserted = await insertWithOrgFallback(supabase, 'cart', {
+    user_id: userId,
+    organization_id: orgId,
+  })
 
-  if (error) {
-    return createErrorResponse('Unable to create cart.', error.message)
+  if (inserted.error || !inserted.data) {
+    return createErrorResponse(
+      'Unable to create cart.',
+      inserted.error?.message,
+    )
   }
 
-  return createSuccessResponse(data.id)
+  return createSuccessResponse(inserted.data.id as string)
 }
 
 async function fetchCartById(cartId: string): Promise<ServiceResponse<CartWithItems>> {
@@ -115,14 +151,14 @@ async function fetchCartById(cartId: string): Promise<ServiceResponse<CartWithIt
       return createErrorResponse('Unable to load cart.', legacy.error.message)
     }
 
-    return createSuccessResponse(buildCartWithItems(legacy.data))
+    return createSuccessResponse(scopedCart(buildCartWithItems(legacy.data)))
   }
 
   if (error) {
     return createErrorResponse('Unable to load cart.', error.message)
   }
 
-  return createSuccessResponse(buildCartWithItems(data))
+  return createSuccessResponse(scopedCart(buildCartWithItems(data)))
 }
 
 export async function getCart(): Promise<ServiceResponse<CartWithItems>> {
@@ -158,8 +194,9 @@ export async function addCartItem(
 
   const { data: dish, error: dishError } = await supabase
     .from('dishes')
-    .select('id, is_available, price')
+    .select('id, is_available, price, organization_id')
     .eq('id', dishId)
+    .eq('organization_id', getResolvedOrganizationId() ?? '')
     .maybeSingle()
 
   if (dishError) {
@@ -239,7 +276,7 @@ export async function addCartItem(
 
     if (error) {
       // Pre-migration DBs may lack new columns / still have unique(cart_id, dish_id).
-      if (isMissingColumnError(error.message)) {
+      if (isLegacyCartColumnError(error.message)) {
         const fallback = await addCartItemLegacy(cartId, dishId, quantity)
         if (!fallback.success) return fallback
         return fetchCartById(cartId)
@@ -252,7 +289,7 @@ export async function addCartItem(
   return fetchCartById(cartId)
 }
 
-function isMissingColumnError(message: string): boolean {
+function isLegacyCartColumnError(message: string): boolean {
   const normalized = message.toLowerCase()
   return (
     normalized.includes('modifiers_snapshot') ||

@@ -4,8 +4,12 @@ import {
   type ServiceResponse,
 } from '@/types/api'
 import type { Address } from '@/types/Address'
+import { UNMATCHED_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
+import { getCurrentOrganizationId } from '@/services/currentOrganization'
 import { supabase } from '@/services/supabaseClient'
+import { insertWithOrgFallback } from '@/utils/insertWithOrgFallback'
 import { mapAddress } from '@/utils/mapAddress'
+import { isMissingColumnError } from '@/utils/supabaseSchema'
 import { isValidPhone } from '@/utils/validation'
 
 export interface CreateAddressInput {
@@ -55,11 +59,18 @@ function validateAddressInput(input: CreateAddressInput): string | null {
 }
 
 async function clearDefaultAddresses(userId: string): Promise<void> {
-  await supabase
+  let query = supabase
     .from('addresses')
     .update({ is_default: false })
     .eq('user_id', userId)
     .eq('is_default', true)
+
+  const orgId = getCurrentOrganizationId()
+  if (orgId && orgId !== UNMATCHED_ORGANIZATION_ID) {
+    query = query.eq('organization_id', orgId)
+  }
+
+  await query
 }
 
 export async function getAddresses(): Promise<ServiceResponse<Address[]>> {
@@ -69,12 +80,32 @@ export async function getAddresses(): Promise<ServiceResponse<Address[]>> {
     return userResult
   }
 
-  const { data, error } = await supabase
+  const userId = userResult.data
+  const orgId = getCurrentOrganizationId()
+  if (!orgId || orgId === UNMATCHED_ORGANIZATION_ID) {
+    return createSuccessResponse([])
+  }
+
+  let query = supabase
     .from('addresses')
     .select('*')
-    .eq('user_id', userResult.data)
+    .eq('user_id', userId)
+    .eq('organization_id', orgId)
     .order('is_default', { ascending: false })
     .order('created_at', { ascending: false })
+
+  let { data, error } = await query
+
+  if (error && isMissingColumnError(error.message)) {
+    const fallback = await supabase
+      .from('addresses')
+      .select('*')
+      .eq('user_id', userId)
+      .order('is_default', { ascending: false })
+      .order('created_at', { ascending: false })
+    data = fallback.data
+    error = fallback.error
+  }
 
   if (error) {
     return createErrorResponse('Unable to load addresses.', error.message)
@@ -99,12 +130,27 @@ export async function addAddress(
   }
 
   const userId = userResult.data
+  const orgId = getCurrentOrganizationId()
+  if (!orgId || orgId === UNMATCHED_ORGANIZATION_ID) {
+    return createErrorResponse('Restaurant is not ready. Refresh and try again.')
+  }
+
   const shouldBeDefault = input.isDefault ?? false
 
-  const { count } = await supabase
+  let countQuery = supabase
     .from('addresses')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', userId)
+    .eq('organization_id', orgId)
+
+  let { count, error: countError } = await countQuery
+  if (countError && isMissingColumnError(countError.message)) {
+    const fallback = await supabase
+      .from('addresses')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+    count = fallback.count
+  }
 
   const isDefault = shouldBeDefault || (count ?? 0) === 0
 
@@ -112,28 +158,25 @@ export async function addAddress(
     await clearDefaultAddresses(userId)
   }
 
-  const { data, error } = await supabase
-    .from('addresses')
-    .insert({
-      user_id: userId,
-      address_type: input.addressType.trim() || 'home',
-      full_name: input.fullName.trim(),
-      phone: input.phone.trim(),
-      address_line1: input.addressLine1.trim(),
-      address_line2: input.addressLine2?.trim() || null,
-      landmark: input.landmark?.trim() || null,
-      city: input.city.trim(),
-      state: input.state.trim(),
-      pincode: input.pincode.trim(),
-      latitude: input.latitude ?? null,
-      longitude: input.longitude ?? null,
-      is_default: isDefault,
-    })
-    .select()
-    .single()
+  const { data, error } = await insertWithOrgFallback(supabase, 'addresses', {
+    user_id: userId,
+    organization_id: orgId,
+    address_type: input.addressType.trim() || 'home',
+    full_name: input.fullName.trim(),
+    phone: input.phone.trim(),
+    address_line1: input.addressLine1.trim(),
+    address_line2: input.addressLine2?.trim() || null,
+    landmark: input.landmark?.trim() || null,
+    city: input.city.trim(),
+    state: input.state.trim(),
+    pincode: input.pincode.trim(),
+    latitude: input.latitude ?? null,
+    longitude: input.longitude ?? null,
+    is_default: isDefault,
+  })
 
-  if (error) {
-    return createErrorResponse('Unable to save address.', error.message)
+  if (error || !data) {
+    return createErrorResponse('Unable to save address.', error?.message)
   }
 
   return createSuccessResponse(mapAddress(data))
@@ -221,6 +264,7 @@ export async function updateAddress(
     .update(updates)
     .eq('id', id)
     .eq('user_id', userResult.data)
+    .eq('organization_id', getCurrentOrganizationId())
     .select()
     .single()
 
@@ -245,6 +289,7 @@ export async function deleteAddress(
     .delete()
     .eq('id', id)
     .eq('user_id', userResult.data)
+    .eq('organization_id', getCurrentOrganizationId())
 
   if (error) {
     return createErrorResponse('Unable to delete address.', error.message)

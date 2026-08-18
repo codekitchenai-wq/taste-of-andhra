@@ -4,22 +4,20 @@
  *   node scripts/seed-production.mjs ensure-spice-malabar-admin.mjs
  */
 import { createClient } from '@supabase/supabase-js'
+import {
+  DEMO_PASSWORD,
+  demoPersonaEmail,
+  phoneForTenantPersona,
+} from './lib/tenant-demo-accounts.mjs'
 
 const SLUGS = ['chopsticksspicemalabar', 'spice-malabar']
-const PASSWORD = 'Test@123'
+const PASSWORD = DEMO_PASSWORD
 const ACCOUNTS = [
   {
-    email: 'spice-malabar@admin.test',
+    email: demoPersonaEmail('chopsticksspicemalabar', 'admin'),
     password: PASSWORD,
     fullName: 'Spice Malabar Admin',
-    phone: '7841800101',
-    role: 'admin',
-  },
-  {
-    email: 'spicemalabaradmin@spicemalabar.test',
-    password: PASSWORD,
-    fullName: 'Spice Malabar Admin (legacy)',
-    phone: '7841800101',
+    phone: phoneForTenantPersona('chopsticksspicemalabar', 'admin'),
     role: 'admin',
   },
 ]

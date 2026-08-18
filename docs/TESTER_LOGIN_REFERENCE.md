@@ -61,78 +61,46 @@ Controls all tenants, feature catalog visibility for testing, and platform-wide 
 
 ---
 
-## 2. Tenant: The Taste of Andhra
+## 2. Tenant logins (one set per restaurant)
 
-| Field | Value |
-|-------|--------|
-| Tenant name | The Taste of Andhra |
-| Slug | `taste-of-andhra` |
-| Organization id | `a0000000-0000-4000-8000-000000000001` |
-| Storefront | `/` |
-| Menu | `/menu` |
+Canonical list: [LOGIN_CREDENTIALS.md](./LOGIN_CREDENTIALS.md) and [TENANT_LOGIN_CREDENTIALS.xlsx](./TENANT_LOGIN_CREDENTIALS.xlsx).
 
-### 2.1 Demo accounts (quick single-user testing)
+| Tenant | Admin | Customer | Delivery |
+|--------|-------|----------|----------|
+| The Taste of Andhra | `demoadmin@tasteofandhra.test` | `democustomer@tasteofandhra.test` | `demodelivery@tasteofandhra.test` |
+| Chopstick Spice Malabar | `demoadmin@chopsticksspicemalabar.test` | `democustomer@chopsticksspicemalabar.test` | `demodelivery@chopsticksspicemalabar.test` |
+| Devi Home Foods | `demoadmin@devihomefoods.test` | `democustomer@devihomefoods.test` | `demodelivery@devihomefoods.test` |
 
-| Persona | Email / username | Password | Login |
-|---------|------------------|----------|-------|
-| Customer | `customer@tasteofandhra.test` | `Test@123` | `/login` |
-| Admin | `admin@tasteofandhra.test` | `Test@123` | `/admin/login` |
-| Delivery | `delivery@tasteofandhra.test` | `Test@123` | `/delivery/login` |
-
-### 2.2 Tester 1 (use when two people test in parallel)
-
-| Persona | Email / username | Password | Login |
-|---------|------------------|----------|-------|
-| Customer | `tester1.customer@thetasteofandhra.com` | `Test@123` | `/login` |
-| Admin | `tester1.admin@thetasteofandhra.com` | `Test@123` | `/admin/login` |
-| Delivery | `tester1.delivery@thetasteofandhra.com` | `Test@123` | `/delivery/login` |
-
-### 2.3 Tester 2 (second parallel tester)
-
-| Persona | Email / username | Password | Login |
-|---------|------------------|----------|-------|
-| Customer | `tester2.customer@thetasteofandhra.com` | `Test@123` | `/login` |
-| Admin | `tester2.admin@thetasteofandhra.com` | `Test@123` | `/admin/login` |
-| Delivery | `tester2.delivery@thetasteofandhra.com` | `Test@123` | `/delivery/login` |
+Password for all: **`Test@123`**. These users cannot sign in on another restaurant.
 
 ---
 
 ## 3. Suggested end-to-end flow
 
-1. **DirectApp Master** — open `/master`, confirm tenant + feature catalog, copy any persona credentials from the table.
-2. **Admin (Tester 1)** — `/admin/dishes` ensure menu items exist.
-3. **Customer (Tester 1)** — place an order from `/menu` → checkout.
-4. **Admin** — confirm order and assign **Tester 1 Delivery**.
+1. **DirectApp Master** — open `/master` on www.directapp.in.
+2. **Admin** — that restaurant’s `/admin/dishes`.
+3. **Customer** — place an order from that restaurant’s `/menu`.
+4. **Admin** — confirm and assign that restaurant’s demo delivery user.
 5. **Delivery** — complete delivery on `/delivery`.
-6. **Customer** — check `/orders`, tracking, invoice.
 
-Always **log out** (or use a private window) before switching persona.
+Always **log out** (or use a private window) before switching persona or restaurant.
 
 ---
 
-## 4. Account count summary
+## 4. Account count
 
 | Group | Accounts |
 |-------|----------|
 | DirectApp Master | 1 |
-| Demo (customer / admin / delivery) | 3 |
-| Tester 1 | 3 |
-| Tester 2 | 3 |
-| **Total** | **10** |
+| Per restaurant (admin + customer + delivery) | 3 |
+| Taste of Andhra + Spice Malabar + Devi Home Foods | 9 tenant + 1 master = **10** |
 
-All passwords: **`Test@123`**
-
-### Spice Malabar admin (this tenant only)
-
-| Email | Password | Login |
-|-------|----------|-------|
-| `spice-malabar@admin.test` | `Test@123` | https://chopsticksspicemalabar.directapp.in/admin/login |
+Old Tester 1 / Tester 2 / shared `customer@tasteofandhra.test` accounts are retired.
 
 ---
 
 ## 5. Related docs
 
+- [LOGIN_CREDENTIALS.md](./LOGIN_CREDENTIALS.md)
 - [SAAS_MULTI_TENANT_ARCHITECTURE.md](./SAAS_MULTI_TENANT_ARCHITECTURE.md)
-- [SAAS_DATABASE_DIAGRAM.md](./SAAS_DATABASE_DIAGRAM.md)
-- [QA_TESTER_1.md](./QA_TESTER_1.md) / [QA_TESTER_2.md](./QA_TESTER_2.md) — older guides; password and Master portal in this file supersede them for credentials.
-- [PRODUCTION_TENANT_SETUP.md](./PRODUCTION_TENANT_SETUP.md) — Spice Malabar production seed and admin login.
+- [PRODUCTION_TENANT_SETUP.md](./PRODUCTION_TENANT_SETUP.md)

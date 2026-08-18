@@ -2,108 +2,78 @@
 
 **Password for every account below:** `Test@123`
 
+Each restaurant login works **only on that restaurant**. DirectApp Master is the only platform-level account.
+
+Excel copy: [TENANT_LOGIN_CREDENTIALS.xlsx](./TENANT_LOGIN_CREDENTIALS.xlsx)
+
 | Environment | Base URL |
 |-------------|----------|
 | Local | http://127.0.0.1:5173 |
 | Platform (Master) | https://www.directapp.in |
 | Taste of Andhra | https://www.thetasteofandhra.com |
+| Chopstick Spice Malabar | https://chopsticksspicemalabar.directapp.in |
+| Devi Home Foods | https://devihomefoods.directapp.in |
 
-Seed / refresh accounts (needs service role in `.env.local`):
+Seed / refresh (needs service role in `.env.local`):
 
 ```bash
-npm run seed:all-test-users
+npm run seed:qa-testers
+npm run docs:login-excel
 ```
 
----
+Production:
 
-## All accounts (copy-paste)
+```bash
+npm run seed:qa-testers:production
+```
 
-| # | Persona | Email | Password | Login link (local) | Login link (production) |
-|---|---------|-------|----------|--------------------|-------------------------|
-| 1 | DirectApp Master | `master@tasteofandhra.test` | `Test@123` | http://127.0.0.1:5173/master/login | https://www.directapp.in/master/login |
-| 2 | Demo Customer | `customer@tasteofandhra.test` | `Test@123` | http://127.0.0.1:5173/login | https://www.thetasteofandhra.com/login |
-| 3 | Demo Admin | `admin@tasteofandhra.test` | `Test@123` | http://127.0.0.1:5173/admin/login | https://www.thetasteofandhra.com/admin/login |
-| 4 | Demo Delivery | `delivery@tasteofandhra.test` | `Test@123` | http://127.0.0.1:5173/delivery/login | https://www.thetasteofandhra.com/delivery/login |
-| 5 | Tester 1 Customer | `tester1.customer@thetasteofandhra.com` | `Test@123` | http://127.0.0.1:5173/login | https://www.thetasteofandhra.com/login |
-| 6 | Tester 1 Admin | `tester1.admin@thetasteofandhra.com` | `Test@123` | http://127.0.0.1:5173/admin/login | https://www.thetasteofandhra.com/admin/login |
-| 7 | Tester 1 Delivery | `tester1.delivery@thetasteofandhra.com` | `Test@123` | http://127.0.0.1:5173/delivery/login | https://www.thetasteofandhra.com/delivery/login |
-| 8 | Tester 2 Customer | `tester2.customer@thetasteofandhra.com` | `Test@123` | http://127.0.0.1:5173/login | https://www.thetasteofandhra.com/login |
-| 9 | Tester 2 Admin | `tester2.admin@thetasteofandhra.com` | `Test@123` | http://127.0.0.1:5173/admin/login | https://www.thetasteofandhra.com/admin/login |
-| 10 | Tester 2 Delivery | `tester2.delivery@thetasteofandhra.com` | `Test@123` | http://127.0.0.1:5173/delivery/login | https://www.thetasteofandhra.com/delivery/login |
-
-**Total: 1 DirectApp Master + 9 Taste of Andhra restaurant accounts · one shared password: `Test@123`**
-
-Use the **matching login URL** for each persona (do not sign in as admin on `/login`).
+Emails use a `.test` domain because the login form requires a valid address (`demoadmin@tasteofandhra` → `demoadmin@tasteofandhra.test`).
 
 ---
 
-## Spice Malabar (separate tenant)
+## Master (platform)
 
-Login on the Spice Malabar host (not Taste of Andhra). The login form requires a full email, so the admin address is `spice-malabar@admin.test` (not `spice-malabar@admin`).
-
-| Persona | Email | Password | Local | Production |
-|---------|-------|----------|-------|------------|
-| Admin | `spice-malabar@admin.test` | `Test@123` | http://127.0.0.1:5173/admin/login?tenant=chopsticksspicemalabar | https://chopsticksspicemalabar.directapp.in/admin/login |
-| Demo customer | `demo@spicemalabar.test` | `Test@123` | http://127.0.0.1:5173/login?tenant=chopsticksspicemalabar | https://chopsticksspicemalabar.directapp.in/login |
-
-Seed: `npm run seed:spice-malabar` (staging) and `npm run seed:spice-malabar:production`.
+| Persona | Username | Password | Local | Production |
+|---------|----------|----------|-------|------------|
+| DirectApp Master | `master@tasteofandhra.test` | `Test@123` | http://127.0.0.1:5173/master/login | https://www.directapp.in/master/login |
 
 ---
 
-## After login (landing pages)
+## The Taste of Andhra (tenant)
 
-| Persona | Local | Production |
-|---------|-------|------------|
-| DirectApp Master | http://127.0.0.1:5173/master | https://www.directapp.in/master |
-| DirectApp Master · Tenants | http://127.0.0.1:5173/master/tenants | https://www.directapp.in/master/tenants |
-| DirectApp Master · Features | http://127.0.0.1:5173/master/features | https://www.directapp.in/master/features |
-| Customer | http://127.0.0.1:5173/ | https://www.thetasteofandhra.com/ |
-| Customer · Menu | http://127.0.0.1:5173/menu | https://www.thetasteofandhra.com/menu |
-| Admin | http://127.0.0.1:5173/admin | https://www.thetasteofandhra.com/admin |
-| Delivery | http://127.0.0.1:5173/delivery | https://www.thetasteofandhra.com/delivery |
+| Persona | Username | Password | Local | Production |
+|---------|----------|----------|-------|------------|
+| Admin | `demoadmin@tasteofandhra.test` | `Test@123` | http://127.0.0.1:5173/admin/login | https://www.thetasteofandhra.com/admin/login |
+| Customer | `democustomer@tasteofandhra.test` | `Test@123` | http://127.0.0.1:5173/login | https://www.thetasteofandhra.com/login |
+| Delivery | `demodelivery@tasteofandhra.test` | `Test@123` | http://127.0.0.1:5173/delivery/login | https://www.thetasteofandhra.com/delivery/login |
 
 ---
 
-## Quick cards
+## Chopstick Spice Malabar (tenant)
 
-### DirectApp Master
-- **Email:** `master@tasteofandhra.test`
-- **Password:** `Test@123`
-- **Login:** [local](http://127.0.0.1:5173/master/login) · [production](https://www.directapp.in/master/login)
+| Persona | Username | Password | Local | Production |
+|---------|----------|----------|-------|------------|
+| Admin | `demoadmin@chopsticksspicemalabar.test` | `Test@123` | http://127.0.0.1:5173/admin/login?tenant=chopsticksspicemalabar | https://chopsticksspicemalabar.directapp.in/admin/login |
+| Customer | `democustomer@chopsticksspicemalabar.test` | `Test@123` | http://127.0.0.1:5173/login?tenant=chopsticksspicemalabar | https://chopsticksspicemalabar.directapp.in/login |
+| Delivery | `demodelivery@chopsticksspicemalabar.test` | `Test@123` | http://127.0.0.1:5173/delivery/login?tenant=chopsticksspicemalabar | https://chopsticksspicemalabar.directapp.in/delivery/login |
 
-### Demo Customer
-- **Email:** `customer@tasteofandhra.test`
-- **Password:** `Test@123`
-- **Login:** [local](http://127.0.0.1:5173/login) · [production](https://www.thetasteofandhra.com/login)
+---
 
-### Demo Admin
-- **Email:** `admin@tasteofandhra.test`
-- **Password:** `Test@123`
-- **Login:** [local](http://127.0.0.1:5173/admin/login) · [production](https://www.thetasteofandhra.com/admin/login)
+## Devi Home Foods (tenant)
 
-### Demo Delivery
-- **Email:** `delivery@tasteofandhra.test`
-- **Password:** `Test@123`
-- **Login:** [local](http://127.0.0.1:5173/delivery/login) · [production](https://www.thetasteofandhra.com/delivery/login)
+Only if this restaurant is seeded in that environment.
 
-### Tester 1
-| Role | Email | Password | Login |
-|------|-------|----------|-------|
-| Customer | `tester1.customer@thetasteofandhra.com` | `Test@123` | [/login](http://127.0.0.1:5173/login) |
-| Admin | `tester1.admin@thetasteofandhra.com` | `Test@123` | [/admin/login](http://127.0.0.1:5173/admin/login) |
-| Delivery | `tester1.delivery@thetasteofandhra.com` | `Test@123` | [/delivery/login](http://127.0.0.1:5173/delivery/login) |
-
-### Tester 2
-| Role | Email | Password | Login |
-|------|-------|----------|-------|
-| Customer | `tester2.customer@thetasteofandhra.com` | `Test@123` | [/login](http://127.0.0.1:5173/login) |
-| Admin | `tester2.admin@thetasteofandhra.com` | `Test@123` | [/admin/login](http://127.0.0.1:5173/admin/login) |
-| Delivery | `tester2.delivery@thetasteofandhra.com` | `Test@123` | [/delivery/login](http://127.0.0.1:5173/delivery/login) |
+| Persona | Username | Password | Local | Production |
+|---------|----------|----------|-------|------------|
+| Admin | `demoadmin@devihomefoods.test` | `Test@123` | http://127.0.0.1:5173/admin/login?tenant=devihomefoods | https://devihomefoods.directapp.in/admin/login |
+| Customer | `democustomer@devihomefoods.test` | `Test@123` | http://127.0.0.1:5173/login?tenant=devihomefoods | https://devihomefoods.directapp.in/login |
+| Delivery | `demodelivery@devihomefoods.test` | `Test@123` | http://127.0.0.1:5173/delivery/login?tenant=devihomefoods | https://devihomefoods.directapp.in/delivery/login |
 
 ---
 
 ## Notes
 
-- Credentials also appear on each login screen and in the site footer when test helpers are enabled.
+- Use the matching login URL for each persona (do not sign in as admin on `/login`).
+- A Taste of Andhra demo user cannot sign in on Spice Malabar, and vice versa.
+- Old shared testers (`customer@tasteofandhra.test`, Tester 1/2, `spice-malabar@admin.test`, etc.) are deleted by `seed:qa-testers`.
 - Always log out (or use a private window) before switching persona.
-- More detail: [TESTER_LOGIN_REFERENCE.md](./TESTER_LOGIN_REFERENCE.md)

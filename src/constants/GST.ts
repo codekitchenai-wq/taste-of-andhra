@@ -13,7 +13,7 @@ export interface GstSettings {
   gstin: string
 }
 
-/** Opt-in: small restaurants often are not GST-registered. */
+/** Opt-in per restaurant. Never copy another tenant's GSTIN. */
 export const DEFAULT_GST_SETTINGS: GstSettings = {
   enabled: false,
   gstin: '',

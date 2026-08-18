@@ -1,8 +1,10 @@
 # SaaS Multi-Tenant Architecture Plan
 
+> **As-built (August 2026):** Master UI, host tenancy, OAuth handoff, and two live tenants are implemented. Do not use this July plan as the validation source. See **[ARCHITECTURE_AND_SAAS_MODEL.md](./ARCHITECTURE_AND_SAAS_MODEL.md)**.
+
 **Product:** Taste of Andhra → Restaurant Platform (SaaS)  
 **Date:** 2026-07-27 (updated 2026-07-28)  
-**Status:** Phase 1 domain model + Phase 3 catalog **schema/types in repo**; migration must be applied to Supabase. App still defaults to Taste of Andhra org id. Master UI / org RLS rewrite / billing not started.  
+**Status:** Historical plan. Several “not started” items below are now live.  
 **Stack:** Vite + React SPA · Supabase Auth · PostgreSQL · RLS · Edge Functions  
 **Detailed DB diagrams:** [SAAS_DATABASE_DIAGRAM.md](./SAAS_DATABASE_DIAGRAM.md)
 

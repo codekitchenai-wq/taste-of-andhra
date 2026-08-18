@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { UNMATCHED_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
 import { useOrganization } from '@/contexts/OrganizationContext'
 import type { HomeCategory, HomeDish } from '@/data/home'
 import * as categoryService from '@/services/categoryService'
@@ -60,10 +61,13 @@ export function useHomeFeatured() {
   const [error, setError] = useState<string | null>(null)
 
   const refetch = useCallback(async () => {
-    if (orgLoading) return
+    // Unmatched hosts must wait for slug → org resolution. Taste of Andhra
+    // already has DEFAULT_ORGANIZATION_ID — do not block the catalog on that.
+    if (orgLoading && organizationId === UNMATCHED_ORGANIZATION_ID) return
     setIsLoading(true)
     setError(null)
 
+    try {
     const [categoryResult, dishResult] = await Promise.all([
       categoryService.getCategories(),
       dishService.getDishes(),
@@ -73,7 +77,6 @@ export function useHomeFeatured() {
       setError(categoryResult.message)
       setCategories([])
       setDishes([])
-      setIsLoading(false)
       return
     }
 
@@ -81,7 +84,6 @@ export function useHomeFeatured() {
       setError(dishResult.message)
       setCategories([])
       setDishes([])
-      setIsLoading(false)
       return
     }
 
@@ -137,7 +139,13 @@ export function useHomeFeatured() {
     setDishes(
       featuredSource.slice(0, 4).map((dish) => toHomeDish(dish, orgSlug)),
     )
-    setIsLoading(false)
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Unable to load menu.')
+      setCategories([])
+      setDishes([])
+    } finally {
+      setIsLoading(false)
+    }
   }, [organizationId, orgLoading, orgSlug])
 
   useEffect(() => {

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input'
 import { LoadingState } from '@/components/ui/LoadingState'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { ROUTES } from '@/constants/ROUTES'
+import { useOrganization } from '@/contexts/OrganizationContext'
 import { useAuth } from '@/hooks/useAuth'
 import * as loyaltyService from '@/services/loyaltyService'
 import type { LoyaltyAccount, LoyaltyTransaction } from '@/types/Loyalty'
@@ -20,6 +21,7 @@ interface ProfileFormValues {
 
 export default function ProfilePage() {
   const { user, isLoading, updateProfile } = useAuth()
+  const { organizationId } = useOrganization()
   const [isSavingProfile, setIsSavingProfile] = useState(false)
   const [loyalty, setLoyalty] = useState<LoyaltyAccount | null>(null)
   const [loyaltyHistory, setLoyaltyHistory] = useState<LoyaltyTransaction[]>([])
@@ -40,7 +42,7 @@ export default function ProfilePage() {
       if (accountResult.success) setLoyalty(accountResult.data)
       if (historyResult.success) setLoyaltyHistory(historyResult.data)
     })
-  }, [user])
+  }, [user, organizationId])
 
   const onProfileSubmit = async (values: ProfileFormValues) => {
     setIsSavingProfile(true)

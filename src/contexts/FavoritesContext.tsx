@@ -8,6 +8,7 @@ import {
 } from 'react'
 import * as favoriteService from '@/services/favoriteService'
 import type { ServiceResponse } from '@/types/api'
+import { useOrganization } from '@/contexts/OrganizationContext'
 import { useAuth } from '@/hooks/useAuth'
 
 interface FavoritesContextValue {
@@ -25,6 +26,7 @@ const FavoritesContext = createContext<FavoritesContextValue | null>(null)
 
 export function FavoritesProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth()
+  const { organizationId } = useOrganization()
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set())
   const [isLoading, setIsLoading] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
@@ -42,7 +44,7 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
     if (result.success) {
       setFavoriteIds(new Set(result.data))
     }
-  }, [isAuthenticated])
+  }, [isAuthenticated, organizationId])
 
   useEffect(() => {
     void refresh()

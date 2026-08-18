@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MasterWhatsAppObservability } from '@/components/master/MasterWhatsAppObservability'
 import {
-  ALL_TEST_ACCOUNTS,
   DEMO_PASSWORD,
+  MASTER_ACCOUNT,
   TENANT_TASTE_OF_ANDHRA,
+  tenantPersonaAccounts,
 } from '@/constants/DEMO_ACCOUNTS'
 import { ROUTES } from '@/constants/ROUTES'
 import { USER_ROLE } from '@/constants/USER_ROLE'
@@ -138,30 +139,68 @@ export default function MasterTenantsPage() {
       <MasterWhatsAppObservability />
 
       <section>
-        <h2 className="text-lg font-semibold">Persona logins for this tenant</h2>
-        <ul className="mt-3 space-y-3">
-          {ALL_TEST_ACCOUNTS.filter((a) => a.role !== 'platform_master').map(
-            (account) => (
-              <li
-                key={account.email}
-                className="rounded-[var(--radius-card)] border border-black/10 bg-surface px-4 py-3 text-sm"
-              >
-                <p className="font-medium">
-                  {account.group} · {USER_ROLE[account.role]}
-                </p>
-                <p className="mt-1 font-mono text-xs text-text-secondary">
-                  {account.email} / {account.password}
-                </p>
-                <Link
-                  to={PORTAL_BY_ROLE[account.role]}
-                  className="mt-2 inline-block text-primary hover:underline"
-                >
-                  Open {USER_ROLE[account.role]} login
-                </Link>
-              </li>
-            ),
-          )}
-        </ul>
+        <h2 className="text-lg font-semibold">DirectApp Master</h2>
+        <p className="mt-2 font-mono text-sm">
+          {MASTER_ACCOUNT.email} / {MASTER_ACCOUNT.password}
+        </p>
+        <Link
+          to={PORTAL_BY_ROLE.platform_master}
+          className="mt-2 inline-block text-sm text-primary hover:underline"
+        >
+          Open Master login
+        </Link>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold">Persona logins per tenant</h2>
+        <p className="mt-1 text-sm text-text-secondary">
+          Each demo user can sign in only on that restaurant’s host.
+        </p>
+        <div className="mt-3 space-y-6">
+          {(orgs.length > 0
+            ? orgs
+            : [
+                {
+                  id: TENANT_TASTE_OF_ANDHRA.id,
+                  name: TENANT_TASTE_OF_ANDHRA.name,
+                  slug: TENANT_TASTE_OF_ANDHRA.slug,
+                },
+              ]
+          ).map((org) => (
+            <div key={org.id}>
+              <h3 className="font-medium">{org.name}</h3>
+              <ul className="mt-2 space-y-3">
+                {tenantPersonaAccounts(org).map((account) => {
+                  const loginTo =
+                    account.role === 'admin'
+                      ? ROUTES.ADMIN.LOGIN
+                      : account.role === 'delivery'
+                        ? ROUTES.DELIVERY.LOGIN
+                        : ROUTES.LOGIN
+                  return (
+                  <li
+                    key={account.email}
+                    className="rounded-[var(--radius-card)] border border-black/10 bg-surface px-4 py-3 text-sm"
+                  >
+                    <p className="font-medium">
+                      {USER_ROLE[account.role]}
+                    </p>
+                    <p className="mt-1 font-mono text-xs text-text-secondary">
+                      {account.email} / {account.password}
+                    </p>
+                    <Link
+                      to={loginTo}
+                      className="mt-2 inline-block text-primary hover:underline"
+                    >
+                      Open {USER_ROLE[account.role]} login
+                    </Link>
+                  </li>
+                  )
+                })}
+              </ul>
+            </div>
+          ))}
+        </div>
       </section>
     </div>
   )

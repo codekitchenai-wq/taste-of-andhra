@@ -10,13 +10,17 @@ import {
   type ServiceResponse,
 } from '@/types/api'
 import type { LoyaltyAccount, LoyaltyTransaction } from '@/types/Loyalty'
+import { getResolvedOrganizationId } from '@/services/currentOrganization'
 import { requireUserId } from '@/services/requireUserId'
 import { supabase } from '@/services/supabaseClient'
+import { insertWithOrgFallback } from '@/utils/insertWithOrgFallback'
+import { isMissingColumnError } from '@/utils/supabaseSchema'
 
 function mapAccount(row: Record<string, unknown>): LoyaltyAccount {
   return {
     id: row.id as string,
     user_id: row.user_id as string,
+    organization_id: (row.organization_id as string | undefined) ?? undefined,
     points_balance: Number(row.points_balance),
     lifetime_earned: Number(row.lifetime_earned),
     created_at: row.created_at as string,
@@ -66,11 +70,29 @@ export async function getOrCreateAccount(
 
   if (!uidResult.success) return uidResult
 
-  const { data: existing, error: fetchError } = await supabase
+  const orgId = getResolvedOrganizationId()
+  if (!orgId) {
+    return createErrorResponse('Restaurant is not ready. Refresh and try again.')
+  }
+
+  let existingQuery = supabase
     .from('loyalty_accounts')
     .select('*')
     .eq('user_id', uidResult.data)
-    .maybeSingle()
+
+  if (orgId) existingQuery = existingQuery.eq('organization_id', orgId)
+
+  let { data: existing, error: fetchError } = await existingQuery.maybeSingle()
+
+  if (fetchError && isMissingColumnError(fetchError.message)) {
+    const legacy = await supabase
+      .from('loyalty_accounts')
+      .select('*')
+      .eq('user_id', uidResult.data)
+      .maybeSingle()
+    existing = legacy.data
+    fetchError = legacy.error
+  }
 
   if (fetchError) {
     return createErrorResponse(
@@ -83,20 +105,19 @@ export async function getOrCreateAccount(
     return createSuccessResponse(mapAccount(existing))
   }
 
-  const { data, error } = await supabase
-    .from('loyalty_accounts')
-    .insert({ user_id: uidResult.data })
-    .select()
-    .single()
+  const inserted = await insertWithOrgFallback(supabase, 'loyalty_accounts', {
+    user_id: uidResult.data,
+    ...(orgId ? { organization_id: orgId } : {}),
+  })
 
-  if (error) {
+  if (inserted.error || !inserted.data) {
     return createErrorResponse(
       'Unable to create loyalty account.',
-      error.message,
+      inserted.error?.message,
     )
   }
 
-  return createSuccessResponse(mapAccount(data))
+  return createSuccessResponse(mapAccount(inserted.data))
 }
 
 export async function getTransactions(

@@ -1,90 +1,31 @@
 /**
- * Seeds all QA / demo personas via Supabase Admin API (service role).
+ * Seeds DirectApp Master + one demo admin/customer/delivery per restaurant.
  * Shared password: Test@123
  *
- * Includes:
- *   - DirectApp Master (platform_master)
- *   - Demo customer / admin / delivery
- *   - Tester 1 + Tester 2 customer / admin / delivery
+ * Then deletes retired shared test users (not real customer Google accounts).
  *
- * Add to .env.local:
- *   VITE_SUPABASE_URL=...
- *   VITE_SUPABASE_ANON_KEY=...
- *   SUPABASE_SERVICE_ROLE_KEY=...   (Project Settings → API → service_role)
- *
- * Requires profiles.role enum to include platform_master
- * (from migration 20260727120000_saas_multi_tenant_model.sql).
- * If DirectApp Master seed fails on role, run:
- *   ALTER TYPE public.user_role ADD VALUE IF NOT EXISTS 'platform_master';
+ *   npm run seed:qa-testers
+ *   npm run seed:qa-testers:production
  */
 import { createClient } from '@supabase/supabase-js'
 import { readFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
+import {
+  DEMO_PASSWORD,
+  MASTER_EMAIL,
+  MASTER_NAME,
+  MASTER_PHONE,
+  RETIRED_TEST_EMAILS,
+  demoPersonaEmail,
+  tenantDemoAccounts,
+} from './lib/tenant-demo-accounts.mjs'
 
-const PASSWORD = 'Test@123'
-
-const ACCOUNTS = [
-  {
-    email: 'master@tasteofandhra.test',
-    fullName: 'DirectApp Master',
-    phone: '9000000099',
-    role: 'platform_master',
-  },
-  {
-    email: 'customer@tasteofandhra.test',
-    fullName: 'Demo Customer',
-    phone: '9876543210',
-    role: 'customer',
-  },
-  {
-    email: 'admin@tasteofandhra.test',
-    fullName: 'Demo Admin',
-    phone: '9876543211',
-    role: 'admin',
-  },
-  {
-    email: 'delivery@tasteofandhra.test',
-    fullName: 'Demo Delivery',
-    phone: '9876543212',
-    role: 'delivery',
-  },
-  {
-    email: 'tester1.customer@thetasteofandhra.com',
-    fullName: 'Tester 1 Customer',
-    phone: '9000000001',
-    role: 'customer',
-  },
-  {
-    email: 'tester1.admin@thetasteofandhra.com',
-    fullName: 'Tester 1 Admin',
-    phone: '9000000011',
-    role: 'admin',
-  },
-  {
-    email: 'tester1.delivery@thetasteofandhra.com',
-    fullName: 'Tester 1 Delivery',
-    phone: '9000000021',
-    role: 'delivery',
-  },
-  {
-    email: 'tester2.customer@thetasteofandhra.com',
-    fullName: 'Tester 2 Customer',
-    phone: '9000000002',
-    role: 'customer',
-  },
-  {
-    email: 'tester2.admin@thetasteofandhra.com',
-    fullName: 'Tester 2 Admin',
-    phone: '9000000012',
-    role: 'admin',
-  },
-  {
-    email: 'tester2.delivery@thetasteofandhra.com',
-    fullName: 'Tester 2 Delivery',
-    phone: '9000000022',
-    role: 'delivery',
-  },
-]
+const MASTER = {
+  email: MASTER_EMAIL,
+  fullName: MASTER_NAME,
+  phone: MASTER_PHONE,
+  role: 'platform_master',
+}
 
 function loadEnvFile(filePath) {
   if (!existsSync(filePath)) return {}
@@ -158,7 +99,7 @@ const client = anonKey
   : null
 
 async function findUserByEmail(email) {
-  for (let page = 1; page <= 10; page++) {
+  for (let page = 1; page <= 20; page++) {
     const { data, error } = await admin.auth.admin.listUsers({
       page,
       perPage: 200,
@@ -171,6 +112,20 @@ async function findUserByEmail(email) {
     if (data.users.length < 200) break
   }
   return null
+}
+
+async function listAllAuthUsers() {
+  const users = []
+  for (let page = 1; page <= 20; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({
+      page,
+      perPage: 200,
+    })
+    if (error) throw error
+    users.push(...data.users)
+    if (data.users.length < 200) break
+  }
+  return users
 }
 
 async function upsertProfile(userId, account) {
@@ -193,7 +148,7 @@ async function upsertProfile(userId, account) {
       error.message.toLowerCase().includes('platform_master')
     ) {
       console.error(
-        '  → Run: ALTER TYPE public.user_role ADD VALUE IF NOT EXISTS \'platform_master\';',
+        "  → Run: ALTER TYPE public.user_role ADD VALUE IF NOT EXISTS 'platform_master';",
       )
     }
     return false
@@ -209,7 +164,7 @@ async function upsertAccount(account) {
 
   if (existing) {
     const { error } = await admin.auth.admin.updateUserById(existing.id, {
-      password: PASSWORD,
+      password: DEMO_PASSWORD,
       email_confirm: true,
       user_metadata: {
         full_name: account.fullName,
@@ -222,23 +177,22 @@ async function upsertAccount(account) {
     })
     if (error) {
       console.error(`UPDATE_ERR ${account.email}: ${error.message || error}`)
-      return false
+      return null
     }
 
     const profileOk = await upsertProfile(existing.id, account)
-    if (!profileOk) return false
+    if (!profileOk) return null
 
     console.log(`UPDATED ${account.role.padEnd(16)} ${account.email}`)
-    return true
+    return existing.id
   }
 
   const { data, error } = await admin.auth.admin.createUser({
     email: account.email,
-    password: PASSWORD,
+    password: DEMO_PASSWORD,
     email_confirm: true,
     user_metadata: {
       full_name: account.fullName,
-      // Avoid trigger failure when platform_master enum is not applied yet.
       role: bootstrapRole,
       phone: account.phone,
     },
@@ -249,42 +203,76 @@ async function upsertAccount(account) {
 
   if (error) {
     console.error(`CREATE_ERR ${account.email}: ${error.message || error}`)
-    return false
+    return null
   }
 
-  if (data.user) {
-    if (account.role === 'platform_master') {
-      await admin.auth.admin.updateUserById(data.user.id, {
-        user_metadata: {
-          full_name: account.fullName,
-          role: account.role,
-          phone: account.phone,
-        },
-        app_metadata: { role: account.role },
-      })
-    }
-
-    const profileOk = await upsertProfile(data.user.id, account)
-    if (!profileOk) return false
+  if (data.user && account.role === 'platform_master') {
+    await admin.auth.admin.updateUserById(data.user.id, {
+      user_metadata: {
+        full_name: account.fullName,
+        role: account.role,
+        phone: account.phone,
+      },
+      app_metadata: { role: account.role },
+    })
   }
+
+  if (!data.user) return null
+  const profileOk = await upsertProfile(data.user.id, account)
+  if (!profileOk) return null
 
   console.log(`CREATED ${account.role.padEnd(16)} ${account.email}`)
+  return data.user.id
+}
+
+async function bindStaff(organizationId, userId, memberRole) {
+  const { error } = await admin.from('organization_members').upsert(
+    {
+      organization_id: organizationId,
+      user_id: userId,
+      role: memberRole,
+      is_active: true,
+    },
+    { onConflict: 'organization_id,user_id' },
+  )
+  if (error) {
+    console.error(`MEMBER_ERR ${userId}: ${error.message}`)
+    return false
+  }
   return true
 }
 
-async function verifyLogin(account) {
+async function enrollCustomer(organizationId, userId) {
+  const { error } = await admin.from('organization_customers').upsert(
+    {
+      organization_id: organizationId,
+      user_id: userId,
+    },
+    { onConflict: 'organization_id,user_id' },
+  )
+  if (
+    error &&
+    !error.message.toLowerCase().includes('organization_customers')
+  ) {
+    console.error(`ENROLL_ERR ${userId}: ${error.message}`)
+    return false
+  }
+  return true
+}
+
+async function verifyLogin(email) {
   if (!client) {
-    console.warn(`SKIP_LOGIN_CHECK ${account.email} (no anon key)`)
+    console.warn(`SKIP_LOGIN_CHECK ${email} (no anon key)`)
     return true
   }
 
   const { data, error } = await client.auth.signInWithPassword({
-    email: account.email,
-    password: PASSWORD,
+    email,
+    password: DEMO_PASSWORD,
   })
 
   if (error) {
-    console.error(`LOGIN_FAIL ${account.email}: ${error.message}`)
+    console.error(`LOGIN_FAIL ${email}: ${error.message}`)
     return false
   }
 
@@ -294,37 +282,132 @@ async function verifyLogin(account) {
     .eq('id', data.user.id)
     .maybeSingle()
 
-  console.log(
-    `LOGIN_OK ${account.email} profile=${profile?.role ?? 'missing'}`,
-  )
+  console.log(`LOGIN_OK ${email} profile=${profile?.role ?? 'missing'}`)
   await client.auth.signOut()
   return true
 }
 
-console.log(`Seeding ${ACCOUNTS.length} QA accounts (password ${PASSWORD})...\n`)
-
-let seedOk = true
-for (const account of ACCOUNTS) {
-  const ok = await upsertAccount(account)
-  if (!ok) seedOk = false
+function isProtectedEmail(email) {
+  const value = email?.toLowerCase() ?? ''
+  if (value === MASTER_EMAIL) return true
+  if (/^demo(admin|customer|delivery)@[a-z0-9]+\.test$/.test(value)) return true
+  return false
 }
 
-console.log('\nVerifying password logins...\n')
+async function deleteRetiredUsers(keepEmails) {
+  const keep = new Set([...keepEmails].map((email) => email.toLowerCase()))
+  const retired = new Set(RETIRED_TEST_EMAILS.map((email) => email.toLowerCase()))
+  const users = await listAllAuthUsers()
+  let deleted = 0
 
+  for (const user of users) {
+    const email = user.email?.toLowerCase()
+    if (!email || isProtectedEmail(email) || keep.has(email)) continue
+    if (!retired.has(email)) continue
+
+    await admin
+      .from('organization_members')
+      .delete()
+      .eq('user_id', user.id)
+    await admin
+      .from('organization_customers')
+      .delete()
+      .eq('user_id', user.id)
+
+    const { error } = await admin.auth.admin.deleteUser(user.id)
+    if (error) {
+      console.error(`DELETE_ERR ${email}: ${error.message || '{}'}`)
+      await admin
+        .from('profiles')
+        .update({ is_active: false })
+        .eq('id', user.id)
+      await admin.auth.admin.updateUserById(user.id, {
+        password: `retired-${crypto.randomUUID()}`,
+        email_confirm: false,
+        ban_duration: '876000h',
+      })
+      console.log(`DISABLED ${email} (could not delete; likely order history)`)
+      continue
+    }
+
+    console.log(`DELETED ${email}`)
+    deleted += 1
+  }
+
+  return deleted
+}
+
+const { data: orgs, error: orgError } = await admin
+  .from('organizations')
+  .select('id, name, slug, status')
+  .in('status', ['active', 'trialing'])
+  .order('name')
+
+if (orgError) {
+  console.error(`ORG_ERR ${orgError.message}`)
+  process.exit(1)
+}
+
+const restaurants = (orgs ?? []).filter((org) => org.slug)
+
+console.log(
+  `Seeding DirectApp Master + demo personas for ${restaurants.length} restaurant(s) (password ${DEMO_PASSWORD})...\n`,
+)
+
+const keepEmails = new Set([MASTER_EMAIL])
+let seedOk = true
+
+const masterId = await upsertAccount(MASTER)
+if (!masterId) seedOk = false
+
+for (const org of restaurants) {
+  const accounts = tenantDemoAccounts(org)
+  for (const account of accounts) {
+    keepEmails.add(account.email)
+    const userId = await upsertAccount(account)
+    if (!userId) {
+      seedOk = false
+      continue
+    }
+    if (account.role === 'admin') {
+      const ok = await bindStaff(org.id, userId, 'restaurant_owner')
+      if (!ok) seedOk = false
+    }
+    if (account.role === 'delivery') {
+      const ok = await bindStaff(org.id, userId, 'delivery')
+      if (!ok) seedOk = false
+    }
+    if (account.role === 'customer') {
+      const ok = await enrollCustomer(org.id, userId)
+      if (!ok) seedOk = false
+    }
+  }
+}
+
+console.log('\nRemoving retired shared test users...\n')
+const deleted = await deleteRetiredUsers(keepEmails)
+console.log(`Deleted ${deleted} retired test user(s).\n`)
+
+console.log('Verifying password logins...\n')
 let loginOk = true
-for (const account of ACCOUNTS) {
-  const ok = await verifyLogin(account)
+for (const email of keepEmails) {
+  const ok = await verifyLogin(email)
   if (!ok) loginOk = false
 }
 
-console.log('\n--- Tester quick list ---')
-for (const account of ACCOUNTS) {
-  console.log(`  ${account.role.padEnd(16)} ${account.email} / ${PASSWORD}`)
+console.log('\n--- Tenant demo logins ---')
+console.log(`  platform_master  ${MASTER_EMAIL} / ${DEMO_PASSWORD}  → /master/login`)
+for (const org of restaurants) {
+  console.log(`\n  ${org.name} (${org.slug})`)
+  for (const persona of ['admin', 'customer', 'delivery']) {
+    console.log(
+      `    ${persona.padEnd(10)} ${demoPersonaEmail(org.slug, persona)} / ${DEMO_PASSWORD}`,
+    )
+  }
 }
 
 if (seedOk && loginOk) {
-  console.log(`\nALL_OK — ${ACCOUNTS.length} accounts ready with password ${PASSWORD}`)
-  console.log('See docs/TESTER_LOGIN_REFERENCE.md for portals and links.')
+  console.log(`\nALL_OK — tenant-scoped demo accounts ready (${DEMO_PASSWORD})`)
   process.exit(0)
 }
 

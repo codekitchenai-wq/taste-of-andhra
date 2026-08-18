@@ -23,18 +23,25 @@ export function TestCredentialsHint({
   onUseCredentials,
 }: TestCredentialsHintProps) {
   const org = useOrganization()
-  if (!showStorefrontQaHelpers(org)) return null
+  if (role !== 'platform_master' && !showStorefrontQaHelpers(org)) return null
+  if (role === 'platform_master' && !org) return null
 
-  const primary = primaryAccountForRole(role)
-  const others = accountsForRole(role).filter((a) => a.email !== primary.email)
+  const primary = primaryAccountForRole(role, org.slug)
+  const others =
+    role === 'platform_master'
+      ? []
+      : accountsForRole(role, org.slug).filter(
+          (account) => account.email !== primary.email,
+        )
 
   return (
     <div className="mt-6 rounded-[var(--radius-card)] border border-dashed border-black/15 bg-background px-4 py-3 text-sm">
       <p className="font-medium text-text-primary">
         Test {ROLE_LABELS[role]} login
+        {role !== 'platform_master' && org.name ? ` · ${org.name}` : ''}
       </p>
       <p className="mt-1 text-xs text-text-secondary">
-        Shared password for all test accounts:{' '}
+        This account only works on this restaurant. Password:{' '}
         <span className="font-mono font-medium text-text-primary">
           {primary.password}
         </span>

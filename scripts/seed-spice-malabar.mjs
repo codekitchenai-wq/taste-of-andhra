@@ -1,8 +1,9 @@
 /**
  * Seeds Spice Malabar tenant (Chopsticks Spice Malabar, Viman Nagar, Pune).
  *
- * Admin:    spice-malabar@admin.test / Test@123
- * Customer: demo@spicemalabar.test / Test@123
+ * Admin:    demoadmin@chopsticksspicemalabar.test / Test@123
+ * Customer: democustomer@chopsticksspicemalabar.test / Test@123
+ * Delivery: demodelivery@chopsticksspicemalabar.test / Test@123
  *
  * Usage:
  *   node scripts/scrape-spice-malabar-menu.mjs
@@ -16,6 +17,8 @@ import { existsSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { demoPersonaEmail, phoneForTenantPersona } from './lib/tenant-demo-accounts.mjs'
+
 const STARTER_PLAN_ID = 'b0000000-0000-4000-8000-000000000001'
 const GROWTH_PLAN_ID = 'b0000000-0000-4000-8000-000000000002'
 const PASSWORD = 'Test@123'
@@ -28,27 +31,26 @@ const MENU_PATH = resolve(
 )
 
 const ADMIN = {
-  email: 'spice-malabar@admin.test',
+  email: demoPersonaEmail(SLUG, 'admin'),
   password: PASSWORD,
   fullName: 'Spice Malabar Admin',
-  phone: '7841800101',
+  phone: phoneForTenantPersona(SLUG, 'admin'),
   role: 'admin',
 }
 
-/** Previous seed email — kept so existing testers still work. */
-const LEGACY_ADMIN = {
-  email: 'spicemalabaradmin@spicemalabar.test',
+const DELIVERY = {
+  email: demoPersonaEmail(SLUG, 'delivery'),
   password: PASSWORD,
-  fullName: 'Spice Malabar Admin (legacy)',
-  phone: '7841800101',
-  role: 'admin',
+  fullName: 'Spice Malabar Delivery',
+  phone: phoneForTenantPersona(SLUG, 'delivery'),
+  role: 'delivery',
 }
 
 const CUSTOMER = {
-  email: 'demo@spicemalabar.test',
+  email: demoPersonaEmail(SLUG, 'customer'),
   password: PASSWORD,
   fullName: 'Spice Malabar Demo Customer',
-  phone: '7841800102',
+  phone: phoneForTenantPersona(SLUG, 'customer'),
   role: 'customer',
 }
 
@@ -617,7 +619,7 @@ async function main() {
     }
   }
 
-  for (const account of [ADMIN, LEGACY_ADMIN]) {
+  for (const account of [ADMIN]) {
     const adminUser = await ensureAuthUser(account)
     await upsertProfile(adminUser.id, account)
     const { error: memberError } = await admin.from('organization_members').upsert(
@@ -634,8 +636,30 @@ async function main() {
     }
   }
 
+  const deliveryUser = await ensureAuthUser(DELIVERY)
+  await upsertProfile(deliveryUser.id, DELIVERY)
+  const { error: deliveryMemberError } = await admin.from('organization_members').upsert(
+    {
+      organization_id: orgId,
+      user_id: deliveryUser.id,
+      role: 'delivery',
+      is_active: true,
+    },
+    { onConflict: 'organization_id,user_id' },
+  )
+  if (deliveryMemberError) {
+    throw new Error(`org member ${DELIVERY.email}: ${deliveryMemberError.message}`)
+  }
+
   const customerUser = await ensureAuthUser(CUSTOMER)
   await upsertProfile(customerUser.id, CUSTOMER)
+  await admin.from('organization_customers').upsert(
+    {
+      organization_id: orgId,
+      user_id: customerUser.id,
+    },
+    { onConflict: 'organization_id,user_id' },
+  )
 
   console.log('')
   console.log('Ready — Spice Malabar')
@@ -655,6 +679,11 @@ async function main() {
   console.log(`  Email:    ${CUSTOMER.email}`)
   console.log(`  Password: ${PASSWORD}`)
   console.log('  URL:      /login')
+  console.log('')
+  console.log('Delivery demo login')
+  console.log(`  Email:    ${DELIVERY.email}`)
+  console.log(`  Password: ${PASSWORD}`)
+  console.log('  URL:      /delivery/login')
 }
 
 main().catch((error) => {

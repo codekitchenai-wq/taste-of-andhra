@@ -10,7 +10,7 @@ describe('google OAuth redirect', () => {
     vi.unstubAllGlobals()
   })
 
-  it('hops production tenants to the Site URL so Google PKCE can finish there', () => {
+  it('keeps production Google return on the restaurant origin', () => {
     vi.stubGlobal('window', {
       location: {
         hostname: 'chopsticksspicemalabar.directapp.in',
@@ -20,11 +20,39 @@ describe('google OAuth redirect', () => {
       },
     })
     expect(googleOAuthRedirectTo('/login')).toBe(
-      'https://www.directapp.in/login?tenant=chopsticksspicemalabar',
+      'https://chopsticksspicemalabar.directapp.in/login?tenant=chopsticksspicemalabar',
     )
-    expect(googleOAuthPreflightUrl('/login', '/onam?checkout=1')).toBe(
-      'https://www.directapp.in/login?tenant=chopsticksspicemalabar&continue=google&next=%2Fonam%3Fcheckout%3D1',
+    expect(googleOAuthPreflightUrl('/login', '/onam?checkout=1')).toBeNull()
+  })
+
+  it('keeps Taste of Andhra Google return on its own origin', () => {
+    vi.stubGlobal('window', {
+      location: {
+        hostname: 'www.thetasteofandhra.com',
+        port: '',
+        origin: 'https://www.thetasteofandhra.com',
+        search: '',
+      },
+    })
+    expect(googleOAuthRedirectTo('/login')).toContain(
+      'https://www.thetasteofandhra.com/login',
     )
+    expect(googleOAuthPreflightUrl('/login')).toBeNull()
+  })
+
+  it('keeps DirectApp apex Google return on the platform origin', () => {
+    vi.stubGlobal('window', {
+      location: {
+        hostname: 'www.directapp.in',
+        port: '',
+        origin: 'https://www.directapp.in',
+        search: '',
+      },
+    })
+    expect(googleOAuthRedirectTo('/login')).toBe(
+      'https://www.directapp.in/login',
+    )
+    expect(googleOAuthPreflightUrl('/login')).toBeNull()
   })
 
   it('rewrites {slug}.localhost to localhost for the allowlist', () => {

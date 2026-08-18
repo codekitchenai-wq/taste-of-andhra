@@ -6,6 +6,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { useOrganization } from '@/contexts/OrganizationContext'
 import { useAuth } from '@/hooks/useAuth'
 import * as cartService from '@/services/cartService'
 import type { ServiceResponse } from '@/types/api'
@@ -40,6 +41,7 @@ interface CartProviderProps {
 
 export function CartProvider({ children }: CartProviderProps) {
   const { isAuthenticated, isLoading: isAuthLoading } = useAuth()
+  const { organizationId } = useOrganization()
   const [cart, setCart] = useState<CartWithItems | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
@@ -61,7 +63,7 @@ export function CartProvider({ children }: CartProviderProps) {
     }
 
     setIsLoading(false)
-  }, [isAuthenticated])
+  }, [isAuthenticated, organizationId])
 
   useEffect(() => {
     if (isAuthLoading) return

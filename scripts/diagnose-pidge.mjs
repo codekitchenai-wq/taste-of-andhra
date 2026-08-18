@@ -46,7 +46,7 @@ const client = createClient(url, anon, {
   auth: { persistSession: false, autoRefreshToken: false },
 })
 
-const email = process.env.PIDGE_DIAGNOSE_EMAIL ?? 'admin@tasteofandhra.test'
+const email = process.env.PIDGE_DIAGNOSE_EMAIL ?? 'demoadmin@tasteofandhra.test'
 const password = process.env.PIDGE_DIAGNOSE_PASSWORD ?? 'Test@123'
 
 const { data: login, error: loginErr } = await client.auth.signInWithPassword({

@@ -72,17 +72,20 @@ Staff personas (admin, delivery, master) sign in with **email + password**. Cust
 
 1. In Supabase Dashboard → **Authentication** → **Providers** → **Email**, enable Email.
 2. Turn **off** “Confirm email” so new accounts can sign in immediately during testing.
-3. Seed one demo user per persona (password `123456` for all):
+3. Seed per-tenant demo users (password `Test@123` for all):
 
 ```bash
-npm run seed:demo-users
+npm run seed:qa-testers
 ```
 
 | Persona | Email | Password | Login URL |
 | --- | --- | --- | --- |
-| Customer | `customer@tasteofandhra.test` | `123456` | `/login` |
-| Admin | `admin@tasteofandhra.test` | `123456` | `/admin/login` |
-| Delivery | `delivery@tasteofandhra.test` | `123456` | `/delivery/login` |
+| DirectApp Master | `master@tasteofandhra.test` | `Test@123` | `/master/login` on www.directapp.in |
+| Taste of Andhra customer | `democustomer@tasteofandhra.test` | `Test@123` | `/login` |
+| Taste of Andhra admin | `demoadmin@tasteofandhra.test` | `Test@123` | `/admin/login` |
+| Taste of Andhra delivery | `demodelivery@tasteofandhra.test` | `Test@123` | `/delivery/login` |
+
+Each restaurant has its own `demoadmin@`, `democustomer@`, and `demodelivery@` addresses. See `docs/LOGIN_CREDENTIALS.md` and `docs/TENANT_LOGIN_CREDENTIALS.xlsx`.
 
 Credentials are also shown under each login form. Use **Create one** on any login screen to register an additional user for that persona.
 

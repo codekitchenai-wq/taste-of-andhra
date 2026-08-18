@@ -22,7 +22,13 @@ export function OrderRazorpayCollect({
   order,
   onMarkedPaid,
 }: OrderRazorpayCollectProps) {
-  const contact = storefrontContact(useOrganization())
+  const org = useOrganization()
+  const contact = storefrontContact(org)
+  const razorpayReady = isRazorpayConfigured({
+    settings: org.settings,
+    slug: org.slug,
+    organizationId: org.organizationId,
+  })
   const [isOpen, setIsOpen] = useState(false)
   const [isPaying, setIsPaying] = useState(false)
 
@@ -81,7 +87,7 @@ export function OrderRazorpayCollect({
         </p>
         <p className="mt-1 text-xs text-text-secondary">
           UPI, card, net banking, or wallet at the counter.
-          {!isRazorpayConfigured() ? ' Demo mode until keys are set.' : ''}
+          {!razorpayReady ? ' Demo mode until this restaurant adds its Razorpay Key ID.' : ''}
         </p>
         <Button
           type="button"
@@ -98,7 +104,7 @@ export function OrderRazorpayCollect({
         amount={order.total}
         orderNumber={order.order_number}
         isProcessing={isPaying}
-        isDemoMode={!isRazorpayConfigured()}
+        isDemoMode={!razorpayReady}
         onClose={() => {
           if (!isPaying) setIsOpen(false)
         }}

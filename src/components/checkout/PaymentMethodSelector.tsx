@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Banknote, CreditCard, QrCode } from 'lucide-react'
 import { PAYMENT_METHOD } from '@/constants/PAYMENT_METHOD'
-import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
+import { useOrganization } from '@/contexts/OrganizationContext'
 import { isRazorpayConfigured } from '@/services/paymentService'
 import { supabase } from '@/services/supabaseClient'
 import type { PaymentMethod } from '@/types/enums'
@@ -32,9 +32,15 @@ async function orgHasFeature(
 export function PaymentMethodSelector({
   value,
   onChange,
-  organizationId = DEFAULT_ORGANIZATION_ID,
+  organizationId,
 }: PaymentMethodSelectorProps) {
-  const razorpayReady = isRazorpayConfigured()
+  const org = useOrganization()
+  const tenantOrgId = organizationId ?? org.organizationId
+  const razorpayReady = isRazorpayConfigured({
+    settings: org.settings,
+    slug: org.slug,
+    organizationId: tenantOrgId,
+  })
   const [directUpiEnabled, setDirectUpiEnabled] = useState(true)
   const [razorpayEnabled, setRazorpayEnabled] = useState(false)
 
@@ -42,8 +48,8 @@ export function PaymentMethodSelector({
     let cancelled = false
     void (async () => {
       const [upi, razor] = await Promise.all([
-        orgHasFeature(organizationId, 'payments_direct_upi'),
-        orgHasFeature(organizationId, 'payments_razorpay'),
+        orgHasFeature(tenantOrgId, 'payments_direct_upi'),
+        orgHasFeature(tenantOrgId, 'payments_razorpay'),
       ])
       if (cancelled) return
       setDirectUpiEnabled(upi)
@@ -61,7 +67,7 @@ export function PaymentMethodSelector({
     }
     // Only re-check when org changes; avoid fighting user selection every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional
-  }, [organizationId])
+  }, [tenantOrgId])
 
   return (
     <div className="space-y-3" role="radiogroup" aria-label="Payment method">

@@ -9,6 +9,8 @@ import { AUTH_OAUTH_IN_FLIGHT_STORAGE_KEY, AUTH_REDIRECT_STORAGE_KEY, MIN_PASSWO
 import { ROUTES } from '@/constants/ROUTES'
 import { supabase } from '@/services/supabaseClient'
 import { mapProfile } from '@/utils/mapProfile'
+import { getCurrentOrganizationId } from '@/services/currentOrganization'
+import { evaluateCurrentUserTenantAccess } from '@/services/tenantAccessService'
 import { persistOAuthTenantCookie } from '@/utils/authTenantCookie'
 import {
   googleOAuthPreflightUrl,
@@ -102,6 +104,27 @@ async function fetchProfile(userId: string): Promise<ServiceResponse<Profile>> {
   return createSuccessResponse(profile)
 }
 
+async function enforceTenantOnProfile(
+  profile: Profile,
+): Promise<ServiceResponse<Profile>> {
+  if (profile.role === 'platform_master') {
+    return createSuccessResponse(profile)
+  }
+
+  const access = await evaluateCurrentUserTenantAccess(
+    profile.id,
+    profile.role,
+    getCurrentOrganizationId(),
+  )
+
+  if (access.allowed) {
+    return createSuccessResponse(profile)
+  }
+
+  await supabase.auth.signOut()
+  return createErrorResponse(access.message)
+}
+
 async function createProfileFromSession(
   userId: string,
 ): Promise<ServiceResponse<Profile>> {
@@ -179,7 +202,9 @@ export async function login(
     return createErrorResponse('Login failed. Please try again.')
   }
 
-  return fetchProfile(data.user.id)
+  const profile = await fetchProfile(data.user.id)
+  if (!profile.success) return profile
+  return enforceTenantOnProfile(profile.data)
 }
 
 /** Create a new email/password account for any persona (testing). */
@@ -253,7 +278,9 @@ export async function register(
     )
   }
 
-  return fetchProfile(data.user.id)
+  const profile = await fetchProfile(data.user.id)
+  if (!profile.success) return profile
+  return enforceTenantOnProfile(profile.data)
 }
 
 async function readFunctionsErrorMessage(
@@ -392,7 +419,9 @@ export async function loginWithWhatsAppOtp(
       )
     }
 
-    return fetchProfile(otpData.user.id)
+    const otpProfile = await fetchProfile(otpData.user.id)
+    if (!otpProfile.success) return otpProfile
+    return enforceTenantOnProfile(otpProfile.data)
   }
 
   if (!data.access_token || !data.refresh_token) {
@@ -412,7 +441,9 @@ export async function loginWithWhatsAppOtp(
     )
   }
 
-  return fetchProfile(sessionData.user.id)
+  const sessionProfile = await fetchProfile(sessionData.user.id)
+  if (!sessionProfile.success) return sessionProfile
+  return enforceTenantOnProfile(sessionProfile.data)
 }
 
 /**

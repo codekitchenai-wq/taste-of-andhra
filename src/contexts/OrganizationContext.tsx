@@ -317,7 +317,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     const hostname =
       typeof window !== 'undefined' ? window.location.hostname : ''
 
-    void resolveOrganizationFromHostname(hostname).then((result) => {
+    const applyResolved = (result: ResolvedOrganization) => {
       if (cancelled) return
       setCurrentOrganizationId(result.organizationId)
       setOrganizationId(result.organizationId)
@@ -337,10 +337,25 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       setWhatsAppOtpLoginEnabled(result.whatsappOtpLoginEnabled)
       setResolvedFromHost(result.resolvedFromHost)
       setIsLoading(false)
-    })
+    }
+
+    // Do not leave the homepage on skeletons if host lookup hangs.
+    const timeoutId = window.setTimeout(() => {
+      if (!cancelled) setIsLoading(false)
+    }, 2500)
+
+    void resolveOrganizationFromHostname(hostname)
+      .then(applyResolved)
+      .catch(() => {
+        if (!cancelled) setIsLoading(false)
+      })
+      .finally(() => {
+        window.clearTimeout(timeoutId)
+      })
 
     return () => {
       cancelled = true
+      window.clearTimeout(timeoutId)
     }
   }, [])
 
