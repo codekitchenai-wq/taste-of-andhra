@@ -32,7 +32,7 @@
               currentSlug = parts[1]
             }
           }
-          if (currentSlug === tenant) return
+          if (currentSlug) return
           if (host === root || host === 'www.' + root) return
           if (
             host === 'thetasteofandhra.com' ||

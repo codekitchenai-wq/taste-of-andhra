@@ -158,18 +158,30 @@ export function recoverOAuthTenantHostIfNeeded(
   const tenantFromUrl = params.get('tenant')?.trim().toLowerCase() || null
   const nextFromUrl = params.get('next')?.trim()
   const oauthReturn = isOAuthCallback(params, location.hash ?? '')
-
   const hostSlug = slugFromHostname(location.hostname)
+  const state = readOAuthTenantCookie()
+
+  // Already on the restaurant named by the host (and URL, if present). A leftover
+  // `.directapp.in` cookie must not send us to Taste of Andhra — that left
+  // `?tenant=chopsticks…` on the URL, and the boot script bounced us back forever.
+  if (hostSlug && (!tenantFromUrl || tenantFromUrl === hostSlug)) {
+    if (!oauthReturn || tenantFromUrl === hostSlug) {
+      if (state?.tenant !== hostSlug) {
+        persistOAuthTenantCookie(hostSlug, nextFromUrl)
+      }
+      if (oauthReturn) restoreAuthRedirect(state?.next ?? nextFromUrl)
+      return false
+    }
+  }
+
   if (hostSlug && !oauthReturn) {
-    const state = readOAuthTenantCookie()
     if (state?.tenant && state.tenant !== hostSlug) {
       persistOAuthTenantCookie(hostSlug, nextFromUrl)
     }
     return false
   }
 
-  const state = readOAuthTenantCookie()
-  const intendedTenant = state?.tenant ?? tenantFromUrl
+  const intendedTenant = tenantFromUrl ?? state?.tenant
   if (!intendedTenant) return false
 
   if (hostServesTenant(location.hostname, intendedTenant)) {
@@ -177,7 +189,7 @@ export function recoverOAuthTenantHostIfNeeded(
     return false
   }
 
-  if (!params.has('tenant')) params.set('tenant', intendedTenant)
+  params.set('tenant', intendedTenant)
   const nextPath = state?.next ?? nextFromUrl
   if (
     nextPath?.startsWith('/') &&

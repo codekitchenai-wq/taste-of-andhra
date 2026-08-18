@@ -62,8 +62,10 @@ export function slugFromHostname(
 }
 
 /**
- * `?tenant=chopsticksspicemalabar` — local dev navigation and OAuth recovery
- * hops on `*.directapp.in` when Supabase returns to the platform Site URL.
+ * `?tenant=` is only for hosts that do not already name a restaurant:
+ * localhost, DirectApp apex, and the Taste of Andhra Site URL.
+ * `{slug}.directapp.in` must ignore a leftover tenant query or the storefront
+ * flips between restaurants (and can bounce forever with recover + index.html).
  */
 export function slugFromSearchParams(
   search: string,
@@ -71,7 +73,7 @@ export function slugFromSearchParams(
 ): string | null {
   if (
     !isLocalDevHostname(hostname) &&
-    !isPlatformHostname(hostname) &&
+    !isPlatformApexHost(hostname) &&
     !isTasteOfAndhraCustomHost(hostname)
   ) {
     return null
@@ -115,14 +117,17 @@ export function resolveTenantSlugFromLocation(input?: {
     (typeof window !== 'undefined' ? window.location.search : '')
   const persist = input?.persist !== false
 
+  const fromHost = slugFromHostname(hostname)
+  if (fromHost) {
+    if (persist) persistLocalTenantSlug(fromHost)
+    return fromHost
+  }
+
   const fromQuery = slugFromSearchParams(search, hostname)
   if (fromQuery) {
     if (persist) persistLocalTenantSlug(fromQuery)
     return fromQuery
   }
-
-  const fromHost = slugFromHostname(hostname)
-  if (fromHost) return fromHost
 
   if (isLocalDevHostname(hostname)) {
     return readPersistedLocalTenantSlug()

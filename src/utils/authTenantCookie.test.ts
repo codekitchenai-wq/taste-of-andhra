@@ -115,6 +115,61 @@ describe('authTenantCookie', () => {
     expect(replace).not.toHaveBeenCalled()
   })
 
+  it('does not bounce Chopsticks OAuth return to Taste of Andhra because of a stale cookie', () => {
+    const replace = vi.fn()
+    vi.stubGlobal('window', {
+      location: {
+        hostname: 'chopsticksspicemalabar.directapp.in',
+        pathname: '/login',
+        search: '?tenant=chopsticksspicemalabar',
+        hash: '#access_token=abc&refresh_token=def',
+        replace,
+      },
+    })
+
+    persistOAuthTenantCookie('thetasteofandhra', '/')
+
+    expect(
+      recoverOAuthTenantHostIfNeeded({
+        hostname: 'chopsticksspicemalabar.directapp.in',
+        pathname: '/login',
+        search: '?tenant=chopsticksspicemalabar',
+        hash: '#access_token=abc&refresh_token=def',
+      }),
+    ).toBe(false)
+
+    expect(replace).not.toHaveBeenCalled()
+    expect(readOAuthTenantCookie()?.tenant).toBe('chopsticksspicemalabar')
+  })
+
+  it('overwrites a mismatched tenant query when recovering to the cookie tenant', () => {
+    const replace = vi.fn()
+    vi.stubGlobal('window', {
+      location: {
+        hostname: 'thetasteofandhra.directapp.in',
+        pathname: '/login',
+        search: '?tenant=chopsticksspicemalabar',
+        hash: '#access_token=abc',
+        replace,
+      },
+    })
+
+    persistOAuthTenantCookie('chopsticksspicemalabar', '/onam')
+
+    expect(
+      recoverOAuthTenantHostIfNeeded({
+        hostname: 'thetasteofandhra.directapp.in',
+        pathname: '/login',
+        search: '?tenant=chopsticksspicemalabar',
+        hash: '#access_token=abc',
+      }),
+    ).toBe(true)
+
+    expect(replace).toHaveBeenCalledWith(
+      'https://chopsticksspicemalabar.directapp.in/login?tenant=chopsticksspicemalabar&next=%2Fonam#access_token=abc',
+    )
+  })
+
   it('does not steal Spice Malabar login because of a stale Devi cookie', () => {
     const replace = vi.fn()
     vi.stubGlobal('window', {
