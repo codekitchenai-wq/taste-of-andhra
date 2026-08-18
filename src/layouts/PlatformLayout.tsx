@@ -67,11 +67,17 @@ export function PlatformLayout() {
             )}
           </nav>
           <div className="flex items-center gap-2">
+            <Link
+              to={ROUTES.MASTER.LOGIN}
+              className="hidden text-sm text-white/80 underline-offset-4 hover:text-white hover:underline sm:inline"
+            >
+              Master login
+            </Link>
             <a
               href={PLATFORM_SITE.liveDemo.url}
               target="_blank"
               rel="noreferrer"
-              className="hidden text-sm text-white/80 underline-offset-4 hover:text-white hover:underline sm:inline"
+              className="hidden text-sm text-white/80 underline-offset-4 hover:text-white hover:underline md:inline"
             >
               Live demo
             </a>
@@ -123,7 +129,7 @@ export function PlatformLayout() {
               </li>
               <li>
                 <Link to={ROUTES.MASTER.LOGIN} className="hover:text-white">
-                  Partner login
+                  Master login
                 </Link>
               </li>
             </ul>

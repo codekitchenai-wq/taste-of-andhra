@@ -66,9 +66,12 @@ Editable marketing copy/plans/contact: `src/constants/PLATFORM_SITE.ts`.
 ```bash
 VITE_PLATFORM_ROOT_DOMAIN=directapp.in
 VITE_ENABLE_HOST_TENANT_RESOLUTION=true
-# Optional — preview marketing site on localhost:
-# VITE_FORCE_PLATFORM_SITE=true
+VITE_AUTH_OAUTH_CALLBACK_ORIGIN=https://www.directapp.in
 ```
+
+Master console: `https://www.directapp.in/master/login` (not Taste of Andhra).
+
+Google OAuth: set Supabase **Site URL** to `https://www.directapp.in` and allow `https://*.directapp.in/**`. Restaurant logins hop through the platform, then return to `{slug}.directapp.in`.
 
 ## GoDaddy DNS (host on Vercel — do not use GoDaddy hosting)
 

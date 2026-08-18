@@ -1,3 +1,5 @@
+import { PLATFORM_WWW_URL } from '@/constants/PLATFORM'
+
 /** Minimum password length for email auth (testing-friendly). */
 export const MIN_PASSWORD_LENGTH = 6
 
@@ -13,13 +15,11 @@ export const AUTH_OAUTH_TENANT_COOKIE = 'toa_oauth_tenant'
 export const AUTH_OAUTH_NEXT_COOKIE = 'toa_oauth_next'
 
 /**
- * Supabase Auth Site URL in production. Tenant `{slug}.directapp.in` hosts are
- * often not on the redirect allowlist, so Google returns here. Query `tenant`
- * is required so we can bounce back before the session is created.
+ * Must match Supabase Authentication → Site URL.
+ * Platform apex (not a restaurant) so Google does not land on Taste of Andhra.
  */
 export const AUTH_OAUTH_CALLBACK_ORIGIN = (
-  import.meta.env.VITE_AUTH_OAUTH_CALLBACK_ORIGIN?.trim() ||
-  'https://www.thetasteofandhra.com'
+  import.meta.env.VITE_AUTH_OAUTH_CALLBACK_ORIGIN?.trim() || PLATFORM_WWW_URL
 ).replace(/\/$/, '')
 
 /** Local `{slug}.localhost` hops here so Google PKCE stays on localhost. */

@@ -7,6 +7,7 @@ import { PLATFORM_ROOT_DOMAIN } from '@/constants/PLATFORM'
 import { ROUTES } from '@/constants/ROUTES'
 import {
   hostServesTenant,
+  isOAuthCallbackHost,
   isTasteOfAndhraCustomHost,
 } from '@/utils/tenantHost'
 
@@ -135,8 +136,8 @@ function isOAuthCallback(
 }
 
 /**
- * Early bounce for the wrong `*.directapp.in` host. Taste of Andhra's custom
- * domain is the Supabase Site URL — wait for the session there, then hand off.
+ * Early bounce for the wrong `{slug}.directapp.in` host. Platform apex and
+ * Taste of Andhra custom domains finish Google OAuth — wait, then hand off.
  */
 export function recoverOAuthTenantHostIfNeeded(
   location: Pick<Location, 'hostname' | 'pathname' | 'search' | 'hash'> =
@@ -144,7 +145,7 @@ export function recoverOAuthTenantHostIfNeeded(
       ? window.location
       : { hostname: '', pathname: '/', search: '', hash: '' },
 ): boolean {
-  if (isTasteOfAndhraCustomHost(location.hostname)) return false
+  if (isOAuthCallbackHost(location.hostname)) return false
   const params = new URLSearchParams(
     location.search.startsWith('?') ? location.search.slice(1) : location.search,
   )

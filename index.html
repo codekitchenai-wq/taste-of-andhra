@@ -32,10 +32,14 @@
               currentSlug = parts[1]
             }
           }
-          var isTasteOfAndhraCustom =
-            host === 'thetasteofandhra.com' || host === 'www.thetasteofandhra.com'
           if (currentSlug === tenant) return
-          if (isTasteOfAndhraCustom) return
+          if (host === root || host === 'www.' + root) return
+          if (
+            host === 'thetasteofandhra.com' ||
+            host === 'www.thetasteofandhra.com'
+          ) {
+            return
+          }
           var hasCode = params.has('code') || params.has('access_token')
           var hash = location.hash || ''
           if (

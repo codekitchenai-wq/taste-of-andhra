@@ -2,7 +2,8 @@
 
 **Shared password (all accounts):** `Test@123`  
 **Local app:** http://127.0.0.1:5173  
-**Production (if used):** https://www.thetasteofandhra.com  
+**Production platform:** https://www.directapp.in  
+**Taste of Andhra storefront:** https://www.thetasteofandhra.com  
 
 Seed accounts (requires service role key in `.env.local`):
 
@@ -34,7 +35,7 @@ Until that SQL runs, the app still treats `master@tasteofandhra.test` as Superus
 
 | Persona | Login URL (production) | After login |
 |---------|------------------------|-------------|
-| **Superuser (Master)** | https://www.thetasteofandhra.com/master/login | https://www.thetasteofandhra.com/master |
+| **Superuser (Master)** | https://www.directapp.in/master/login | https://www.directapp.in/master |
 | Customer | https://www.thetasteofandhra.com/login | https://www.thetasteofandhra.com/ |
 | Restaurant admin | https://www.thetasteofandhra.com/admin/login | https://www.thetasteofandhra.com/admin |
 | Delivery | https://www.thetasteofandhra.com/delivery/login | https://www.thetasteofandhra.com/delivery |

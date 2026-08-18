@@ -115,7 +115,31 @@ describe('authTenantCookie', () => {
     expect(replace).not.toHaveBeenCalled()
   })
 
-  it('does not early-bounce from Taste of Andhra Site URL', () => {
+  it('does not early-bounce from the DirectApp apex callback', () => {
+    const replace = vi.fn()
+    vi.stubGlobal('window', {
+      location: {
+        hostname: 'www.directapp.in',
+        pathname: '/login',
+        search: '?tenant=chopsticksspicemalabar&code=abc',
+        hash: '',
+        replace,
+      },
+    })
+
+    expect(
+      recoverOAuthTenantHostIfNeeded({
+        hostname: 'www.directapp.in',
+        pathname: '/login',
+        search: '?tenant=chopsticksspicemalabar&code=abc',
+        hash: '',
+      }),
+    ).toBe(false)
+
+    expect(replace).not.toHaveBeenCalled()
+  })
+
+  it('does not early-bounce from Taste of Andhra custom domain', () => {
     const replace = vi.fn()
     vi.stubGlobal('window', {
       location: {

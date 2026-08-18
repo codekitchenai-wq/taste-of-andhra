@@ -217,6 +217,15 @@ const platformMarketingRoutes = [
     ],
   },
   ...sharedStaffRoutes,
+  {
+    element: <GuestRoute />,
+    children: [
+      {
+        element: <AuthLayout />,
+        children: [{ path: ROUTES.LOGIN, element: <LoginPage /> }],
+      },
+    ],
+  },
   { path: '*', element: <Navigate to={ROUTES.HOME} replace /> },
 ]
 

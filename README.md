@@ -172,10 +172,12 @@ vercel --prod
 
 After deploying, update Supabase **Authentication → URL Configuration**:
 
-- **Site URL:** `https://your-app.vercel.app` (or `http://localhost:5173` while testing locally)
+- **Site URL:** `https://www.directapp.in`
 - **Redirect URLs** (add all that you use):
+  - `https://www.directapp.in/**`
+  - `https://*.directapp.in/**`
+  - `https://www.thetasteofandhra.com/**`
   - `http://localhost:5173/**`
-  - `https://your-app.vercel.app/**`
   - `https://*.vercel.app/**` (preview deployments)
 
 Email confirmation links use these settings. If Site URL is left as the default `http://localhost:3000`, verify links will break.

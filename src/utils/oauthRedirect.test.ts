@@ -20,10 +20,10 @@ describe('google OAuth redirect', () => {
       },
     })
     expect(googleOAuthRedirectTo('/login')).toBe(
-      'https://www.thetasteofandhra.com/login?tenant=chopsticksspicemalabar',
+      'https://www.directapp.in/login?tenant=chopsticksspicemalabar',
     )
     expect(googleOAuthPreflightUrl('/login', '/onam?checkout=1')).toBe(
-      'https://www.thetasteofandhra.com/login?tenant=chopsticksspicemalabar&continue=google&next=%2Fonam%3Fcheckout%3D1',
+      'https://www.directapp.in/login?tenant=chopsticksspicemalabar&continue=google&next=%2Fonam%3Fcheckout%3D1',
     )
   })
 

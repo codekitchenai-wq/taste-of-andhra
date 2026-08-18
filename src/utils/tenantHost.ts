@@ -175,3 +175,22 @@ export function isTasteOfAndhraCustomHost(hostname: string): boolean {
   const host = hostname.trim().toLowerCase()
   return (TASTE_OF_ANDHRA_CUSTOM_HOSTS as readonly string[]).includes(host)
 }
+
+/** True for directapp.in / www.directapp.in (platform apex). */
+export function isPlatformApexHost(
+  hostname: string,
+  rootDomain: string = PLATFORM_ROOT_DOMAIN,
+): boolean {
+  const host = hostname.trim().toLowerCase()
+  const root = rootDomain.trim().toLowerCase().replace(/^www\./, '')
+  if (!host || !root) return false
+  return host === root || host === `www.${root}`
+}
+
+/**
+ * Hosts that finish Google OAuth (Supabase Site URL / platform apex).
+ * Do not bounce away before the session is created.
+ */
+export function isOAuthCallbackHost(hostname: string): boolean {
+  return isPlatformApexHost(hostname) || isTasteOfAndhraCustomHost(hostname)
+}
