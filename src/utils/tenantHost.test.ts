@@ -104,10 +104,10 @@ describe('hostServesTenant', () => {
 })
 
 describe('isOAuthCallbackHost', () => {
-  it('treats only the platform apex as an OAuth callback host', () => {
+  it('treats the platform apex and Taste of Andhra Site URL as callbacks', () => {
     expect(isOAuthCallbackHost('www.directapp.in')).toBe(true)
     expect(isOAuthCallbackHost('directapp.in')).toBe(true)
-    expect(isOAuthCallbackHost('www.thetasteofandhra.com')).toBe(false)
+    expect(isOAuthCallbackHost('www.thetasteofandhra.com')).toBe(true)
     expect(isOAuthCallbackHost('chopsticksspicemalabar.directapp.in')).toBe(
       false,
     )

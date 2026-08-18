@@ -5,6 +5,7 @@ import {
 } from '@/constants/AUTH'
 import { PLATFORM_ROOT_DOMAIN } from '@/constants/PLATFORM'
 import { ROUTES } from '@/constants/ROUTES'
+import { shouldContinueGoogleOAuth } from '@/utils/oauthRedirect'
 import {
   hostServesTenant,
   isOAuthCallbackHost,
@@ -148,6 +149,9 @@ export function recoverOAuthTenantHostIfNeeded(
       : { hostname: '', pathname: '/', search: '', hash: '' },
 ): boolean {
   if (isOAuthCallbackHost(location.hostname)) return false
+  // Preflight hop to the Site URL (`continue=google`) must stay so PKCE starts
+  // on an allowed origin — bouncing it back to the restaurant loops forever.
+  if (shouldContinueGoogleOAuth(location.search)) return false
   const params = new URLSearchParams(
     location.search.startsWith('?') ? location.search.slice(1) : location.search,
   )

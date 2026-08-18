@@ -188,10 +188,10 @@ export function isPlatformApexHost(
 }
 
 /**
- * Hosts where Google OAuth finishes and session handoff runs in-app.
- * Taste of Andhra custom domain is intentionally excluded: Supabase may return
- * there for any tenant, and recoverOAuthTenantHostIfNeeded must bounce back.
+ * Origins that complete Google OAuth (Supabase Site URL). Stay here until the
+ * PKCE code is exchanged, then OAuthTenantHandoff copies the session to the
+ * restaurant. Bouncing `?code=` off this host breaks Google login.
  */
 export function isOAuthCallbackHost(hostname: string): boolean {
-  return isPlatformApexHost(hostname)
+  return isPlatformApexHost(hostname) || isTasteOfAndhraCustomHost(hostname)
 }

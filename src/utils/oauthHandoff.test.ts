@@ -75,4 +75,26 @@ describe('shouldHandoffOAuthSession', () => {
     })
     expect(shouldHandoffOAuthSession()).toBe(true)
   })
+
+  it('hands Spice Malabar off Taste of Andhra after Site URL fallback', () => {
+    vi.stubGlobal('window', {
+      location: {
+        hostname: 'www.thetasteofandhra.com',
+        search: '?tenant=chopsticksspicemalabar',
+        hash: '',
+      },
+    })
+    expect(shouldHandoffOAuthSession()).toBe(true)
+  })
+
+  it('does not treat Taste of Andhra as a foreign tenant on its own domain', () => {
+    vi.stubGlobal('window', {
+      location: {
+        hostname: 'www.thetasteofandhra.com',
+        search: '?tenant=thetasteofandhra',
+        hash: '',
+      },
+    })
+    expect(shouldHandoffOAuthSession()).toBe(false)
+  })
 })
