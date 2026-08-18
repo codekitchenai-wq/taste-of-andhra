@@ -10,7 +10,7 @@ describe('google OAuth redirect', () => {
     vi.unstubAllGlobals()
   })
 
-  it('hops production restaurant Google login through the Supabase Site URL', () => {
+  it('starts production restaurant Google login on that restaurant origin', () => {
     vi.stubGlobal('window', {
       location: {
         hostname: 'chopsticksspicemalabar.directapp.in',
@@ -20,11 +20,9 @@ describe('google OAuth redirect', () => {
       },
     })
     expect(googleOAuthRedirectTo('/login')).toBe(
-      'https://www.thetasteofandhra.com/login?tenant=chopsticksspicemalabar',
+      'https://chopsticksspicemalabar.directapp.in/login?tenant=chopsticksspicemalabar',
     )
-    expect(googleOAuthPreflightUrl('/login', '/onam?checkout=1')).toBe(
-      'https://www.thetasteofandhra.com/login?tenant=chopsticksspicemalabar&continue=google&next=%2Fonam%3Fcheckout%3D1',
-    )
+    expect(googleOAuthPreflightUrl('/login', '/onam?checkout=1')).toBeNull()
   })
 
   it('keeps Taste of Andhra Google return on its own origin', () => {

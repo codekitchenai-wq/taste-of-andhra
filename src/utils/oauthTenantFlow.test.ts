@@ -42,13 +42,14 @@ describe('Spice Malabar Google OAuth tenant flow', () => {
     vi.unstubAllGlobals()
   })
 
-  it('hops through Taste of Andhra Site URL with tenant=chopsticksspicemalabar', () => {
+  it('starts Google on the restaurant host, not Taste of Andhra', () => {
     spiceWindow()
-    expect(googleOAuthPreflightUrl('/login', '/')).toBe(
-      'https://www.thetasteofandhra.com/login?tenant=chopsticksspicemalabar&continue=google&next=%2F',
-    )
+    expect(googleOAuthPreflightUrl('/login', '/')).toBeNull()
     expect(googleOAuthRedirectTo('/login', '/')).toBe(
-      'https://www.thetasteofandhra.com/login?tenant=chopsticksspicemalabar&next=%2F',
+      'https://chopsticksspicemalabar.directapp.in/login?tenant=chopsticksspicemalabar&next=%2F',
+    )
+    expect(googleOAuthRedirectTo('/login', '/')).not.toContain(
+      'thetasteofandhra.com',
     )
   })
 
