@@ -18,7 +18,7 @@ const LOCAL = 'http://127.0.0.1:5173'
 const PROD = 'https://www.thetasteofandhra.com'
 
 const accounts = [
-  ['Superuser (Master)', 'master@tasteofandhra.test', '/master/login', '/master'],
+  ['DirectApp Master', 'master@tasteofandhra.test', '/master/login', '/master'],
   ['Demo Customer', 'customer@tasteofandhra.test', '/login', '/'],
   ['Demo Admin', 'admin@tasteofandhra.test', '/admin/login', '/admin'],
   ['Demo Delivery', 'delivery@tasteofandhra.test', '/delivery/login', '/delivery'],
@@ -129,9 +129,9 @@ accounts.forEach((row, i) => {
 doc.y = y + 12
 heading('After login', 13)
 const landings = [
-  ['Superuser', '/master'],
-  ['Superuser · Tenants', '/master/tenants'],
-  ['Superuser · Features', '/master/features'],
+  ['DirectApp Master', '/master'],
+  ['DirectApp Master · Tenants', '/master/tenants'],
+  ['DirectApp Master · Features', '/master/features'],
   ['Customer home', '/'],
   ['Customer menu', '/menu'],
   ['Admin', '/admin'],

@@ -3,7 +3,7 @@
  * Shared password: Test@123
  *
  * Includes:
- *   - Platform Superuser (platform_master)
+ *   - DirectApp Master (platform_master)
  *   - Demo customer / admin / delivery
  *   - Tester 1 + Tester 2 customer / admin / delivery
  *
@@ -14,7 +14,7 @@
  *
  * Requires profiles.role enum to include platform_master
  * (from migration 20260727120000_saas_multi_tenant_model.sql).
- * If Superuser seed fails on role, run:
+ * If DirectApp Master seed fails on role, run:
  *   ALTER TYPE public.user_role ADD VALUE IF NOT EXISTS 'platform_master';
  */
 import { createClient } from '@supabase/supabase-js'
@@ -26,7 +26,7 @@ const PASSWORD = 'Test@123'
 const ACCOUNTS = [
   {
     email: 'master@tasteofandhra.test',
-    fullName: 'Platform Superuser',
+    fullName: 'DirectApp Master',
     phone: '9000000099',
     role: 'platform_master',
   },

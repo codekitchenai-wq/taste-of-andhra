@@ -15,7 +15,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
   customer: 'Customer',
   admin: 'Admin',
   delivery: 'Delivery partner',
-  platform_master: 'Platform Superuser',
+  platform_master: 'DirectApp Master',
 }
 
 export function TestCredentialsHint({

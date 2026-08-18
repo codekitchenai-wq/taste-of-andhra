@@ -71,7 +71,7 @@ export function PlatformLayout() {
               to={ROUTES.MASTER.LOGIN}
               className="hidden text-sm text-white/80 underline-offset-4 hover:text-white hover:underline sm:inline"
             >
-              Master login
+              DirectApp Master
             </Link>
             <a
               href={PLATFORM_SITE.liveDemo.url}
@@ -129,7 +129,7 @@ export function PlatformLayout() {
               </li>
               <li>
                 <Link to={ROUTES.MASTER.LOGIN} className="hover:text-white">
-                  Master login
+                  DirectApp Master
                 </Link>
               </li>
             </ul>

@@ -9,7 +9,7 @@
 
 ## 1. Overview
 
-The Taste of Andhra is a web app for authentic Andhra cuisine. Customers browse the menu and place delivery orders; restaurant admins run the kitchen and catalogue; delivery partners fulfill assigned runs; a platform Master role oversees tenancy as the product moves to multi-restaurant SaaS.
+The Taste of Andhra is a web app for authentic Andhra cuisine. Customers browse the menu and place delivery orders; restaurant admins run the kitchen and catalogue; delivery partners fulfill assigned runs; DirectApp Master oversees tenancy as the product moves to multi-restaurant SaaS.
 
 | Layer | Technology |
 |-------|------------|
@@ -29,7 +29,7 @@ The Taste of Andhra is a web app for authentic Andhra cuisine. Customers browse 
 | Customer | `customer` | `/login` | `/` (storefront) |
 | Admin | `admin` | `/admin/login` | `/admin` |
 | Delivery partner | `delivery` | `/delivery/login` | `/delivery` |
-| Platform Master | `platform_master` | `/master/login` | `/master` |
+| DirectApp Master | `platform_master` | `/master/login` | `/master` |
 
 Shared test password (when helpers are enabled): see [LOGIN_CREDENTIALS.md](./LOGIN_CREDENTIALS.md).
 
@@ -199,7 +199,7 @@ Allowed transitions (from `orderStatusTransitions.ts`):
 
 ---
 
-## 9. Platform Master (SaaS Phase 1)
+## 9. DirectApp Master (SaaS Phase 1)
 
 | Route | Purpose |
 |-------|---------|
@@ -231,7 +231,7 @@ Defined in `src/constants/ROUTES.ts`.
 
 `/delivery/login` · `/delivery` · `/delivery/:deliveryId`
 
-### Master
+### DirectApp Master
 
 `/master/login` · `/master` · `/master/tenants` · `/master/features`
 
@@ -258,5 +258,5 @@ Defined in `src/constants/ROUTES.ts`.
 | Order create / status | `src/services/orderService.ts`, `src/utils/orderStatusTransitions.ts` |
 | Delivery | `src/services/deliveryService.ts`, delivery pages under `src/pages/delivery/` |
 | Admin kitchen | `src/pages/admin/` (orders / dashboard) |
-| Branding constants | `src/constants/APP.ts` |
+| Branding constants | `src/constants/APP.ts` (restaurant), `src/constants/PLATFORM.ts` (DirectApp) |
 | Org default | `src/constants/ORGANIZATION.ts` |

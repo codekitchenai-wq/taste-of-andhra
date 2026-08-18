@@ -455,7 +455,7 @@ export function WhatsAppSettingsPanel() {
       {!entitled && (
         <p className="rounded-[var(--radius-button)] bg-amber-50 px-4 py-3 text-sm text-amber-900">
           The <code className="font-mono text-xs">whatsapp_notifications</code>{' '}
-          add-on is not enabled for this restaurant. Ask the platform Superuser
+          add-on is not enabled for this restaurant. Ask DirectApp Master
           to grant it.
         </p>
       )}

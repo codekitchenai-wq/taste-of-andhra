@@ -1,5 +1,5 @@
 /**
- * Create/update platform Superuser.
+ * Create/update DirectApp Master.
  * Auth signup metadata uses role=admin so the profile trigger cannot fail
  * before platform_master exists on user_role. Then profile is upgraded.
  *
@@ -14,7 +14,7 @@ import { resolve } from 'node:path'
 const PASSWORD = 'Test@123'
 const ACCOUNT = {
   email: 'master@tasteofandhra.test',
-  fullName: 'Platform Superuser',
+  fullName: 'DirectApp Master',
   phone: '9000000099',
   role: 'platform_master',
 }
@@ -143,5 +143,5 @@ Run this in Supabase SQL Editor, then re-run: node scripts/seed-superuser.mjs
   process.exit(1)
 }
 
-console.log('OK Superuser ready:', ACCOUNT.email, '/', PASSWORD)
+console.log('OK DirectApp Master ready:', ACCOUNT.email, '/', PASSWORD)
 process.exit(0)

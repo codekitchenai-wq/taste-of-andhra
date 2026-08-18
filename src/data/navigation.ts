@@ -32,7 +32,7 @@ export const footerQuickLinks: NavLink[] = [
 
 /** TEMPORARY — persona entry points for QA. Gated by SHOW_TEST_HELPERS. */
 export const footerTestPersonaLinks: NavLink[] = [
-  { label: 'Superuser / Master login', to: ROUTES.MASTER.LOGIN },
+  { label: 'DirectApp Master login', to: ROUTES.MASTER.LOGIN },
   { label: 'Customer login', to: ROUTES.LOGIN },
   { label: 'Admin login', to: ROUTES.ADMIN.LOGIN },
   { label: 'Delivery login', to: ROUTES.DELIVERY.LOGIN },

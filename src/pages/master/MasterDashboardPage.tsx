@@ -21,20 +21,20 @@ export default function MasterDashboardPage() {
     <div className="space-y-8">
       <div>
         <h1 className="font-heading text-3xl font-bold text-text-primary">
-          Superuser dashboard
+          DirectApp Master dashboard
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-text-secondary">
-          You are signed in as the platform Superuser. Only you can turn
-          modules on or off for each restaurant — restaurant admins cannot.
-          Use this console to review tenants, manage entitlements, and open
-          QA login personas.
+          You are signed in as DirectApp Master. Only you can turn modules on
+          or off for each restaurant — restaurant admins cannot. Use this
+          console to review tenants, manage entitlements, and open QA login
+          personas.
         </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {(
           [
-            ['Superuser', byRole.platform_master],
+            ['DirectApp Master', byRole.platform_master],
             ['Restaurant admins', byRole.admin],
             ['Delivery', byRole.delivery],
             ['Customers', byRole.customer],
@@ -75,7 +75,7 @@ export default function MasterDashboardPage() {
       </section>
 
       <section className="rounded-[var(--radius-card)] border border-dashed border-amber-500/40 bg-amber-50/80 p-5">
-        <h2 className="text-lg font-semibold">Your Superuser credentials</h2>
+        <h2 className="text-lg font-semibold">Your DirectApp Master credentials</h2>
         <p className="mt-2 font-mono text-sm">
           {MASTER_ACCOUNT.email} / {DEMO_PASSWORD}
         </p>

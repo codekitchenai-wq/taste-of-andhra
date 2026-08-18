@@ -32,7 +32,8 @@ export default function MasterTenantsPage() {
       <div>
         <h1 className="font-heading text-3xl font-bold">Tenants & logins</h1>
         <p className="mt-2 text-sm text-text-secondary">
-          Tenant #1 is Taste of Andhra. Shared password for every account:{' '}
+          Tenant #1 is Taste of Andhra. DirectApp Master can manage every
+          restaurant from this console. Shared password for every account:{' '}
           <span className="font-mono font-medium text-text-primary">
             {DEMO_PASSWORD}
           </span>

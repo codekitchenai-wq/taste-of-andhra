@@ -4,3 +4,6 @@ export const PLATFORM_ROOT_DOMAIN = (
 ).replace(/^www\./i, '')
 
 export const PLATFORM_WWW_URL = `https://www.${PLATFORM_ROOT_DOMAIN}`
+
+/** Platform control-plane brand — not a restaurant tenant. */
+export const PLATFORM_BRAND_NAME = 'DirectApp'

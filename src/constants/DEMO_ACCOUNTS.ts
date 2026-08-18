@@ -18,7 +18,7 @@ export interface DemoAccount {
  */
 export const SHOW_TEST_HELPERS = true
 
-/** Shared password for all seeded test personas (including Superuser). */
+/** Shared password for all seeded test personas (including DirectApp Master). */
 export const DEMO_PASSWORD = 'Test@123'
 
 /** Taste of Andhra — first restaurant tenant. */
@@ -29,17 +29,17 @@ export const TENANT_TASTE_OF_ANDHRA = {
 } as const
 
 /**
- * Platform Superuser — controls tenants, features, and entitlements (Master console).
+ * DirectApp Master — controls tenants, features, and entitlements.
  * Seed via: npm run seed:qa-testers
  */
 export const MASTER_ACCOUNT: DemoAccount = {
   email: 'master@tasteofandhra.test',
   password: DEMO_PASSWORD,
-  fullName: 'Platform Superuser',
+  fullName: 'DirectApp Master',
   phone: '9000000099',
   role: 'platform_master',
-  group: 'Superuser',
-  tenant: 'Platform (all tenants)',
+  group: 'DirectApp',
+  tenant: 'DirectApp (platform)',
 }
 
 /**
@@ -134,7 +134,7 @@ export const TESTER_ACCOUNTS: DemoAccount[] = [
   },
 ]
 
-/** Every seeded login (Superuser + demos + testers) for docs and Master UI. */
+/** Every seeded login (DirectApp Master + demos + testers) for docs and Master UI. */
 export const ALL_TEST_ACCOUNTS: DemoAccount[] = [
   MASTER_ACCOUNT,
   ...Object.values(DEMO_ACCOUNTS),

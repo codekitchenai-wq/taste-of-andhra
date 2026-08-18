@@ -81,7 +81,7 @@ export const PLATFORM_SITE = {
     {
       id: 'multi',
       title: 'Multi-tenant by design',
-      body: 'Master console for onboarding, plans, and features — one platform, many independent businesses.',
+      body: 'DirectApp Master console for onboarding, plans, and features — one platform, many independent businesses.',
     },
   ],
 

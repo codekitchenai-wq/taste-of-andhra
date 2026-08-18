@@ -43,7 +43,7 @@ Taste of Andhra becomes **tenant #1**, not the platform itself.
 ```mermaid
 flowchart TB
   subgraph Users
-    Master[Platform Master]
+    Master[DirectApp Master]
     Owner[Restaurant Owner / Admin]
     Staff[Kitchen / Delivery Staff]
     Customer[Customer]

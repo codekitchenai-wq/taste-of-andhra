@@ -11,7 +11,7 @@ Seed accounts (requires service role key in `.env.local`):
 npm run seed:qa-testers
 ```
 
-If Superuser login works but Master dashboard rejects you, the DB enum may be missing. Run in Supabase SQL Editor, then `node scripts/seed-superuser.mjs`:
+If DirectApp Master login works but the dashboard rejects you, the DB enum may be missing. Run in Supabase SQL Editor, then `node scripts/seed-superuser.mjs`:
 
 ```sql
 ALTER TYPE public.user_role ADD VALUE IF NOT EXISTS 'platform_master';
@@ -20,7 +20,7 @@ SET role = 'platform_master'
 WHERE email = 'master@tasteofandhra.test';
 ```
 
-Until that SQL runs, the app still treats `master@tasteofandhra.test` as Superuser by email so `/master` works for testing.
+Until that SQL runs, the app still treats `master@tasteofandhra.test` as DirectApp Master by email so `/master` works for testing.
 
 ---
 
@@ -28,25 +28,25 @@ Until that SQL runs, the app still treats `master@tasteofandhra.test` as Superus
 
 | Persona | Login URL (local) | After login |
 |---------|-------------------|-------------|
-| **Superuser (Master)** | http://127.0.0.1:5173/master/login | http://127.0.0.1:5173/master |
+| **DirectApp Master** | http://127.0.0.1:5173/master/login | http://127.0.0.1:5173/master |
 | Customer | http://127.0.0.1:5173/login | http://127.0.0.1:5173/ |
 | Restaurant admin | http://127.0.0.1:5173/admin/login | http://127.0.0.1:5173/admin |
 | Delivery | http://127.0.0.1:5173/delivery/login | http://127.0.0.1:5173/delivery |
 
 | Persona | Login URL (production) | After login |
 |---------|------------------------|-------------|
-| **Superuser (Master)** | https://www.directapp.in/master/login | https://www.directapp.in/master |
+| **DirectApp Master** | https://www.directapp.in/master/login | https://www.directapp.in/master |
 | Customer | https://www.thetasteofandhra.com/login | https://www.thetasteofandhra.com/ |
 | Restaurant admin | https://www.thetasteofandhra.com/admin/login | https://www.thetasteofandhra.com/admin |
 | Delivery | https://www.thetasteofandhra.com/delivery/login | https://www.thetasteofandhra.com/delivery |
 
-Each persona has a **separate login URL**. Do not use customer login for admin / delivery / Superuser.
+Each persona has a **separate login URL**. Do not use customer login for admin / delivery / DirectApp Master.
 
 Credentials are also shown on each login screen (test helper panel) and in the site footer when `SHOW_TEST_HELPERS` is enabled.
 
 ---
 
-## 1. Platform Superuser (control plane)
+## 1. DirectApp Master (control plane)
 
 Controls all tenants, feature catalog visibility for testing, and platform-wide access overview.
 
@@ -99,7 +99,7 @@ Controls all tenants, feature catalog visibility for testing, and platform-wide 
 
 ## 3. Suggested end-to-end flow
 
-1. **Superuser** — open `/master`, confirm tenant + feature catalog, copy any persona credentials from the table.
+1. **DirectApp Master** — open `/master`, confirm tenant + feature catalog, copy any persona credentials from the table.
 2. **Admin (Tester 1)** — `/admin/dishes` ensure menu items exist.
 3. **Customer (Tester 1)** — place an order from `/menu` → checkout.
 4. **Admin** — confirm order and assign **Tester 1 Delivery**.
@@ -114,7 +114,7 @@ Always **log out** (or use a private window) before switching persona.
 
 | Group | Accounts |
 |-------|----------|
-| Superuser | 1 |
+| DirectApp Master | 1 |
 | Demo (customer / admin / delivery) | 3 |
 | Tester 1 | 3 |
 | Tester 2 | 3 |

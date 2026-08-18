@@ -56,7 +56,7 @@ export function FooterTestHelpers() {
 
         <div>
           <h4 className="text-sm font-semibold text-text-primary">
-            Superuser (platform)
+            DirectApp Master
           </h4>
           <div className="mt-2 rounded-[var(--radius-button)] border border-black/5 bg-surface px-3 py-2 text-sm">
             <p className="font-medium text-text-primary">

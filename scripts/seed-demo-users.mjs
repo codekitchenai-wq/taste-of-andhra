@@ -2,7 +2,7 @@
  * Seeds demo customer / admin / delivery via anon signUp.
  * Password: Test@123
  *
- * For Superuser + Tester 1/2 accounts, use: npm run seed:qa-testers
+ * For DirectApp Master + Tester 1/2 accounts, use: npm run seed:qa-testers
  * (requires SUPABASE_SERVICE_ROLE_KEY).
  */
 import { createClient } from '@supabase/supabase-js'
@@ -130,7 +130,7 @@ for (const account of DEMO_ACCOUNTS) {
   await seedAccount(account)
 }
 
-console.log('\nDone. Prefer `npm run seed:qa-testers` for Superuser + all testers.')
+console.log('\nDone. Prefer `npm run seed:qa-testers` for DirectApp Master + all testers.')
 for (const account of DEMO_ACCOUNTS) {
   console.log(`  ${account.role.padEnd(10)} ${account.email} / ${DEMO_PASSWORD}`)
 }

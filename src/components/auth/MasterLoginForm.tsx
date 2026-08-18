@@ -12,8 +12,8 @@ export function MasterLoginForm() {
       allowWhatsApp={false}
       redirectTo={ROUTES.MASTER.DASHBOARD}
       submitLabel={{
-        login: 'Sign In as Superuser',
-        register: 'Create Superuser',
+        login: 'Sign in as DirectApp Master',
+        register: 'Create DirectApp Master',
       }}
       footer={
         <p className="text-center text-sm text-text-secondary">

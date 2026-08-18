@@ -20,7 +20,7 @@ npm run seed:all-test-users
 
 | # | Persona | Email | Password | Login link (local) | Login link (production) |
 |---|---------|-------|----------|--------------------|-------------------------|
-| 1 | Superuser (Master) | `master@tasteofandhra.test` | `Test@123` | http://127.0.0.1:5173/master/login | https://www.directapp.in/master/login |
+| 1 | DirectApp Master | `master@tasteofandhra.test` | `Test@123` | http://127.0.0.1:5173/master/login | https://www.directapp.in/master/login |
 | 2 | Demo Customer | `customer@tasteofandhra.test` | `Test@123` | http://127.0.0.1:5173/login | https://www.thetasteofandhra.com/login |
 | 3 | Demo Admin | `admin@tasteofandhra.test` | `Test@123` | http://127.0.0.1:5173/admin/login | https://www.thetasteofandhra.com/admin/login |
 | 4 | Demo Delivery | `delivery@tasteofandhra.test` | `Test@123` | http://127.0.0.1:5173/delivery/login | https://www.thetasteofandhra.com/delivery/login |
@@ -31,7 +31,7 @@ npm run seed:all-test-users
 | 9 | Tester 2 Admin | `tester2.admin@thetasteofandhra.com` | `Test@123` | http://127.0.0.1:5173/admin/login | https://www.thetasteofandhra.com/admin/login |
 | 10 | Tester 2 Delivery | `tester2.delivery@thetasteofandhra.com` | `Test@123` | http://127.0.0.1:5173/delivery/login | https://www.thetasteofandhra.com/delivery/login |
 
-**Total: 10 Taste of Andhra accounts · one shared password: `Test@123`**
+**Total: 1 DirectApp Master + 9 Taste of Andhra restaurant accounts · one shared password: `Test@123`**
 
 Use the **matching login URL** for each persona (do not sign in as admin on `/login`).
 
@@ -54,9 +54,9 @@ Seed: `npm run seed:spice-malabar` (staging) and `npm run seed:spice-malabar:pro
 
 | Persona | Local | Production |
 |---------|-------|------------|
-| Superuser | http://127.0.0.1:5173/master | https://www.directapp.in/master |
-| Superuser · Tenants | http://127.0.0.1:5173/master/tenants | https://www.directapp.in/master/tenants |
-| Superuser · Features | http://127.0.0.1:5173/master/features | https://www.directapp.in/master/features |
+| DirectApp Master | http://127.0.0.1:5173/master | https://www.directapp.in/master |
+| DirectApp Master · Tenants | http://127.0.0.1:5173/master/tenants | https://www.directapp.in/master/tenants |
+| DirectApp Master · Features | http://127.0.0.1:5173/master/features | https://www.directapp.in/master/features |
 | Customer | http://127.0.0.1:5173/ | https://www.thetasteofandhra.com/ |
 | Customer · Menu | http://127.0.0.1:5173/menu | https://www.thetasteofandhra.com/menu |
 | Admin | http://127.0.0.1:5173/admin | https://www.thetasteofandhra.com/admin |
@@ -66,7 +66,7 @@ Seed: `npm run seed:spice-malabar` (staging) and `npm run seed:spice-malabar:pro
 
 ## Quick cards
 
-### Superuser
+### DirectApp Master
 - **Email:** `master@tasteofandhra.test`
 - **Password:** `Test@123`
 - **Login:** [local](http://127.0.0.1:5173/master/login) · [production](https://www.directapp.in/master/login)

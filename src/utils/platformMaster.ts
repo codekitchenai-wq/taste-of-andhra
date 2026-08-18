@@ -3,7 +3,7 @@ import type { Profile } from '@/types/Profile'
 import type { UserRole } from '@/types/enums'
 
 /**
- * True when the user is a platform Superuser.
+ * True when the user is DirectApp Master (platform_master).
  * Also accepts the seeded master email while profiles.role still shows
  * `admin` (before `platform_master` is added to the Postgres enum).
  */
