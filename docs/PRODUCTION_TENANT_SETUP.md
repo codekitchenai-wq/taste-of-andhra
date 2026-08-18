@@ -136,7 +136,7 @@ node scripts/backfill-spice-malabar-images.mjs
 
 The seed creates:
 
-- `organizations` row with `slug = 'chopsticksspicemalabar'` (legacy `spice-malabar` still resolves)
+- `organizations` row with `slug = 'chopsticksspicemalabar'`
 - Categories and dishes from `scripts/data/spice-malabar-menu.json`
 - Subscription, entitlements, delivery settings, admin user
 
@@ -205,7 +205,7 @@ Local `?tenant=` and `npm run seed:*` do not affect production until you point t
 
 | Item | Value |
 |------|--------|
-| Slug | `chopsticksspicemalabar` (alias: `spice-malabar`) |
+| Slug | `chopsticksspicemalabar` |
 | Storefront | `https://chopsticksspicemalabar.directapp.in` |
 | Seed command | `npm run seed:spice-malabar` |
 | Menu source | `scripts/data/spice-malabar-menu.json` |

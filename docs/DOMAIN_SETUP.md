@@ -98,6 +98,8 @@ Optional: change nameservers to Vercel’s (`ns1.vercel-dns.com` / `ns2.vercel-d
 3. Other hosts → `organizations.custom_domain`
 4. Else → default Taste of Andhra org
 
+Retired: `spice-malabar.directapp.in` is no longer a live tenant URL. Use `https://chopsticksspicemalabar.directapp.in`. The old host can be dropped from DNS later.
+
 Code: `src/utils/platformHost.ts`, `src/utils/tenantHost.ts`, `src/contexts/OrganizationContext.tsx`, `src/routes/index.tsx`.
 
 ## Production tenant data (menus, org rows)

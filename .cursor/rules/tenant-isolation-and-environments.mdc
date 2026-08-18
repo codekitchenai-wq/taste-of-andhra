@@ -7,6 +7,15 @@ alwaysApply: true
 
 Tenants (Taste of Andhra, Spice Malabar, others) **must not share** menus, categories, orders, customers-at-restaurant, or settings. All of those are scoped by `organization_id`.
 
+## Storefront isolation (every restaurant host)
+
+Each `{slug}.directapp.in` (and custom domain) is a **separate restaurant**. Do not send customers to Taste of Andhra URLs, copy, UPI IDs, or login helpers.
+
+- Checkout, cart, payment links, invoices, and OAuth redirects stay on `window.location.origin` of the current host.
+- Never fall back to `APP_NAME`, `thetasteofandhra.com`, or Taste of Andhra UPI (`tasteofandhra@okaxis`) for another tenant. Use `restaurantDisplayName` / org settings (`src/utils/tenantFeatures.ts`).
+- Optional features are **per org**. WhatsApp click-to-order is **off by default** for new restaurants (including Spice Malabar). Restaurant admin enables it in Admin → Settings (`organizations.settings.storefront_whatsapp_enabled`).
+- Onboarding a new restaurant: copy the light storefront (menu, cart, checkout, login) on that subdomain; do not link to another tenant. Seed `storefront_whatsapp_enabled: false` unless the owner asked for WhatsApp.
+
 ## Two databases
 
 | Env | Project | Typical access |
@@ -25,4 +34,4 @@ Pushing the frontend **does not** copy tenant rows. A tenant that works locally 
 
 Symptom: tenant branding on `https://{slug}.directapp.in` + empty menu → org resolved, **prod catalog missing**. See `docs/PRODUCTION_TENANT_SETUP.md`.
 
-Spice Malabar public URL is `https://chopsticksspicemalabar.directapp.in` (legacy `spice-malabar` still aliases). Do not use `www.{slug}.directapp.in` — wildcard DNS does not cover it.
+Spice Malabar public URL is `https://chopsticksspicemalabar.directapp.in`. Do not serve or alias `spice-malabar.directapp.in` (retired; remove from DNS later). Do not use `www.{slug}.directapp.in` — wildcard DNS does not cover it.

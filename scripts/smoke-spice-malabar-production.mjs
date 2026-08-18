@@ -101,9 +101,11 @@ const redirect = await fetch('https://spice-malabar.directapp.in/menu', {
   redirect: 'manual',
 })
 check(
-  redirect.status === 308 &&
-    redirect.headers.get('location') === `${publicHost}/menu`,
-  `legacy /menu redirect → ${redirect.status} ${redirect.headers.get('location')}`,
+  redirect.status !== 308 ||
+    !String(redirect.headers.get('location') || '').includes(
+      'chopsticksspicemalabar.directapp.in',
+    ),
+  `retired spice-malabar host is not redirected to the live storefront (${redirect.status})`,
 )
 
 const anonKey = process.env.VITE_SUPABASE_ANON_KEY?.trim()

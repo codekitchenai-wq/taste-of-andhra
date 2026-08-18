@@ -26,28 +26,6 @@
       ],
       "destination": "https://www.thetasteofandhra.com/:path*",
       "permanent": true
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "host",
-          "value": "spice-malabar.directapp.in"
-        }
-      ],
-      "destination": "https://chopsticksspicemalabar.directapp.in/",
-      "permanent": true
-    },
-    {
-      "source": "/:path*",
-      "has": [
-        {
-          "type": "host",
-          "value": "spice-malabar.directapp.in"
-        }
-      ],
-      "destination": "https://chopsticksspicemalabar.directapp.in/:path*",
-      "permanent": true
     }
   ],
   "rewrites": [
