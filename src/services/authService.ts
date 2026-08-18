@@ -9,10 +9,12 @@ import { AUTH_REDIRECT_STORAGE_KEY, MIN_PASSWORD_LENGTH } from '@/constants/AUTH
 import { ROUTES } from '@/constants/ROUTES'
 import { supabase } from '@/services/supabaseClient'
 import { mapProfile } from '@/utils/mapProfile'
+import { persistOAuthTenantCookie } from '@/utils/authTenantCookie'
 import {
   googleOAuthPreflightUrl,
   googleOAuthRedirectTo,
 } from '@/utils/oauthRedirect'
+import { resolveTenantSlugFromLocation } from '@/utils/tenantHost'
 import { normalizeIndianPhone } from '@/utils/phone'
 import { isValidEmail, isValidPassword, isValidPhone } from '@/utils/validation'
 
@@ -420,6 +422,11 @@ export async function loginWithWhatsAppOtp(
 export async function loginWithGoogle(
   redirectPath: string = ROUTES.HOME,
 ): Promise<ServiceResponse<null>> {
+  const tenantSlug = resolveTenantSlugFromLocation({ persist: false })
+  if (tenantSlug) {
+    persistOAuthTenantCookie(tenantSlug, redirectPath)
+  }
+
   try {
     sessionStorage.setItem(AUTH_REDIRECT_STORAGE_KEY, redirectPath)
   } catch {
@@ -435,7 +442,7 @@ export async function loginWithGoogle(
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: googleOAuthRedirectTo(ROUTES.LOGIN),
+      redirectTo: googleOAuthRedirectTo(ROUTES.LOGIN, redirectPath),
       queryParams: {
         access_type: 'offline',
         prompt: 'select_account',

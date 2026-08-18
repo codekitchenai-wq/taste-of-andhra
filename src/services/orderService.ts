@@ -212,6 +212,10 @@ export interface AdminOrderFilters {
   createdFrom?: string
   /** Inclusive ISO upper bound for `created_at`. */
   createdTo?: string
+  /** Inclusive ISO lower bound for `estimated_delivery` (pre-book slot day). */
+  estimatedFrom?: string
+  /** Inclusive ISO upper bound for `estimated_delivery`. */
+  estimatedTo?: string
   search?: string
   limit?: number
 }
@@ -1022,6 +1026,14 @@ export async function getAllOrders(
 
     if (filters?.createdTo) {
       query = query.lte('created_at', filters.createdTo)
+    }
+
+    if (filters?.estimatedFrom) {
+      query = query.gte('estimated_delivery', filters.estimatedFrom)
+    }
+
+    if (filters?.estimatedTo) {
+      query = query.lte('estimated_delivery', filters.estimatedTo)
     }
 
     if (filters?.search?.trim()) {

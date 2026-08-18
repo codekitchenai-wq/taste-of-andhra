@@ -5,8 +5,8 @@ import { ROUTES } from '@/constants/ROUTES'
 import { useOrganization } from '@/contexts/OrganizationContext'
 import { storefrontContact } from '@/utils/storefrontCopy'
 import {
-  adminPrimaryNavItems,
   adminSecondaryNavItems,
+  getAdminPrimaryNavItems,
   isAdminSecondaryRoute,
 } from '@/data/adminNavigation'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
@@ -20,7 +20,9 @@ interface AdminMobileNavProps {
 export function AdminMobileNav({ isOpen, onClose }: AdminMobileNavProps) {
   const asideRef = useRef<HTMLElement>(null)
   const { pathname } = useLocation()
-  const contact = storefrontContact(useOrganization())
+  const org = useOrganization()
+  const contact = storefrontContact(org)
+  const primaryNavItems = getAdminPrimaryNavItems(org)
   const secondaryActive = isAdminSecondaryRoute(pathname)
   const [moreOpen, setMoreOpen] = useState(secondaryActive)
 
@@ -59,7 +61,7 @@ export function AdminMobileNav({ isOpen, onClose }: AdminMobileNavProps) {
           </button>
         </div>
         <nav className="flex-1 space-y-1 overflow-y-auto p-4">
-          {adminPrimaryNavItems.map(({ label, to, icon: Icon }) => (
+          {primaryNavItems.map(({ label, to, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}

@@ -23,7 +23,7 @@ export function HeroSection() {
 
       <Container as="div" className="relative z-10 py-24 md:py-32">
         <div className="max-w-2xl">
-          <p className="mb-5 inline-flex max-w-full items-center rounded-full border border-accent/60 bg-gradient-to-r from-accent/30 via-accent/15 to-white/5 px-5 py-2.5 font-heading text-xl font-extrabold uppercase tracking-[0.12em] text-accent shadow-[0_4px_24px_rgba(0,0,0,0.35)] backdrop-blur-sm md:text-2xl md:tracking-[0.16em] lg:text-3xl">
+          <p className="mb-5 inline-flex max-w-full items-center rounded-full border border-accent/60 bg-gradient-to-r from-accent/30 via-accent/15 to-white/5 px-5 py-2.5 font-heading text-xl font-extrabold uppercase tracking-[0.12em] text-primary shadow-[0_4px_24px_rgba(0,0,0,0.35)] backdrop-blur-sm md:text-2xl md:tracking-[0.16em] lg:text-3xl">
             {hero.kicker}
           </p>
           <h1 className="font-heading text-4xl font-bold leading-tight text-white md:text-5xl lg:text-6xl">

@@ -6,6 +6,12 @@ export const DEFAULT_COUNTRY_CODE = '+91'
 /** sessionStorage key for post-OAuth customer redirect path. */
 export const AUTH_REDIRECT_STORAGE_KEY = 'toa_auth_redirect'
 
+/** Cross-subdomain cookie: tenant slug when Google OAuth starts (`.directapp.in`). */
+export const AUTH_OAUTH_TENANT_COOKIE = 'toa_oauth_tenant'
+
+/** Cross-subdomain cookie: post-login path paired with {@link AUTH_OAUTH_TENANT_COOKIE}. */
+export const AUTH_OAUTH_NEXT_COOKIE = 'toa_oauth_next'
+
 /** Local `{slug}.localhost` hops here so Google PKCE stays on localhost. */
 export const AUTH_GOOGLE_CONTINUE_PARAM = 'continue'
 export const AUTH_GOOGLE_CONTINUE_VALUE = 'google'

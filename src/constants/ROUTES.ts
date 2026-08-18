@@ -46,6 +46,7 @@ export const ROUTES = {
     DELIVERY: '/admin/delivery',
     DELIVERY_PARTNERS: '/admin/delivery-partners',
     OFFERS: '/admin/offers',
+    ONAM_ORDERS: '/admin/onam-orders',
     REPORTS: '/admin/reports',
     PARTY_INQUIRIES: '/admin/party-inquiries',
     BRANCHES: '/admin/branches',

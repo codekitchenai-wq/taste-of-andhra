@@ -40,6 +40,8 @@ export function useAdminOrders(filters?: AdminOrderFilters) {
     filters?.limit,
     filters?.createdFrom,
     filters?.createdTo,
+    filters?.estimatedFrom,
+    filters?.estimatedTo,
   ])
 
   useEffect(() => {

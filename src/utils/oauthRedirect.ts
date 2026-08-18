@@ -57,13 +57,12 @@ function withTenantAndNext(
  */
 export function googleOAuthRedirectTo(
   loginPath: string = ROUTES.LOGIN,
+  nextPath?: string,
 ): string {
   const { host, port, origin } = currentLocation()
   const path = loginPath.startsWith('/') ? loginPath : `/${loginPath}`
-  const tenant = isLocalDevHostname(host)
-    ? resolveTenantSlugFromLocation({ persist: false })
-    : null
-  const suffix = withTenantAndNext(path, tenant)
+  const tenant = resolveTenantSlugFromLocation({ persist: false })
+  const suffix = withTenantAndNext(path, tenant, nextPath)
 
   if (host.endsWith('.localhost') && host !== 'localhost') {
     const localOrigin = `http://localhost${port ? `:${port}` : ''}`

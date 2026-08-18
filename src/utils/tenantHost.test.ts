@@ -65,7 +65,7 @@ describe('customDomainHostVariants', () => {
 })
 
 describe('slugFromSearchParams', () => {
-  it('reads tenant on localhost only', () => {
+  it('reads tenant on localhost and platform subdomains', () => {
     expect(
       slugFromSearchParams('?tenant=spice-malabar', 'localhost'),
     ).toBe('spice-malabar')
@@ -74,6 +74,9 @@ describe('slugFromSearchParams', () => {
     )
     expect(
       slugFromSearchParams('?tenant=spice-malabar', 'thetasteofandhra.directapp.in'),
+    ).toBe('spice-malabar')
+    expect(
+      slugFromSearchParams('?tenant=spice-malabar', 'order.chopsticks.com'),
     ).toBeNull()
   })
 })

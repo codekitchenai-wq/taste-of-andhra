@@ -90,6 +90,9 @@ const AdminBranchesPage = lazy(
 const AdminQrTablesPage = lazy(
   () => import('@/pages/admin/AdminQrTablesPage'),
 )
+const AdminOnamOrdersPage = lazy(
+  () => import('@/pages/admin/AdminOnamOrdersPage'),
+)
 const AdminPhoneOrderPage = lazy(
   () => import('@/pages/admin/AdminPhoneOrderPage'),
 )
@@ -157,6 +160,10 @@ const sharedStaffRoutes = [
           },
           { path: ROUTES.ADMIN.DISHES, element: <AdminDishesPage /> },
           { path: ROUTES.ADMIN.ORDERS, element: <AdminOrdersPage /> },
+          {
+            path: ROUTES.ADMIN.ONAM_ORDERS,
+            element: <AdminOnamOrdersPage />,
+          },
           {
             path: ROUTES.ADMIN.PHONE_ORDER,
             element: <AdminPhoneOrderPage />,

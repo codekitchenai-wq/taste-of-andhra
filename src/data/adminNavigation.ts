@@ -13,9 +13,12 @@ import {
   PartyPopper,
   Store,
   QrCode,
+  Leaf,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { ROUTES } from '@/constants/ROUTES'
+import type { OrganizationContextValue } from '@/contexts/OrganizationContext'
+import { isSpiceMalabarStorefront } from '@/utils/storefrontCopy'
 
 export interface AdminNavItem {
   label: string
@@ -60,6 +63,26 @@ export const adminPrimaryNavItems: AdminNavItem[] = [
     description: 'Create and manage promotional offers and coupons.',
   },
 ]
+
+export const adminOnamNavItem: AdminNavItem = {
+  label: 'Onam Sadhya',
+  to: ROUTES.ADMIN.ONAM_ORDERS,
+  icon: Leaf,
+  description:
+    'Pre-booked Onam Sadhya orders by celebration day, delivery slot, and payment status.',
+}
+
+export function getAdminPrimaryNavItems(
+  org: OrganizationContextValue,
+): AdminNavItem[] {
+  if (!isSpiceMalabarStorefront(org)) {
+    return adminPrimaryNavItems
+  }
+
+  const items = [...adminPrimaryNavItems]
+  items.splice(2, 0, adminOnamNavItem)
+  return items
+}
 
 /**
  * Collapsed under “More” by default — still reachable when expanded.
@@ -128,6 +151,7 @@ export const adminSecondaryNavItems: AdminNavItem[] = [
 /** Flat list for page titles / lookups. */
 export const adminNavItems: AdminNavItem[] = [
   ...adminPrimaryNavItems,
+  adminOnamNavItem,
   ...adminSecondaryNavItems,
 ]
 

@@ -10,7 +10,7 @@ describe('google OAuth redirect', () => {
     vi.unstubAllGlobals()
   })
 
-  it('keeps production tenant origin', () => {
+  it('keeps production tenant origin with tenant hint and next path', () => {
     vi.stubGlobal('window', {
       location: {
         hostname: 'chopsticksspicemalabar.directapp.in',
@@ -20,7 +20,10 @@ describe('google OAuth redirect', () => {
       },
     })
     expect(googleOAuthRedirectTo('/login')).toBe(
-      'https://chopsticksspicemalabar.directapp.in/login',
+      'https://chopsticksspicemalabar.directapp.in/login?tenant=chopsticksspicemalabar',
+    )
+    expect(googleOAuthRedirectTo('/login', '/onam?checkout=1')).toBe(
+      'https://chopsticksspicemalabar.directapp.in/login?tenant=chopsticksspicemalabar&next=%2Fonam%3Fcheckout%3D1',
     )
     expect(googleOAuthPreflightUrl('/login')).toBeNull()
   })

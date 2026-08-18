@@ -4,6 +4,7 @@ import { LoadingState } from '@/components/ui/LoadingState'
 import { AUTH_REDIRECT_STORAGE_KEY } from '@/constants/AUTH'
 import { ROUTES } from '@/constants/ROUTES'
 import { useAuth } from '@/hooks/useAuth'
+import { clearOAuthTenantCookie, readOAuthTenantCookie } from '@/utils/authTenantCookie'
 import { isPlatformMasterUser } from '@/utils/platformMaster'
 import { resolveCustomerPostAuthRedirect } from '@/utils/postAuthRedirect'
 
@@ -17,6 +18,11 @@ function readAuthRedirect(): string {
     // ignore
   }
 
+  const fromCookie = readOAuthTenantCookie()?.next
+  if (fromCookie?.startsWith('/') && !fromCookie.startsWith('//')) {
+    return fromCookie
+  }
+
   return ROUTES.HOME
 }
 
@@ -26,6 +32,7 @@ function clearAuthRedirect() {
   } catch {
     // ignore
   }
+  clearOAuthTenantCookie()
 }
 
 export function GuestRoute() {

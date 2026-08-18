@@ -57,12 +57,15 @@ export function slugFromHostname(
   return null
 }
 
-/** Local-only: `?tenant=chopsticksspicemalabar` (persisted for in-app navigation). */
+/**
+ * `?tenant=chopsticksspicemalabar` — local dev navigation and OAuth recovery
+ * hops on `*.directapp.in` when Supabase returns to the platform Site URL.
+ */
 export function slugFromSearchParams(
   search: string,
   hostname: string,
 ): string | null {
-  if (!isLocalDevHostname(hostname)) return null
+  if (!isLocalDevHostname(hostname) && !isPlatformHostname(hostname)) return null
   const params = new URLSearchParams(search.startsWith('?') ? search : `?${search}`)
   if (!params.has('tenant') && !params.has('org')) return null
   const raw = (params.get('tenant') || params.get('org') || '').trim().toLowerCase()

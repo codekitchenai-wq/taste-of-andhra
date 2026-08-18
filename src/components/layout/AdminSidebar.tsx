@@ -5,8 +5,8 @@ import { ROUTES } from '@/constants/ROUTES'
 import { useOrganization } from '@/contexts/OrganizationContext'
 import { storefrontContact } from '@/utils/storefrontCopy'
 import {
-  adminPrimaryNavItems,
   adminSecondaryNavItems,
+  getAdminPrimaryNavItems,
   isAdminSecondaryRoute,
 } from '@/data/adminNavigation'
 import { cn } from '@/utils/cn'
@@ -17,7 +17,9 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ collapsed = false }: AdminSidebarProps) {
   const { pathname } = useLocation()
-  const contact = storefrontContact(useOrganization())
+  const org = useOrganization()
+  const contact = storefrontContact(org)
+  const primaryNavItems = getAdminPrimaryNavItems(org)
   const displayName = contact.name
   const secondaryActive = isAdminSecondaryRoute(pathname)
   const [moreOpen, setMoreOpen] = useState(secondaryActive)
@@ -47,7 +49,7 @@ export function AdminSidebar({ collapsed = false }: AdminSidebarProps) {
         )}
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto p-4" aria-label="Admin navigation">
-        {adminPrimaryNavItems.map(({ label, to, icon: Icon }) => (
+        {primaryNavItems.map(({ label, to, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}
