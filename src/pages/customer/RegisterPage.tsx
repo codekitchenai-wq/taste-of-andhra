@@ -3,11 +3,7 @@ import { useOrganization } from '@/contexts/OrganizationContext'
 
 export default function RegisterPage() {
   const { whatsappOtpLoginEnabled } = useOrganization()
-  const methods = [
-    whatsappOtpLoginEnabled ? 'WhatsApp' : null,
-    'Google',
-    'email',
-  ]
+  const methods = [whatsappOtpLoginEnabled ? 'WhatsApp' : null, 'email']
     .filter(Boolean)
     .join(', ')
     .replace(/, ([^,]*)$/, ' or $1')
@@ -16,9 +12,8 @@ export default function RegisterPage() {
     <div>
       <h2 className="text-xl font-semibold">Create Account</h2>
       <p className="mt-2 text-sm text-text-secondary">
-        Create an account at this restaurant with {methods}. If you already use
-        Google at another kitchen, continue with Google here — we still create
-        a separate customer record for this restaurant.
+        Create an account at this restaurant with {methods}. We keep a separate
+        customer record for each kitchen you join.
       </p>
       <div className="mt-6">
         <RegisterForm />

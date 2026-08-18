@@ -3,11 +3,7 @@ import { useOrganization } from '@/contexts/OrganizationContext'
 
 export default function LoginPage() {
   const { whatsappOtpLoginEnabled } = useOrganization()
-  const methods = [
-    whatsappOtpLoginEnabled ? 'WhatsApp' : null,
-    'Google',
-    'email',
-  ]
+  const methods = [whatsappOtpLoginEnabled ? 'WhatsApp' : null, 'email']
     .filter(Boolean)
     .join(', ')
     .replace(/, ([^,]*)$/, ' or $1')
@@ -16,9 +12,8 @@ export default function LoginPage() {
     <div>
       <h2 className="text-xl font-semibold">Login</h2>
       <p className="mt-2 text-sm text-text-secondary">
-        Use {methods}. Each restaurant has its own customer list — join
-        this kitchen even if you already order from another. Google is the same
-        login, and we create your account here on first visit.
+        Use {methods}. Each restaurant has its own customer list — join this
+        kitchen even if you already order from another.
       </p>
       <div className="mt-6">
         <LoginForm />

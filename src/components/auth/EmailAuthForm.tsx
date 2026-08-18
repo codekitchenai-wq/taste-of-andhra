@@ -1,8 +1,7 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton'
 import { WhatsAppOtpForm } from '@/components/auth/WhatsAppOtpForm'
 import { TestCredentialsHint } from '@/components/auth/TestCredentialsHint'
 import { Button } from '@/components/ui/Button'
@@ -14,7 +13,6 @@ import { useAuth } from '@/hooks/useAuth'
 import { useOrganization } from '@/contexts/OrganizationContext'
 import type { UserRole } from '@/types/enums'
 import { canAccessPortal } from '@/utils/platformMaster'
-import { shouldContinueGoogleOAuth } from '@/utils/oauthRedirect'
 import {
   isAddressSetupPath,
   resolveCustomerPostAuthRedirect,
@@ -35,8 +33,6 @@ interface EmailAuthFormProps {
   initialMode?: AuthMode
   /** When false, hide the login/create toggle (e.g. dedicated /register page). */
   allowModeToggle?: boolean
-  /** When false, hide Google OAuth (staff / master portals). */
-  allowGoogle?: boolean
   /** When false, hide WhatsApp OTP (staff / master portals). */
   allowWhatsApp?: boolean
   redirectTo?: string
@@ -52,19 +48,16 @@ const DEFAULT_SUBMIT = {
   register: 'Create Account',
 }
 
-let googleContinueStarted = false
-
 export function EmailAuthForm({
   role,
   initialMode = 'login',
   allowModeToggle = true,
-  allowGoogle = role === 'customer',
   allowWhatsApp = role === 'customer',
   redirectTo,
   submitLabel = DEFAULT_SUBMIT,
   footer,
 }: EmailAuthFormProps) {
-  const { login, register: registerAccount, logout, loginWithGoogle } = useAuth()
+  const { login, register: registerAccount, logout } = useAuth()
   const { slug: tenantSlug } = useOrganization()
   const navigate = useNavigate()
   const location = useLocation()
@@ -90,33 +83,6 @@ export function EmailAuthForm({
           : ROUTES.HOME)
 
   const demo = primaryAccountForRole(role, tenantSlug)
-
-  useEffect(() => {
-    if (!allowGoogle || googleContinueStarted) return
-    if (!shouldContinueGoogleOAuth(location.search)) return
-    googleContinueStarted = true
-
-    const params = new URLSearchParams(location.search)
-    params.delete('continue')
-    const cleaned = params.toString()
-    navigate(
-      { pathname: location.pathname, search: cleaned ? `?${cleaned}` : '' },
-      { replace: true },
-    )
-
-    void loginWithGoogle(resolvedRedirect).then((result) => {
-      if (!result.success) {
-        toast.error(result.message)
-      }
-    })
-  }, [
-    allowGoogle,
-    location.pathname,
-    location.search,
-    loginWithGoogle,
-    navigate,
-    resolvedRedirect,
-  ])
 
   const {
     register,
@@ -217,17 +183,6 @@ export function EmailAuthForm({
             redirectTo={resolvedRedirect}
             collectName
           />
-          <div className="flex items-center gap-3 text-xs text-text-secondary">
-            <span className="h-px flex-1 bg-black/10" />
-            <span>or continue another way</span>
-            <span className="h-px flex-1 bg-black/10" />
-          </div>
-        </div>
-      ) : null}
-
-      {allowGoogle ? (
-        <div className="mb-6 space-y-4">
-          <GoogleSignInButton redirectTo={resolvedRedirect} />
           <div className="flex items-center gap-3 text-xs text-text-secondary">
             <span className="h-px flex-1 bg-black/10" />
             <span>or continue with email</span>

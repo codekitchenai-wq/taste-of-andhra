@@ -11,7 +11,7 @@ import {
   isMissingRelationError,
 } from '@/utils/supabaseSchema'
 
-/** Attach this Google/email user as a customer of the current restaurant. */
+/** Attach this email/WhatsApp user as a customer of the current restaurant. */
 export async function enrollCurrentCustomer(
   organizationId: string = getCurrentOrganizationId(),
 ): Promise<ServiceResponse<boolean>> {

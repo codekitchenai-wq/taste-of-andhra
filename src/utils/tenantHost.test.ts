@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   customDomainHostVariants,
   hostServesTenant,
-  isOAuthCallbackHost,
   isPlatformHostname,
   resolveTenantSlugFromLocation,
   slugFromHostname,
@@ -128,17 +127,6 @@ describe('hostServesTenant', () => {
     expect(
       hostServesTenant('www.thetasteofandhra.com', 'chopsticksspicemalabar'),
     ).toBe(false)
-  })
-})
-
-describe('isOAuthCallbackHost', () => {
-  it('treats the platform apex and Taste of Andhra Site URL as callbacks', () => {
-    expect(isOAuthCallbackHost('www.directapp.in')).toBe(true)
-    expect(isOAuthCallbackHost('directapp.in')).toBe(true)
-    expect(isOAuthCallbackHost('www.thetasteofandhra.com')).toBe(true)
-    expect(isOAuthCallbackHost('chopsticksspicemalabar.directapp.in')).toBe(
-      false,
-    )
   })
 })
 

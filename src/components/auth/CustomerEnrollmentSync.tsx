@@ -5,7 +5,7 @@ import { enrollCurrentCustomer } from '@/services/customerEnrollmentService'
 import { UNMATCHED_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
 import { isPlatformMarketingHost } from '@/utils/platformHost'
 
-/** After Google/email/WhatsApp login, enroll this user at the current restaurant. */
+/** After email/WhatsApp login, enroll this user at the current restaurant. */
 export function CustomerEnrollmentSync() {
   const { isAuthenticated, role, isLoading: authLoading } = useAuth()
   const { organizationId, isLoading: orgLoading } = useOrganization()

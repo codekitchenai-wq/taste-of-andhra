@@ -1,9 +1,8 @@
-import { recoverOAuthTenantHostIfNeeded } from '@/utils/authTenantCookie'
 import { redirectToCanonicalHost } from '@/utils/canonicalHost'
 import '@/index.css'
 
 async function boot() {
-  if (redirectToCanonicalHost() || recoverOAuthTenantHostIfNeeded()) return
+  if (redirectToCanonicalHost()) return
 
   const [{ StrictMode }, { createRoot }, { default: App }] = await Promise.all([
     import('react'),

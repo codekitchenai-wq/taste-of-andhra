@@ -4,11 +4,8 @@ import { LoadingState } from '@/components/ui/LoadingState'
 import { AUTH_REDIRECT_STORAGE_KEY } from '@/constants/AUTH'
 import { ROUTES } from '@/constants/ROUTES'
 import { useAuth } from '@/hooks/useAuth'
-import { clearOAuthTenantCookie, readOAuthTenantCookie } from '@/utils/authTenantCookie'
 import { isPlatformMasterUser } from '@/utils/platformMaster'
 import { resolveCustomerPostAuthRedirect } from '@/utils/postAuthRedirect'
-import { shouldContinueGoogleOAuth } from '@/utils/oauthRedirect'
-import { hostServesTenant, resolveTenantSlugFromLocation, slugFromHostname } from '@/utils/tenantHost'
 
 function readAuthRedirect(): string {
   try {
@@ -18,11 +15,6 @@ function readAuthRedirect(): string {
     }
   } catch {
     // ignore
-  }
-
-  const fromCookie = readOAuthTenantCookie()?.next
-  if (fromCookie?.startsWith('/') && !fromCookie.startsWith('//')) {
-    return fromCookie
   }
 
   if (typeof window !== 'undefined') {
@@ -35,24 +27,12 @@ function readAuthRedirect(): string {
   return ROUTES.HOME
 }
 
-function pendingTenantHandoff(): boolean {
-  if (typeof window === 'undefined') return false
-  if (shouldContinueGoogleOAuth(window.location.search)) return false
-  if (slugFromHostname(window.location.hostname)) return false
-  const tenant =
-    resolveTenantSlugFromLocation({ persist: false }) ??
-    readOAuthTenantCookie()?.tenant
-  if (!tenant) return false
-  return !hostServesTenant(window.location.hostname, tenant)
-}
-
 function clearAuthRedirect() {
   try {
     sessionStorage.removeItem(AUTH_REDIRECT_STORAGE_KEY)
   } catch {
     // ignore
   }
-  clearOAuthTenantCookie()
 }
 
 export function GuestRoute() {
@@ -65,11 +45,7 @@ export function GuestRoute() {
     !isPlatformMasterUser(user)
 
   useEffect(() => {
-    if (
-      !isCustomer ||
-      pendingTenantHandoff() ||
-      shouldContinueGoogleOAuth(window.location.search)
-    ) {
+    if (!isCustomer) {
       setCustomerPath(null)
       return
     }
@@ -93,12 +69,6 @@ export function GuestRoute() {
   }
 
   if (isAuthenticated) {
-    if (shouldContinueGoogleOAuth(window.location.search)) {
-      return <Outlet />
-    }
-    if (pendingTenantHandoff()) {
-      return <LoadingState fullPage variant="inline" />
-    }
     if (isPlatformMasterUser(user) || role === 'platform_master') {
       return <Navigate to={ROUTES.MASTER.DASHBOARD} replace />
     }

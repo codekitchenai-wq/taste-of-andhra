@@ -8,7 +8,6 @@ export function MasterLoginForm() {
       role="platform_master"
       initialMode="login"
       allowModeToggle={false}
-      allowGoogle={false}
       allowWhatsApp={false}
       redirectTo={ROUTES.MASTER.DASHBOARD}
       submitLabel={{

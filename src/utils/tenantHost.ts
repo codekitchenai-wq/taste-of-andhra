@@ -191,12 +191,3 @@ export function isPlatformApexHost(
   if (!host || !root) return false
   return host === root || host === `www.${root}`
 }
-
-/**
- * Origins that complete Google OAuth (Supabase Site URL). Stay here until the
- * PKCE code is exchanged, then OAuthTenantHandoff copies the session to the
- * restaurant. Bouncing `?code=` off this host breaks Google login.
- */
-export function isOAuthCallbackHost(hostname: string): boolean {
-  return isPlatformApexHost(hostname) || isTasteOfAndhraCustomHost(hostname)
-}

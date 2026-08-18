@@ -5,16 +5,9 @@ import {
 } from '@/types/api'
 import type { Profile } from '@/types/Profile'
 import type { UserRole } from '@/types/enums'
-import { AUTH_OAUTH_IN_FLIGHT_STORAGE_KEY, AUTH_REDIRECT_STORAGE_KEY, MIN_PASSWORD_LENGTH } from '@/constants/AUTH'
-import { ROUTES } from '@/constants/ROUTES'
+import { MIN_PASSWORD_LENGTH } from '@/constants/AUTH'
 import { supabase } from '@/services/supabaseClient'
 import { mapProfile } from '@/utils/mapProfile'
-import { persistOAuthTenantCookie } from '@/utils/authTenantCookie'
-import {
-  googleOAuthPreflightUrl,
-  googleOAuthRedirectTo,
-} from '@/utils/oauthRedirect'
-import { resolveTenantSlugFromLocation } from '@/utils/tenantHost'
 import { normalizeIndianPhone } from '@/utils/phone'
 import { isValidEmail, isValidPassword, isValidPhone } from '@/utils/validation'
 
@@ -39,7 +32,7 @@ function mapAuthError(message: string): string {
   }
 
   if (normalized.includes('user already registered')) {
-    return 'This email already has a login. Sign in or continue with Google to join this restaurant.'
+    return 'This email already has a login. Sign in with your password to join this restaurant.'
   }
 
   if (normalized.includes('duplicate key') && normalized.includes('phone')) {
@@ -66,7 +59,7 @@ function mapAuthError(message: string): string {
     normalized.includes('provider is not enabled') ||
     normalized.includes('unsupported provider')
   ) {
-    return 'Google sign-in is not enabled. Enable the Google provider in Supabase Auth settings.'
+    return 'That sign-in method is not available.'
   }
 
   return message
@@ -238,7 +231,7 @@ export async function register(
       const existing = await login({ email, password })
       if (existing.success) return existing
       return createErrorResponse(
-        'This email already has a login. Sign in or continue with Google to join this restaurant.',
+        'This email already has a login. Sign in with your password to join this restaurant.',
         error.message,
       )
     }
@@ -421,61 +414,6 @@ export async function loginWithWhatsAppOtp(
   const sessionProfile = await fetchProfile(sessionData.user.id)
   if (!sessionProfile.success) return sessionProfile
   return sessionProfile
-}
-
-/**
- * Start Google OAuth for customers. Redirects the browser to Google;
- * on return, Supabase restores the session and GuestRoute finishes navigation.
- */
-export async function loginWithGoogle(
-  redirectPath: string = ROUTES.HOME,
-): Promise<ServiceResponse<null>> {
-  const tenantSlug = resolveTenantSlugFromLocation({ persist: false })
-  if (tenantSlug) {
-    persistOAuthTenantCookie(tenantSlug, redirectPath)
-  }
-
-  try {
-    sessionStorage.setItem(AUTH_REDIRECT_STORAGE_KEY, redirectPath)
-  } catch {
-    // Private browsing may block sessionStorage; fall back to home.
-  }
-
-  const preflight = googleOAuthPreflightUrl(ROUTES.LOGIN, redirectPath)
-  if (preflight) {
-    window.location.assign(preflight)
-    return createSuccessResponse(null)
-  }
-
-  try {
-    sessionStorage.setItem(AUTH_OAUTH_IN_FLIGHT_STORAGE_KEY, '1')
-  } catch {
-    // ignore
-  }
-
-  await supabase.auth.signOut({ scope: 'local' })
-
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: googleOAuthRedirectTo(ROUTES.LOGIN, redirectPath),
-      queryParams: {
-        access_type: 'offline',
-        prompt: 'select_account',
-      },
-    },
-  })
-
-  if (error) {
-    try {
-      sessionStorage.removeItem(AUTH_REDIRECT_STORAGE_KEY)
-    } catch {
-      // ignore
-    }
-    return createErrorResponse(mapAuthError(error.message), error.message)
-  }
-
-  return createSuccessResponse(null)
 }
 
 export async function logout(): Promise<ServiceResponse<null>> {

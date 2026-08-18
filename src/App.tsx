@@ -3,7 +3,6 @@ import { RouterProvider } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { CustomerEnrollmentSync } from '@/components/auth/CustomerEnrollmentSync'
 import { TenantSessionGuard } from '@/components/auth/TenantSessionGuard'
-import { OAuthTenantHandoff } from '@/components/auth/OAuthTenantHandoff'
 import { ConfigBanner } from '@/components/ui/ConfigBanner'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { BranchProvider } from '@/contexts/BranchContext'
@@ -25,7 +24,6 @@ export default function App() {
             <FavoritesProvider>
               <CustomerEnrollmentSync />
               <TenantSessionGuard />
-              <OAuthTenantHandoff />
               <ConfigBanner />
               <RouterProvider router={router} />
               <Toaster
