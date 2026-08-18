@@ -8,6 +8,7 @@ import { supabase } from '@/services/supabaseClient'
 import type { Payment } from '@/types/Payment'
 import { mapPayment } from '@/utils/mapPayment'
 import { razorpayKeyIdForTenant } from '@/utils/tenantPayments'
+import { parseStorefrontTheme } from '@/utils/tenantTheme'
 
 export interface RazorpayCheckoutInput {
   orderId: string
@@ -52,9 +53,10 @@ export function isRazorpayConfigured(input?: {
   return Boolean(getRazorpayKeyId(input))
 }
 
-async function razorpayKeyForOrder(
-  orderId: string,
-): Promise<string | undefined> {
+async function razorpayCheckoutForOrder(orderId: string): Promise<{
+  key: string | undefined
+  themeColor: string
+}> {
   const { data: order } = await supabase
     .from('orders')
     .select('organization_id')
@@ -62,22 +64,32 @@ async function razorpayKeyForOrder(
     .maybeSingle()
 
   const organizationId = (order?.organization_id as string | undefined) ?? null
-  if (!organizationId) return undefined
+  if (!organizationId) {
+    return { key: undefined, themeColor: parseStorefrontTheme({}).primary }
+  }
 
   const { data: org } = await supabase
     .from('organizations')
-    .select('slug, settings')
+    .select('slug, settings, branding')
     .eq('id', organizationId)
     .maybeSingle()
 
-  return razorpayKeyIdForTenant({
-    settings:
-      org?.settings && typeof org.settings === 'object'
-        ? (org.settings as Record<string, unknown>)
-        : {},
-    slug: typeof org?.slug === 'string' ? org.slug : null,
-    organizationId,
-  })
+  const branding =
+    org?.branding && typeof org.branding === 'object'
+      ? (org.branding as Record<string, unknown>)
+      : {}
+
+  return {
+    key: razorpayKeyIdForTenant({
+      settings:
+        org?.settings && typeof org.settings === 'object'
+          ? (org.settings as Record<string, unknown>)
+          : {},
+      slug: typeof org?.slug === 'string' ? org.slug : null,
+      organizationId,
+    }),
+    themeColor: parseStorefrontTheme(branding).primary,
+  }
 }
 
 function loadRazorpayScript(): Promise<boolean> {
@@ -210,7 +222,7 @@ export async function markPaymentCollected(
 export async function processOnlinePayment(
   input: RazorpayCheckoutInput,
 ): Promise<ServiceResponse<RazorpayCheckoutResult>> {
-  const key = await razorpayKeyForOrder(input.orderId)
+  const { key, themeColor } = await razorpayCheckoutForOrder(input.orderId)
 
   if (!key) {
     const transactionId = `demo_${input.channel}_${Date.now()}`
@@ -260,7 +272,7 @@ export async function processOnlinePayment(
         contact: input.customerPhone ?? undefined,
         method: input.channel === 'card' ? 'card' : input.channel,
       },
-      theme: { color: '#C62828' },
+      theme: { color: themeColor },
       handler: async (response: {
         razorpay_payment_id?: string
         razorpay_order_id?: string

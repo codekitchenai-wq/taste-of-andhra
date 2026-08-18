@@ -3,6 +3,7 @@
 @theme {
   --color-primary: #c62828;
   --color-primary-dark: #b71c1c;
+  --color-on-primary: #ffffff;
   --color-secondary: #ef6c00;
   --color-accent: #ffc107;
   --color-background: #fff8f0;

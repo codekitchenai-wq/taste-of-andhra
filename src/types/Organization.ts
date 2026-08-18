@@ -55,6 +55,8 @@ export type FeatureKey =
 export interface OrganizationBranding {
   logo_url?: string | null
   primary_color?: string | null
+  /** Storefront colours, fonts, and radius. See `src/utils/tenantTheme.ts`. */
+  theme?: Record<string, unknown> | null
   [key: string]: unknown
 }
 

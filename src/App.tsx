@@ -10,6 +10,7 @@ import { BranchProvider } from '@/contexts/BranchContext'
 import { CartProvider } from '@/contexts/CartContext'
 import { FavoritesProvider } from '@/contexts/FavoritesContext'
 import { OrganizationProvider } from '@/contexts/OrganizationContext'
+import { TenantThemeApplier } from '@/components/theme/TenantThemeApplier'
 import { createAppRouter } from '@/routes'
 import { isPlatformMarketingHost } from '@/utils/platformHost'
 
@@ -20,6 +21,7 @@ export default function App() {
   return (
     <AuthProvider>
       <OrganizationProvider>
+        <TenantThemeApplier />
         <BranchProvider>
           <CartProvider>
             <FavoritesProvider>

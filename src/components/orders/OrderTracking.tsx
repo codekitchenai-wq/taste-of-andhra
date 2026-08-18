@@ -43,7 +43,7 @@ export function OrderTracking({ status }: OrderTrackingProps) {
             <span
               className={cn(
                 'relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-semibold',
-                isComplete && 'border-primary bg-primary text-white',
+                isComplete && 'border-primary bg-primary text-on-primary',
                 isCurrent && 'border-primary bg-primary/10 text-primary',
                 !isComplete && !isCurrent && 'border-gray-200 bg-surface text-text-secondary',
               )}

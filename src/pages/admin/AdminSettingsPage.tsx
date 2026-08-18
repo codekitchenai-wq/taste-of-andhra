@@ -6,6 +6,7 @@ import { StoreTimingsPanel } from '@/components/admin/StoreTimingsPanel'
 import { OrderNumberSequencePanel } from '@/components/admin/OrderNumberSequencePanel'
 import { GstSettingsPanel } from '@/components/admin/GstSettingsPanel'
 import { WhatsAppSettingsPanel } from '@/components/admin/WhatsAppSettingsPanel'
+import { ThemeSettingsPanel } from '@/components/admin/ThemeSettingsPanel'
 import { ConfigBanner } from '@/components/ui/ConfigBanner'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -140,6 +141,8 @@ export default function AdminSettingsPage() {
   return (
     <div className="space-y-6">
       {!isSupabaseConfigured && <ConfigBanner />}
+
+      <ThemeSettingsPanel />
 
       <DeliverySettingsPanel />
 

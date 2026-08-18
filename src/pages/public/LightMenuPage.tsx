@@ -117,7 +117,7 @@ export default function LightMenuPage() {
               className={cn(
                 'rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors',
                 filters.diet === option.value
-                  ? 'bg-primary text-white'
+                  ? 'bg-primary text-on-primary'
                   : 'bg-surface text-text-secondary shadow-sm hover:text-text-primary',
               )}
             >

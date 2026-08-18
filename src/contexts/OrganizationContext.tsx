@@ -36,6 +36,7 @@ export interface OrganizationContextValue {
   weekdayHours: string | null
   weekendHours: string | null
   branding: Record<string, unknown>
+  setBranding: (branding: Record<string, unknown>) => void
   settings: Record<string, unknown>
   /** Admin-controlled storefront click-to-WhatsApp. Off for new restaurants. */
   storefrontWhatsAppEnabled: boolean
@@ -53,6 +54,7 @@ type ResolvedOrganization = Omit<
   | 'isLoading'
   | 'setStorefrontWhatsAppEnabled'
   | 'setWhatsAppOtpLoginEnabled'
+  | 'setBranding'
 >
 
 const OrganizationContext = createContext<OrganizationContextValue | null>(null)
@@ -389,6 +391,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       weekdayHours,
       weekendHours,
       branding,
+      setBranding,
       settings,
       storefrontWhatsAppEnabled,
       setStorefrontWhatsAppEnabled,
@@ -441,6 +444,7 @@ export function useOrganization(): OrganizationContextValue {
       weekdayHours: null,
       weekendHours: null,
       branding: {},
+      setBranding: () => undefined,
       settings: {},
       storefrontWhatsAppEnabled: storefrontWhatsAppEnabledFromSettings(
         {},

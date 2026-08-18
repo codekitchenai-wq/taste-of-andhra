@@ -85,7 +85,7 @@ export default function MyOrdersPage() {
                   className={cn(
                     'rounded-[var(--radius-button)] border px-3 py-1.5 text-sm font-medium transition-colors',
                     selected
-                      ? 'border-transparent bg-primary text-white'
+                      ? 'border-transparent bg-primary text-on-primary'
                       : 'border-black/10 bg-surface text-text-primary hover:border-primary/40 hover:text-primary',
                   )}
                 >

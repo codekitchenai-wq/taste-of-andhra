@@ -38,6 +38,11 @@ import {
   WHATSAPP_OTP_LOGIN_SETTING_KEY,
   whatsappOtpLoginEnabledFromSettings,
 } from '@/utils/tenantFeatures'
+import {
+  mergeBrandingTheme,
+  normalizeStorefrontTheme,
+  type StorefrontTheme,
+} from '@/utils/tenantTheme'
 
 const DEFAULT_ETA_KEY = 'default_eta_minutes'
 const UPI_VPA_KEY = 'upi_vpa'
@@ -541,4 +546,45 @@ export async function setGstSettings(
   }
 
   return createSuccessResponse(normalized)
+}
+
+export async function setStorefrontTheme(
+  theme: StorefrontTheme,
+): Promise<ServiceResponse<Record<string, unknown>>> {
+  const orgId = getCurrentOrganizationId()
+  const { data, error: readError } = await supabase
+    .from('organizations')
+    .select('branding')
+    .eq('id', orgId)
+    .maybeSingle()
+
+  if (readError) {
+    return createErrorResponse(
+      'Unable to load current branding.',
+      readError.message,
+    )
+  }
+
+  const current =
+    data?.branding && typeof data.branding === 'object'
+      ? (data.branding as Record<string, unknown>)
+      : {}
+  const nextBranding = mergeBrandingTheme(
+    current,
+    normalizeStorefrontTheme(theme),
+  )
+
+  const { error } = await supabase
+    .from('organizations')
+    .update({ branding: nextBranding })
+    .eq('id', orgId)
+
+  if (error) {
+    return createErrorResponse(
+      'Unable to save theme settings.',
+      error.message,
+    )
+  }
+
+  return createSuccessResponse(nextBranding)
 }
