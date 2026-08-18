@@ -22,12 +22,7 @@ export function OAuthTenantHandoff() {
 
   useEffect(() => {
     if (isLoading || started.current) return
-
-    const params = new URLSearchParams(window.location.search)
-    const awaitingCode =
-      (params.has('code') || window.location.hash.includes('access_token')) &&
-      !isAuthenticated
-    if (awaitingCode) return
+    if (!isAuthenticated) return
 
     started.current = true
     void handoffOAuthSessionToTenant()

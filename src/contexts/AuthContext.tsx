@@ -79,11 +79,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      if (mounted) {
-        setIsLoading(true)
-        void loadUser()
-      }
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (!mounted) return
+      if (event === 'INITIAL_SESSION') return
+      setIsLoading(true)
+      void loadUser()
     })
 
     return () => {

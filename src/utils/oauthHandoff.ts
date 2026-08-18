@@ -26,14 +26,14 @@ export function tenantSessionHandoffUrl(input: {
   const search = params.toString()
   const target = `${origin}${ROUTES.LOGIN}?${search}`
 
-  if (!input.accessToken || !input.refreshToken) return target
+  if (!input.accessToken || !input.refreshToken) return null
 
-  const hash = new URLSearchParams({
-    access_token: input.accessToken,
-    refresh_token: input.refreshToken,
-    token_type: 'bearer',
-  })
-  return `${target}#${hash.toString()}`
+  const hash = [
+    `access_token=${encodeURIComponent(input.accessToken)}`,
+    `refresh_token=${encodeURIComponent(input.refreshToken)}`,
+    'token_type=bearer',
+  ].join('&')
+  return `${target}#${hash}`
 }
 
 function intendedTenantAndNext(): { tenant: string; next?: string } | null {
@@ -67,11 +67,13 @@ export async function handoffOAuthSessionToTenant(): Promise<boolean> {
     data: { session },
   } = await supabase.auth.getSession()
 
+  if (!session?.access_token || !session.refresh_token) return false
+
   const target = tenantSessionHandoffUrl({
     tenant: intended.tenant,
     next: intended.next,
-    accessToken: session?.access_token,
-    refreshToken: session?.refresh_token,
+    accessToken: session.access_token,
+    refreshToken: session.refresh_token,
   })
   if (!target) return false
 
@@ -85,11 +87,27 @@ export function parseSessionFromLocationHash(
 ): { access_token: string; refresh_token: string } | null {
   const raw = hash.startsWith('#') ? hash.slice(1) : hash
   if (!raw) return null
-  const params = new URLSearchParams(raw)
-  const access_token = params.get('access_token')?.trim()
-  const refresh_token = params.get('refresh_token')?.trim()
+
+  const access_token = hashValue(raw, 'access_token')
+  const refresh_token = hashValue(raw, 'refresh_token')
   if (!access_token || !refresh_token) return null
   return { access_token, refresh_token }
+}
+
+function hashValue(raw: string, key: string): string | null {
+  for (const part of raw.split('&')) {
+    const eq = part.indexOf('=')
+    if (eq === -1) continue
+    if (part.slice(0, eq) !== key) continue
+    const encoded = part.slice(eq + 1)
+    if (!encoded) return null
+    try {
+      return decodeURIComponent(encoded)
+    } catch {
+      return encoded
+    }
+  }
+  return null
 }
 
 function stripAuthHashFromAddressBar(): void {
@@ -113,6 +131,8 @@ export async function applySessionFromUrlHash(): Promise<boolean> {
   if (!tokens) return false
 
   const { error } = await supabase.auth.setSession(tokens)
+  if (error) return false
+
   stripAuthHashFromAddressBar()
-  return !error
+  return true
 }
