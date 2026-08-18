@@ -5,19 +5,32 @@ import {
   handoffOAuthSessionToTenant,
   shouldHandoffOAuthSession,
 } from '@/utils/oauthHandoff'
-import { resolveTenantSlugFromLocation } from '@/utils/tenantHost'
+import {
+  resolveTenantSlugFromLocation,
+  slugFromHostname,
+  slugFromSearchParams,
+} from '@/utils/tenantHost'
 
 /**
- * When Google returns to Taste of Andhra (Supabase Site URL), send the session
- * back to the restaurant that started login.
+ * When Google returns to the platform Site URL, send the session back to the
+ * restaurant that started login.
  */
 export function OAuthTenantHandoff() {
   const { isLoading, isAuthenticated } = useAuth()
   const started = useRef(false)
 
   useEffect(() => {
-    const tenant = resolveTenantSlugFromLocation({ persist: false })
-    const next = new URLSearchParams(window.location.search).get('next') ?? undefined
+    const hostname = window.location.hostname
+    const hostSlug = slugFromHostname(hostname)
+    const queryTenant = slugFromSearchParams(window.location.search, hostname)
+    const tenant =
+      hostSlug ?? queryTenant ?? resolveTenantSlugFromLocation({ persist: false })
+    const next =
+      new URLSearchParams(window.location.search).get('next') ?? undefined
+    if ((hostSlug || queryTenant) && tenant) {
+      persistOAuthTenantCookie(tenant, next)
+      return
+    }
     if (tenant && !readOAuthTenantCookie()) {
       persistOAuthTenantCookie(tenant, next)
     }

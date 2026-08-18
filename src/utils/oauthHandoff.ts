@@ -7,7 +7,7 @@ import {
   tenantStorefrontOrigin,
 } from '@/utils/authTenantCookie'
 import { shouldContinueGoogleOAuth } from '@/utils/oauthRedirect'
-import { hostServesTenant, resolveTenantSlugFromLocation } from '@/utils/tenantHost'
+import { hostServesTenant, resolveTenantSlugFromLocation, slugFromHostname } from '@/utils/tenantHost'
 
 export function tenantSessionHandoffUrl(input: {
   tenant: string
@@ -65,9 +65,12 @@ function clearOAuthInFlight(): void {
 }
 
 function intendedTenantAndNext(): { tenant: string; next?: string } | null {
-  const fromCookie = readOAuthTenantCookie()
+  const hostname =
+    typeof window !== 'undefined' ? window.location.hostname : ''
+  const hostSlug = slugFromHostname(hostname)
   const fromUrl = resolveTenantSlugFromLocation({ persist: false })
-  const tenant = fromCookie?.tenant ?? fromUrl
+  const fromCookie = readOAuthTenantCookie()
+  const tenant = hostSlug ?? fromUrl ?? fromCookie?.tenant
   if (!tenant) return null
 
   let next = fromCookie?.next

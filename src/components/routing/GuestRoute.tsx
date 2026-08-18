@@ -8,7 +8,7 @@ import { clearOAuthTenantCookie, readOAuthTenantCookie } from '@/utils/authTenan
 import { isPlatformMasterUser } from '@/utils/platformMaster'
 import { resolveCustomerPostAuthRedirect } from '@/utils/postAuthRedirect'
 import { shouldContinueGoogleOAuth } from '@/utils/oauthRedirect'
-import { hostServesTenant, resolveTenantSlugFromLocation } from '@/utils/tenantHost'
+import { hostServesTenant, resolveTenantSlugFromLocation, slugFromHostname } from '@/utils/tenantHost'
 
 function readAuthRedirect(): string {
   try {
@@ -38,9 +38,10 @@ function readAuthRedirect(): string {
 function pendingTenantHandoff(): boolean {
   if (typeof window === 'undefined') return false
   if (shouldContinueGoogleOAuth(window.location.search)) return false
+  if (slugFromHostname(window.location.hostname)) return false
   const tenant =
-    readOAuthTenantCookie()?.tenant ??
-    resolveTenantSlugFromLocation({ persist: false })
+    resolveTenantSlugFromLocation({ persist: false }) ??
+    readOAuthTenantCookie()?.tenant
   if (!tenant) return false
   return !hostServesTenant(window.location.hostname, tenant)
 }

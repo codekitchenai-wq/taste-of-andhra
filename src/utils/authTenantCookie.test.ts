@@ -115,6 +115,33 @@ describe('authTenantCookie', () => {
     expect(replace).not.toHaveBeenCalled()
   })
 
+  it('does not steal Spice Malabar login because of a stale Devi cookie', () => {
+    const replace = vi.fn()
+    vi.stubGlobal('window', {
+      location: {
+        hostname: 'chopsticksspicemalabar.directapp.in',
+        pathname: '/login',
+        search: '',
+        hash: '',
+        replace,
+      },
+    })
+
+    persistOAuthTenantCookie('devihomefoods', '/')
+
+    expect(
+      recoverOAuthTenantHostIfNeeded({
+        hostname: 'chopsticksspicemalabar.directapp.in',
+        pathname: '/login',
+        search: '',
+        hash: '',
+      }),
+    ).toBe(false)
+
+    expect(replace).not.toHaveBeenCalled()
+    expect(readOAuthTenantCookie()?.tenant).toBe('chopsticksspicemalabar')
+  })
+
   it('does not early-bounce from the DirectApp apex callback', () => {
     const replace = vi.fn()
     vi.stubGlobal('window', {

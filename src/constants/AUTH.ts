@@ -15,8 +15,8 @@ export const AUTH_OAUTH_TENANT_COOKIE = 'toa_oauth_tenant'
 export const AUTH_OAUTH_NEXT_COOKIE = 'toa_oauth_next'
 
 /**
- * Default fallback when redirectTo is omitted. Production Google login uses
- * the current restaurant origin (see googleOAuthRedirectTo).
+ * Default Google OAuth return origin (Supabase Site URL).
+ * `{slug}.directapp.in` hops here so login does not fall back to Taste of Andhra.
  */
 export const AUTH_OAUTH_CALLBACK_ORIGIN = (
   import.meta.env.VITE_AUTH_OAUTH_CALLBACK_ORIGIN?.trim() || PLATFORM_WWW_URL
