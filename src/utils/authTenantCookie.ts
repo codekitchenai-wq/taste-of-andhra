@@ -9,6 +9,7 @@ import {
   hostServesTenant,
   isOAuthCallbackHost,
   isTasteOfAndhraCustomHost,
+  slugFromHostname,
 } from '@/utils/tenantHost'
 
 const OAUTH_COOKIE_MAX_AGE_SECONDS = 600
@@ -136,8 +137,9 @@ function isOAuthCallback(
 }
 
 /**
- * Early bounce for the wrong `{slug}.directapp.in` host. Platform apex and
- * Taste of Andhra custom domains finish Google OAuth — wait, then hand off.
+ * Early bounce for the wrong `{slug}.directapp.in` host **during Google return**.
+ * A leftover OAuth cookie must not steal a normal visit to another restaurant
+ * (e.g. Spice Malabar /login bouncing to Devi Home Foods).
  */
 export function recoverOAuthTenantHostIfNeeded(
   location: Pick<Location, 'hostname' | 'pathname' | 'search' | 'hash'> =
@@ -151,6 +153,16 @@ export function recoverOAuthTenantHostIfNeeded(
   )
   const tenantFromUrl = params.get('tenant')?.trim().toLowerCase() || null
   const nextFromUrl = params.get('next')?.trim()
+  const oauthReturn = isOAuthCallback(params, location.hash ?? '')
+
+  const hostSlug = slugFromHostname(location.hostname)
+  if (hostSlug && !oauthReturn) {
+    const state = readOAuthTenantCookie()
+    if (state?.tenant && state.tenant !== hostSlug) {
+      persistOAuthTenantCookie(hostSlug, nextFromUrl)
+    }
+    return false
+  }
 
   const state = readOAuthTenantCookie()
   const intendedTenant = state?.tenant ?? tenantFromUrl
@@ -171,9 +183,7 @@ export function recoverOAuthTenantHostIfNeeded(
     params.set('next', nextPath)
   }
 
-  const path = isOAuthCallback(params, location.hash ?? '')
-    ? ROUTES.LOGIN
-    : location.pathname || '/'
+  const path = oauthReturn ? ROUTES.LOGIN : location.pathname || '/'
   const search = params.toString()
   const target = `${tenantStorefrontOrigin(intendedTenant)}${path}${
     search ? `?${search}` : ''
