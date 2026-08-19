@@ -109,20 +109,31 @@ async function hopSessionToOrigin(
   refreshToken: string,
   clearCookie: boolean,
 ): Promise<void> {
+  await supabase.auth.signOut()
+  if (clearCookie) clearOAuthTenantCookie()
+
+  window.location.replace(
+    `${targetOrigin}/login${loginQuery(tenant, next)}#${sessionHash(accessToken, refreshToken)}`,
+  )
+}
+
+function loginQuery(tenant: string | null, next: string | null): string {
   const loginParams = new URLSearchParams()
   if (tenant) loginParams.set('tenant', tenant)
   if (next?.startsWith('/') && !next.startsWith('//')) {
     loginParams.set('next', next)
   }
-
-  await supabase.auth.signOut()
-  if (clearCookie) clearOAuthTenantCookie()
-
   const query = loginParams.toString()
-  const suffix = query ? `?${query}` : ''
-  window.location.replace(
-    `${targetOrigin}/login${suffix}#${sessionHash(accessToken, refreshToken)}`,
-  )
+  return query ? `?${query}` : ''
+}
+
+/** Carry an already-issued hash session to the restaurant without consuming it here. */
+function hopHashToTenant(targetOrigin: string, tenant: string, next: string | null): void {
+  persistOAuthTenantCookie(tenant)
+  const hash = window.location.hash.startsWith('#')
+    ? window.location.hash.slice(1)
+    : window.location.hash
+  window.location.replace(`${targetOrigin}/login${loginQuery(tenant, next)}#${hash}`)
 }
 
 export function stripUrlHash(): void {
@@ -133,10 +144,19 @@ export function stripUrlHash(): void {
   window.history.replaceState({}, '', `${url.pathname}${url.search}`)
 }
 
+function shouldApplySessionHashOnThisHost(): boolean {
+  if (typeof window === 'undefined') return false
+  const hostname = window.location.hostname
+  const tenant = resolveOAuthTenantSlug(window.location.search)
+  if (!tenant) return true
+  return hostServesTenant(hostname, tenant)
+}
+
 /** Apply `#access_token` tokens on the restaurant host (PKCE does not auto-set them). */
 export async function applySessionFromUrlHash(): Promise<boolean> {
   const tokens = parseSessionFromUrlHash()
   if (!tokens) return false
+  if (!shouldApplySessionHashOnThisHost()) return false
 
   const { error } = await supabase.auth.setSession(tokens)
   stripUrlHash()
@@ -203,18 +223,25 @@ export async function handoffOAuthSessionToTenantIfNeeded(): Promise<boolean> {
   const hostname = window.location.hostname
   if (!isOAuthCompletionHost(hostname)) return false
   if (shouldContinueGoogleOAuth(window.location.search)) return false
-  if (parseSessionFromUrlHash()) return false
 
   const params = new URLSearchParams(window.location.search)
   const tenant = resolveOAuthTenantSlug(window.location.search)
+  const next = params.get('next')
 
   const leaveTasteOfAndhra =
     !ENABLE_TASTE_OF_ANDHRA_CUSTOM_DOMAIN &&
     isTasteOfAndhraCustomHost(hostname)
 
-  if (!tenant && !leaveTasteOfAndhra) return false
-  if (tenant && hostServesTenant(hostname, tenant) && !leaveTasteOfAndhra) {
+  if (!tenant) return false
+  if (hostServesTenant(hostname, tenant) && !leaveTasteOfAndhra) {
     return false
+  }
+
+  const targetOrigin = tenantStorefrontOrigin(tenant)
+  const hashTokens = parseSessionFromUrlHash()
+  if (hashTokens) {
+    hopHashToTenant(targetOrigin, tenant, next)
+    return true
   }
 
   const {
@@ -223,18 +250,13 @@ export async function handoffOAuthSessionToTenantIfNeeded(): Promise<boolean> {
 
   if (!session?.access_token || !session.refresh_token) return false
 
-  const next = params.get('next')
-  const targetOrigin = tenant
-    ? tenantStorefrontOrigin(tenant)
-    : PLATFORM_WWW_URL
-
   await hopSessionToOrigin(
     targetOrigin,
     tenant,
     next,
     session.access_token,
     session.refresh_token,
-    Boolean(tenant),
+    true,
   )
   return true
 }
@@ -260,7 +282,16 @@ export function recoverOAuthTenantHostIfNeeded(): boolean {
   }
 
   if (hostServesTenant(hostname, tenant)) return false
-  if (isPlatformApexHost(hostname)) return false
+  if (shouldContinueGoogleOAuth(search)) return false
+
+  const hasHash = Boolean(window.location.hash?.includes('access_token='))
+  const hasPkceCode = params.has('code')
+
+  if (isPlatformApexHost(hostname)) {
+    // PKCE `code` must be exchanged on the redirectTo origin. Hash tokens can hop.
+    if (hasPkceCode && !hasHash) return false
+    if (!hasHash) return false
+  }
   if (
     isTasteOfAndhraCustomHost(hostname) &&
     ENABLE_TASTE_OF_ANDHRA_CUSTOM_DOMAIN

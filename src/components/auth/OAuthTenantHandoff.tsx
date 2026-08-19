@@ -21,15 +21,6 @@ export function OAuthTenantHandoff() {
     if (typeof window === 'undefined') return
 
     const run = async () => {
-      if (!hashApplied.current) {
-        const applied = await applySessionFromUrlHash()
-        if (applied) {
-          hashApplied.current = true
-          await refreshUser()
-          return
-        }
-      }
-
       if (shouldContinueGoogleOAuth(window.location.search)) {
         if (googleStarted.current) return
         googleStarted.current = true
@@ -39,6 +30,15 @@ export function OAuthTenantHandoff() {
           toast.error('Unable to start Google sign-in. Please try again.')
         }
         return
+      }
+
+      if (!hashApplied.current) {
+        const applied = await applySessionFromUrlHash()
+        if (applied) {
+          hashApplied.current = true
+          await refreshUser()
+          return
+        }
       }
 
       if (isLoading) return

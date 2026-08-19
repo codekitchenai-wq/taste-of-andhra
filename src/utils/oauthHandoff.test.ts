@@ -78,6 +78,50 @@ describe('recoverOAuthTenantHostIfNeeded', () => {
       'https://chopsticksspicemalabar.directapp.in/login?tenant=chopsticksspicemalabar',
     )
   })
+
+  it('hops Google hash tokens from www.directapp.in to the restaurant', () => {
+    vi.stubGlobal('window', {
+      location: {
+        hostname: 'www.directapp.in',
+        search: '?tenant=chopsticksspicemalabar',
+        hash: '#access_token=abc&refresh_token=def',
+        replace,
+      },
+    })
+
+    expect(recoverOAuthTenantHostIfNeeded()).toBe(true)
+    expect(replace).toHaveBeenCalledWith(
+      'https://chopsticksspicemalabar.directapp.in/login?tenant=chopsticksspicemalabar#access_token=abc&refresh_token=def',
+    )
+  })
+
+  it('does not leave www while continue=google still needs to start OAuth', () => {
+    vi.stubGlobal('window', {
+      location: {
+        hostname: 'www.directapp.in',
+        search: '?tenant=chopsticksspicemalabar&continue=google',
+        hash: '',
+        replace,
+      },
+    })
+
+    expect(recoverOAuthTenantHostIfNeeded()).toBe(false)
+    expect(replace).not.toHaveBeenCalled()
+  })
+
+  it('keeps a PKCE code on www so Supabase can exchange it', () => {
+    vi.stubGlobal('window', {
+      location: {
+        hostname: 'www.directapp.in',
+        search: '?tenant=chopsticksspicemalabar&code=pkce-code',
+        hash: '',
+        replace,
+      },
+    })
+
+    expect(recoverOAuthTenantHostIfNeeded()).toBe(false)
+    expect(replace).not.toHaveBeenCalled()
+  })
 })
 
 describe('pendingOAuthTenantHandoff', () => {
@@ -113,6 +157,16 @@ describe('pendingOAuthTenantHandoff', () => {
         '?tenant=chopsticksspicemalabar',
       ),
     ).toBe(false)
+  })
+
+  it('holds www when only the tenant cookie remains', () => {
+    vi.stubGlobal('document', { cookie: 'toa_oauth_tenant=chopsticksspicemalabar' })
+    expect(pendingOAuthTenantHandoff('www.directapp.in', '')).toBe(true)
+  })
+
+  it('holds the apex platform host until the restaurant hop runs', () => {
+    vi.stubGlobal('document', { cookie: 'toa_oauth_tenant=chopsticksspicemalabar' })
+    expect(pendingOAuthTenantHandoff('directapp.in', '')).toBe(true)
   })
 
   it('holds Taste of Andhra custom domain while it is disabled', () => {

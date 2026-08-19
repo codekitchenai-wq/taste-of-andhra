@@ -4,6 +4,7 @@ import {
   clearOAuthTenantCookie,
   persistOAuthTenantCookie,
   readOAuthTenantCookie,
+  resolveOAuthTenantSlug,
 } from './authTenantCookie'
 
 describe('authTenantCookie', () => {
@@ -23,6 +24,7 @@ describe('authTenantCookie', () => {
 
     persistOAuthTenantCookie('spice-malabar')
     expect(readOAuthTenantCookie()).toBe('spice-malabar')
+    expect(resolveOAuthTenantSlug('')).toBe('spice-malabar')
     clearOAuthTenantCookie()
     expect(readOAuthTenantCookie()).toBeNull()
 
