@@ -251,6 +251,23 @@ export function LocationPicker({
     void lookupSearchQuery(event.currentTarget.value)
   }
 
+  const triggerSearchFromInput = () => {
+    const query = searchInputRef.current?.value?.trim() ?? ''
+    if (!query) return
+    void lookupSearchQuery(query)
+  }
+
+  const handleSearchBlur = () => {
+    const input = searchInputRef.current
+    if (!input) return
+    // If the typed text doesn't map to a selected Places suggestion, run the
+    // geocode fallback so address fields still get populated.
+    if (!input.value.trim()) return
+    window.setTimeout(() => {
+      triggerSearchFromInput()
+    }, 100)
+  }
+
   const handleUseMyLocation = () => {
     if (!navigator.geolocation) {
       setLoadError('This browser cannot share your location.')
@@ -314,6 +331,7 @@ export function LocationPicker({
             aria-invalid={Boolean(error)}
             aria-describedby={error ? 'location-pin-error' : undefined}
             onKeyDown={handleSearchKeyDown}
+            onBlur={handleSearchBlur}
             autoComplete="off"
             className={cn(
               'h-12 w-full rounded-[var(--radius-input)] border bg-surface pl-9 pr-4 text-sm text-text-primary transition-colors placeholder:text-text-secondary focus:outline-none focus:ring-2',
@@ -323,6 +341,15 @@ export function LocationPicker({
             )}
           />
         </div>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={triggerSearchFromInput}
+          disabled={isLookingUp}
+          className="shrink-0"
+        >
+          {isLookingUp ? 'Searching...' : 'Search'}
+        </Button>
         <Button
           type="button"
           variant="secondary"

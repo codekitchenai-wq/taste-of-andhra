@@ -101,6 +101,7 @@ export function AddressFormModal({
     handleSubmit,
     reset,
     setValue,
+    getValues,
     watch,
     formState: { errors, isSubmitting },
   } = useForm<AddressFormValues>({ defaultValues: emptyValues })
@@ -138,14 +139,18 @@ export function AddressFormModal({
     coordinatesRef.current = coords
     setPinnedCoords(coords)
 
+    const current = getValues()
     const opts = { shouldValidate: true, shouldDirty: true }
-    if (place.addressLine1 || place.formattedAddress)
-      setValue('addressLine1', place.addressLine1 || place.formattedAddress || '', opts)
-    if (place.addressLine2) setValue('addressLine2', place.addressLine2, opts)
-    if (place.landmark) setValue('landmark', place.landmark, opts)
-    if (place.city) setValue('city', place.city, opts)
-    if (place.state) setValue('state', place.state, opts)
-    if (place.pincode) setValue('pincode', place.pincode, opts)
+    setValue(
+      'addressLine1',
+      place.addressLine1 || place.formattedAddress || current.addressLine1,
+      opts,
+    )
+    setValue('addressLine2', place.addressLine2 || current.addressLine2, opts)
+    setValue('landmark', place.landmark || current.landmark, opts)
+    setValue('city', place.city || current.city, opts)
+    setValue('state', place.state || current.state, opts)
+    setValue('pincode', place.pincode || current.pincode, opts)
   }
 
   // Delivery status derived from pin vs restaurant location
