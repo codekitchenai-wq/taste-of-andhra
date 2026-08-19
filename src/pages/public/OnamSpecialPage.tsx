@@ -38,7 +38,14 @@ import { writeCheckoutAddressId } from '@/utils/checkoutAddress'
 import { formatAddressLine } from '@/utils/mapAddress'
 import { isSpiceMalabarStorefront } from '@/utils/storefrontCopy'
 import { useStorefrontWhatsApp } from '@/hooks/useStorefrontWhatsApp'
-import { storefrontWhatsAppPhone } from '@/utils/storefrontWhatsApp'
+import * as deliveryQuoteService from '@/services/deliveryQuoteService'
+import * as dishService from '@/services/dishService'
+import * as orderService from '@/services/orderService'
+import {
+  clearOnamPrebook,
+  onamOrderNote,
+  onamScheduledAt,
+} from '@/utils/onamPrebook'
 
 export default function OnamSpecialPage() {
   const org = useOrganization()
@@ -46,7 +53,7 @@ export default function OnamSpecialPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { isAuthenticated, isLoading: isAuthLoading, user } = useAuth()
-  const { isUpdating } = useCart()
+  const { isUpdating, addItem, clearCart } = useCart()
   const { addresses } = useAddresses()
   const [prebook, setPrebook] = useState<OnamPrebook>(defaultOnamPrebook)
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
@@ -54,9 +61,7 @@ export default function OnamSpecialPage() {
   )
   const [requestAddAddress, setRequestAddAddress] = useState(0)
   const [isAddressLoading, setIsAddressLoading] = useState(false)
-  const [showWhatsAppPreview, setShowWhatsAppPreview] = useState(false)
-  const [whatsAppTargetPhone, setWhatsAppTargetPhone] = useState('')
-  const [whatsAppPreviewMessage, setWhatsAppPreviewMessage] = useState('')
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false)
   const promptedCheckoutRef = useRef(false)
 
   const slots = useMemo(() => onamTimeSlots(), [])
@@ -82,25 +87,21 @@ export default function OnamSpecialPage() {
   const selectedAddress =
     addresses.find((address) => address.id === selectedAddressId) ?? null
 
-  useEffect(() => {
-    const defaultPhone = storefrontWhatsAppPhone(whatsApp.contact) ?? ''
-    if (!defaultPhone) return
-    if (!whatsAppTargetPhone.trim()) {
-      setWhatsAppTargetPhone(defaultPhone)
-    }
-  }, [whatsApp.contact, whatsAppTargetPhone])
-
-  const buildOnamWhatsAppMessage = (booking: OnamPrebook) => {
+  const buildOnamWhatsAppMessage = (
+    booking: OnamPrebook,
+    orderNumber: string,
+  ) => {
     const offer = ONAM_SADHYA.services[booking.service]
     const customerName =
       booking.customerName.trim() ||
       selectedAddress?.full_name ||
       user?.full_name ||
       'Customer'
-    const customerPhone = selectedAddress?.phone || user?.phone || ''
     return [
-      `Hi ${whatsApp.contact.name},`,
-      'I want to place an Onam Sadhya order.',
+      `Hi ${customerName},`,
+      `Your Onam Sadhya order at ${whatsApp.contact.name} is confirmed.`,
+      '',
+      `Order number: ${orderNumber}`,
       '',
       'Order details:',
       `• ${offer.label}`,
@@ -108,17 +109,21 @@ export default function OnamSpecialPage() {
       `• Date: ${onamDateLabel(booking.date)}`,
       `• Slot: ${slots.find((slot) => slot.value === booking.slot)?.label ?? booking.slot}`,
       `• Amount: ${formatPrice(subtotal)} + tax`,
+      `• Delivery: ${selectedAddress ? formatAddressLine(selectedAddress) : ''}`,
       '',
-      'Customer details:',
-      `• Name: ${customerName}`,
-      `• Contact: ${customerPhone || '(share on call)'}`,
-      `• Address: ${selectedAddress ? formatAddressLine(selectedAddress) : '(missing address)'}`,
-      '',
-      'Please share UPI payment link and confirm this booking.',
+      'Complete UPI payment on the next screen to confirm your booking.',
     ].join('\n')
   }
 
-  const placeOnamWhatsAppOrder = (fromForm = false) => {
+  const customerWhatsAppPhone = (): string | null => {
+    const raw =
+      selectedAddress?.phone?.trim() ||
+      user?.phone?.trim() ||
+      ''
+    return normalizeIndianPhone(raw)
+  }
+
+  const placeOnamWhatsAppOrder = async (fromForm = false) => {
     const booking = fromForm ? prebook : (readOnamPrebook() ?? prebook)
     writeOnamPrebook(booking)
 
@@ -146,28 +151,92 @@ export default function OnamSpecialPage() {
     }
 
     writeCheckoutAddressId(selectedAddressId)
-    setWhatsAppPreviewMessage(buildOnamWhatsAppMessage(booking))
-    if (!whatsAppTargetPhone.trim()) {
-      setWhatsAppTargetPhone(storefrontWhatsAppPhone(whatsApp.contact) ?? '')
-    }
-    setShowWhatsAppPreview(true)
-  }
 
-  const openWhatsAppWithPreview = () => {
-    const normalized = normalizeIndianPhone(whatsAppTargetPhone)
-    if (!normalized) {
-      toast.error('Enter a valid 10-digit WhatsApp number')
+    const customerPhone = customerWhatsAppPhone()
+    if (!customerPhone) {
+      toast.error(
+        'Add a valid mobile number to your delivery address or profile to receive the order on WhatsApp.',
+      )
       return
     }
-    const message = whatsAppPreviewMessage.trim()
-    if (!message) {
-      toast.error('Order message is empty. Please try again.')
-      return
+
+    setIsPlacingOrder(true)
+
+    try {
+      const dishResult = await dishService.getDishBySlug(service.dishSlug)
+      if (!dishResult.success || !dishResult.data) {
+        toast.error('Onam dish is not available on the menu yet.')
+        return
+      }
+
+      const clearResult = await clearCart()
+      if (!clearResult.success) {
+        toast.error(clearResult.message)
+        return
+      }
+
+      const addResult = await addItem(dishResult.data.id, booking.plates)
+      if (!addResult.success) {
+        toast.error(addResult.message)
+        return
+      }
+
+      const lineSubtotal = service.price * booking.plates
+      const quoteResult = await deliveryQuoteService.getDeliveryQuote({
+        address: selectedAddress,
+        subtotal: lineSubtotal,
+        itemCount: booking.plates,
+      })
+
+      if (!quoteResult.success) {
+        toast.error(quoteResult.message)
+        return
+      }
+
+      if (!quoteResult.data.isServiceable) {
+        toast.error(
+          quoteResult.data.unserviceableReason ??
+            'We do not deliver to this address yet.',
+        )
+        return
+      }
+
+      const orderResult = await orderService.createOrder({
+        addressId: selectedAddressId,
+        paymentMethod: 'pay_later',
+        specialInstructions: onamOrderNote(booking),
+        deliveryQuoteId: quoteResult.data.quoteId ?? null,
+        scheduledFor: onamScheduledAt(booking.date, booking.slot),
+        whatsappUpdatesOptIn: org.storefrontWhatsAppEnabled,
+      })
+
+      if (!orderResult.success) {
+        toast.error(orderResult.message)
+        return
+      }
+
+      const message = buildOnamWhatsAppMessage(
+        booking,
+        orderResult.data.order_number,
+      )
+      window.open(
+        whatsappShareUrl(customerPhone, message),
+        '_blank',
+        'noopener,noreferrer',
+      )
+
+      clearOnamPrebook()
+      navigate(ROUTES.ORDER_SUCCESS, {
+        state: {
+          orderId: orderResult.data.id,
+          orderNumber: orderResult.data.order_number,
+          paymentMethod: orderResult.data.payment_method,
+          paymentShareToken: orderResult.data.payment_share_token ?? null,
+        },
+      })
+    } finally {
+      setIsPlacingOrder(false)
     }
-    const url = whatsappShareUrl(normalized, message)
-    window.open(url, '_blank', 'noopener,noreferrer')
-    toast.success(`Opening WhatsApp to +91 ${normalized}`)
-    setShowWhatsAppPreview(false)
   }
 
   useEffect(() => {
@@ -377,15 +446,18 @@ export default function OnamSpecialPage() {
                 size="lg"
                 disabled={
                   isUpdating ||
+                  isPlacingOrder ||
                   (isAuthenticated && isAddressLoading)
                 }
-                onClick={() => placeOnamWhatsAppOrder(true)}
+                onClick={() => void placeOnamWhatsAppOrder(true)}
               >
-                {isUpdating
-                  ? 'Preparing details…'
-                  : isAuthenticated && isAddressLoading
-                    ? 'Loading address…'
-                    : 'Send order on WhatsApp'}
+                {isPlacingOrder
+                  ? 'Placing order…'
+                  : isUpdating
+                    ? 'Preparing details…'
+                    : isAuthenticated && isAddressLoading
+                      ? 'Loading address…'
+                      : 'Send order on WhatsApp'}
               </Button>
               <Button
                 type="button"
@@ -397,57 +469,10 @@ export default function OnamSpecialPage() {
                 Share this offer
               </Button>
             </div>
-            {showWhatsAppPreview ? (
-              <div className="mt-4 rounded-[var(--radius-card)] border border-primary/20 bg-primary/5 p-3">
-                <p className="text-sm font-semibold text-text-primary">
-                  Review before sending (testing)
-                </p>
-                <div className="mt-3 space-y-3">
-                  <Input
-                    label="Send to WhatsApp number"
-                    value={whatsAppTargetPhone}
-                    onChange={(event) => setWhatsAppTargetPhone(event.target.value)}
-                    placeholder="10-digit mobile number"
-                    inputMode="numeric"
-                  />
-                  <div>
-                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-text-secondary">
-                      Message preview
-                    </p>
-                    <textarea
-                      value={whatsAppPreviewMessage}
-                      onChange={(event) => setWhatsAppPreviewMessage(event.target.value)}
-                      rows={10}
-                      className="w-full rounded-[var(--radius-input)] border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <Button type="button" className="flex-1" onClick={openWhatsAppWithPreview}>
-                      Open WhatsApp
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="flex-1"
-                      onClick={() => setShowWhatsAppPreview(false)}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-            {whatsApp.enabled ? (
             <p className="mt-3 text-xs text-text-secondary">
-              This sends full order + customer details to {ONAM_SADHYA.restaurant} so
-              they can share UPI payment and confirm your booking.
+              Places your order, opens WhatsApp to your mobile number with order
+              details, then shows UPI payment on the next screen.
             </p>
-            ) : (
-            <p className="mt-3 text-xs text-text-secondary">
-              Online orders keep the same slot as a delivery note for 25–26
-              August.
-            </p>
-            )}
           </aside>
         </div>
       </Container>
