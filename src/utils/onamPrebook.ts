@@ -182,6 +182,7 @@ export function onamWhatsAppUrl(prebook: OnamPrebook) {
       phone: `+91 ${phone}`,
       alternatePhone: null,
       phones: [`+91 ${phone}`],
+      whatsappPhone: null,
       email: null,
       address: '',
       mapsUrl: '',
