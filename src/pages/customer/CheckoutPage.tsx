@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Building2,
@@ -473,7 +473,7 @@ export default function CheckoutPage() {
                 onChange={(event) => setSelectedBranchId(event.target.value)}
                 options={branches.map((branch) => ({
                   value: branch.id,
-                  label: `${branch.name} — ${branch.city}`,
+                  label: `${branch.name} ΓÇö ${branch.city}`,
                 }))}
               />
             </section>
@@ -636,7 +636,7 @@ export default function CheckoutPage() {
                   })}
                 </div>
                 <p className="text-xs text-text-secondary">
-                  Next you’ll enter UPI / card / bank details and confirm
+                  Next youΓÇÖll enter UPI / card / bank details and confirm
                   payment.
                 </p>
               </div>
@@ -663,7 +663,7 @@ export default function CheckoutPage() {
                     onChange={(event) => setRedeemLoyalty(event.target.checked)}
                     className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                   />
-                  Use {maxLoyalty.points} points (−
+                  Use {maxLoyalty.points} points (ΓêÆ
                   {formatPrice(maxLoyalty.discount)})
                 </label>
               </section>
@@ -732,6 +732,8 @@ export default function CheckoutPage() {
         isOpen={isAddressModalOpen}
         addressToEdit={addressToEdit}
         restaurantLocation={restaurantLocationFromBranch(selectedBranch)}
+        branchId={selectedBranch?.id ?? null}
+        subtotal={cart?.subtotal ?? 0}
         onClose={() => {
           setIsAddressModalOpen(false)
           setAddressToEdit(null)

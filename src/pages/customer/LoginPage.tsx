@@ -3,7 +3,7 @@ import { useOrganization } from '@/contexts/OrganizationContext'
 
 export default function LoginPage() {
   const { whatsappOtpLoginEnabled } = useOrganization()
-  const methods = [whatsappOtpLoginEnabled ? 'WhatsApp' : null, 'email']
+  const methods = [whatsappOtpLoginEnabled ? 'WhatsApp' : null, 'Google', 'email']
     .filter(Boolean)
     .join(', ')
     .replace(/, ([^,]*)$/, ' or $1')

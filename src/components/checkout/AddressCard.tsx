@@ -1,4 +1,4 @@
-import { MapPin, Pencil } from 'lucide-react'
+import { MapPin, Pencil, Navigation } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { formatAddressLine } from '@/utils/mapAddress'
@@ -60,9 +60,15 @@ export function AddressCard({
                 Near: {address.landmark}
               </p>
             )}
-            <p className="mt-1 text-sm text-text-secondary">
-              Pincode {address.pincode} · {address.phone}
-            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-text-secondary">
+              <span>Pincode {address.pincode} · {address.phone}</span>
+              {address.distance_km != null && (
+                <span className="flex items-center gap-1 text-xs">
+                  <Navigation className="h-3 w-3 shrink-0" aria-hidden="true" />
+                  ~{address.distance_km.toFixed(1)} km
+                </span>
+              )}
+            </div>
           </div>
 
           <MapPin

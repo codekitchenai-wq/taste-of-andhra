@@ -11,7 +11,29 @@ import {
   isMissingRelationError,
 } from '@/utils/supabaseSchema'
 
-/** Attach this email/WhatsApp user as a customer of the current restaurant. */
+function captureFromAuthUser(user: {
+  email?: string | null
+  user_metadata?: Record<string, unknown>
+}): {
+  full_name: string | null
+  email: string | null
+  phone: string | null
+} {
+  const metadata = user.user_metadata ?? {}
+  const fullName =
+    (typeof metadata.full_name === 'string' && metadata.full_name.trim()) ||
+    (typeof metadata.name === 'string' && metadata.name.trim()) ||
+    null
+  const phone =
+    typeof metadata.phone === 'string' && metadata.phone.trim()
+      ? metadata.phone.trim()
+      : null
+  const email = user.email?.trim().toLowerCase() || null
+
+  return { full_name: fullName, email, phone }
+}
+
+/** Attach this user as a customer of the current restaurant with tenant-local contact capture. */
 export async function enrollCurrentCustomer(
   organizationId: string = getCurrentOrganizationId(),
 ): Promise<ServiceResponse<boolean>> {
@@ -28,36 +50,45 @@ export async function enrollCurrentCustomer(
     return createSuccessResponse(false)
   }
 
-  const [{ data: existingCustomers }, { data: existingMembers }] =
-    await Promise.all([
-      supabase
-        .from('organization_customers')
-        .select('organization_id')
-        .eq('user_id', user.id),
-      supabase
-        .from('organization_members')
-        .select('organization_id, is_active')
-        .eq('user_id', user.id),
-    ])
+  const [{ data: existingRow }, { data: existingMembers }] = await Promise.all([
+    supabase
+      .from('organization_customers')
+      .select('organization_id, full_name, phone, email')
+      .eq('user_id', user.id)
+      .eq('organization_id', organizationId)
+      .maybeSingle(),
+    supabase
+      .from('organization_members')
+      .select('organization_id, is_active')
+      .eq('user_id', user.id),
+  ])
 
-  const customerOrgIds = (existingCustomers ?? []).map((row) =>
-    String(row.organization_id),
-  )
-  if (customerOrgIds.includes(organizationId)) {
+  if (existingRow) {
     return createSuccessResponse(true)
   }
 
   const staffElsewhere = (existingMembers ?? []).some(
     (row) => row.is_active !== false,
   )
-  if (customerOrgIds.length > 0 || staffElsewhere) {
+  if (staffElsewhere) {
     return createSuccessResponse(false)
   }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name, phone, email')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  const fromAuth = captureFromAuthUser(user)
 
   const { error } = await supabase.from('organization_customers').upsert(
     {
       organization_id: organizationId,
       user_id: user.id,
+      full_name: profile?.full_name?.trim() || fromAuth.full_name,
+      phone: profile?.phone?.trim() || fromAuth.phone,
+      email: profile?.email?.trim() || fromAuth.email,
     },
     { onConflict: 'organization_id,user_id', ignoreDuplicates: true },
   )

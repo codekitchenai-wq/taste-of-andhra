@@ -1,4 +1,4 @@
-import { MapPin, Pencil, Star, Trash2 } from 'lucide-react'
+import { MapPin, Navigation, Pencil, Star, Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { formatAddressLine } from '@/utils/mapAddress'
@@ -37,9 +37,15 @@ export function SavedAddressCard({
               Landmark: {address.landmark}
             </p>
           )}
-          <p className="mt-1 text-sm text-text-secondary">
-            Pincode: {address.pincode}
-          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-text-secondary">
+            <span>Pincode: {address.pincode}</span>
+            {address.distance_km != null && (
+              <span className="flex items-center gap-1 text-xs">
+                <Navigation className="h-3 w-3 shrink-0" aria-hidden="true" />
+                ~{address.distance_km.toFixed(1)} km from restaurant
+              </span>
+            )}
+          </div>
           <p className="mt-1 text-sm text-text-secondary">{address.phone}</p>
         </div>
       </div>

@@ -100,10 +100,13 @@ Deno.serve(async (request) => {
     return errorResponse('Delivery address not found.', 404)
   }
 
-  // Branch-specific settings win; the global row is the fallback.
+  const organizationId = address.organization_id as string
+
+  // Branch-specific settings win; the global row is the fallback (same tenant only).
   const { data: settingsRows } = await admin
     .from('delivery_settings')
     .select('*')
+    .eq('organization_id', organizationId)
     .or(
       body.branchId
         ? `branch_id.eq.${body.branchId},branch_id.is.null`
@@ -143,7 +146,7 @@ Deno.serve(async (request) => {
     const { data, error } = await admin
       .from('delivery_quotes')
       .insert({
-        organization_id: 'a0000000-0000-4000-8000-000000000001',
+        organization_id: organizationId,
         user_id: user.id,
         address_id: address.id,
         branch_id: body.branchId ?? null,
@@ -223,10 +226,12 @@ Deno.serve(async (request) => {
         .from('branches')
         .select('*')
         .eq('id', body.branchId)
+        .eq('organization_id', organizationId)
         .maybeSingle()
     : await admin
         .from('branches')
         .select('*')
+        .eq('organization_id', organizationId)
         .eq('is_default', true)
         .eq('is_active', true)
         .maybeSingle()

@@ -173,17 +173,20 @@ vercel --prod
 
 ### Supabase auth for production
 
-After deploying, update Supabase **Authentication → URL Configuration**:
+After deploying, update Supabase **Authentication → URL Configuration** (production project `qixpsqlifwsztncjevgl`):
 
-- **Site URL:** `https://www.directapp.in` (not Taste of Andhra)
-- **Redirect URLs** (add all that you use):
-  - `https://*.directapp.in/**`
-  - `https://www.directapp.in/**`
-  - `https://www.thetasteofandhra.com/**`
-  - `http://localhost:5173/**`
-  - `https://*.vercel.app/**` (preview deployments)
+| Setting | Required value |
+|---------|----------------|
+| **Site URL** | `https://www.directapp.in` |
+| **Redirect URLs** | `https://www.directapp.in/**` |
+| | `https://*.directapp.in/**` |
+| | `http://localhost:5173/**` |
 
-Restaurant Google login stays on `{slug}.directapp.in`. If Site URL is `https://www.thetasteofandhra.com` and the restaurant origin is not in Redirect URLs, Google will fall back to Taste of Andhra.
+**Why this matters:** Google OAuth calls `signInWithOAuth({ redirectTo: 'https://www.directapp.in/login?tenant=…' })`. If that URL is not on the Redirect URLs list, Supabase falls back to **Site URL** and drops `?tenant=`. The tenant cookie is scoped to `.directapp.in`, so a fallback to `thetasteofandhra.com` cannot recover the restaurant context.
+
+Do **not** use `https://www.thetasteofandhra.com` as Site URL until per-tenant OAuth is fully verified. Optional: keep `https://www.thetasteofandhra.com/**` in Redirect URLs only if that domain still serves the app.
+
+Set `VITE_AUTH_OAUTH_CALLBACK_ORIGIN=https://www.directapp.in` in Vercel Production env vars.
 
 Email confirmation links use these settings. If Site URL is left as the default `http://localhost:3000`, verify links will break.
 

@@ -5,6 +5,7 @@ import {
   ENABLE_META_EMBEDDED_SIGNUP,
   ENABLE_RAZORPAY_ROUTE,
   ENABLE_SCOPED_ORG_ADMIN_AUTH,
+  ENABLE_TASTE_OF_ANDHRA_CUSTOM_DOMAIN,
 } from '@/constants/ARCHITECTURE_GATES'
 import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
 import { mapPayment } from '@/utils/mapPayment'
@@ -14,6 +15,7 @@ describe('architecture gates defaults', () => {
     expect(ENABLE_RAZORPAY_ROUTE).toBe(false)
     expect(ENABLE_META_EMBEDDED_SIGNUP).toBe(false)
     expect(ENABLE_AI).toBe(false)
+    expect(ENABLE_TASTE_OF_ANDHRA_CUSTOM_DOMAIN).toBe(false)
   })
 
   it('scopes admin and delivery logins to the current restaurant', () => {

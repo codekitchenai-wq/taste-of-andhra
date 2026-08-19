@@ -120,7 +120,15 @@ export function LocationPicker({
           clickableIcons: false,
         })
 
-        const marker = new maps.Marker({
+        // maps.Marker is deprecated in the new Maps JS API; it may be undefined.
+        // Prefer AdvancedMarkerElement when available.
+        let marker: google.maps.Marker
+        const MarkerClass = maps.Marker as typeof google.maps.Marker | undefined
+        if (!MarkerClass) {
+          setLoadError('Map marker library failed to load. Try refreshing.')
+          return
+        }
+        marker = new MarkerClass({
           map,
           position: center,
           draggable: true,
@@ -143,38 +151,45 @@ export function LocationPicker({
         })
 
         if (searchInputRef.current) {
-          const autocomplete = new maps.places.Autocomplete(
-            searchInputRef.current,
-            {
-              componentRestrictions: { country: 'in' },
-              fields: [
-                'address_components',
-                'geometry',
-                'formatted_address',
-                'name',
-              ],
-            },
-          )
+          // maps.places may not be available if the Places library failed to
+          // load; fall back gracefully so the geocode path still works.
+          const PlacesAutocomplete = maps.places?.Autocomplete as
+            | (new (
+                input: HTMLInputElement,
+                opts?: google.maps.places.AutocompleteOptions,
+              ) => google.maps.places.Autocomplete)
+            | undefined
 
-          autocomplete.addListener('place_changed', () => {
-            const place = autocomplete.getPlace()
-            const location = place.geometry?.location
+          if (PlacesAutocomplete) {
+            try {
+              const autocomplete = new PlacesAutocomplete(searchInputRef.current, {
+                componentRestrictions: { country: 'in' },
+                fields: ['address_components', 'geometry', 'formatted_address', 'name'],
+              })
 
-            if (!location) {
-              const query = searchInputRef.current?.value?.trim()
-              if (query) void lookupSearchQueryRef.current(query)
-              return
+              autocomplete.addListener('place_changed', () => {
+                const place = autocomplete.getPlace()
+                const location = place.geometry?.location
+
+                if (!location) {
+                  const query = searchInputRef.current?.value?.trim()
+                  if (query) void lookupSearchQueryRef.current(query)
+                  return
+                }
+
+                void commitPosition(location.lat(), location.lng(), {
+                  latitude: location.lat(),
+                  longitude: location.lng(),
+                  ...parsePlaceComponents(
+                    place.address_components ?? [],
+                    place.formatted_address || place.name || '',
+                  ),
+                })
+              })
+            } catch {
+              // Autocomplete unavailable — Enter-to-geocode still works
             }
-
-            void commitPosition(location.lat(), location.lng(), {
-              latitude: location.lat(),
-              longitude: location.lng(),
-              ...parsePlaceComponents(
-                place.address_components ?? [],
-                place.formatted_address || place.name || '',
-              ),
-            })
-          })
+          }
         }
       })
       .catch((error: unknown) => {

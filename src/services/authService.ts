@@ -5,10 +5,19 @@ import {
 } from '@/types/api'
 import type { Profile } from '@/types/Profile'
 import type { UserRole } from '@/types/enums'
-import { MIN_PASSWORD_LENGTH } from '@/constants/AUTH'
+import { AUTH_REDIRECT_STORAGE_KEY, MIN_PASSWORD_LENGTH } from '@/constants/AUTH'
+import { UNMATCHED_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
+import { getCurrentOrganizationId } from '@/services/currentOrganization'
 import { supabase } from '@/services/supabaseClient'
+import { persistOAuthTenantCookie } from '@/utils/authTenantCookie'
 import { mapProfile } from '@/utils/mapProfile'
 import { normalizeIndianPhone } from '@/utils/phone'
+import {
+  googleOAuthPreflightUrl,
+  googleOAuthRedirectTo,
+} from '@/utils/oauthRedirect'
+import { applyTenantCustomerCapture } from '@/utils/tenantCustomer'
+import { resolveTenantSlugFromLocation } from '@/utils/tenantHost'
 import { isValidEmail, isValidPassword, isValidPhone } from '@/utils/validation'
 
 export interface LoginInput {
@@ -145,6 +154,24 @@ async function createProfileFromSession(
   return createSuccessResponse(mapProfile(data))
 }
 
+async function overlayTenantCustomerProfile(
+  profile: Profile,
+): Promise<Profile> {
+  const organizationId = getCurrentOrganizationId()
+  if (!organizationId || organizationId === UNMATCHED_ORGANIZATION_ID) {
+    return profile
+  }
+
+  const { data } = await supabase
+    .from('organization_customers')
+    .select('full_name, phone, email, is_active, created_at')
+    .eq('organization_id', organizationId)
+    .eq('user_id', profile.id)
+    .maybeSingle()
+
+  return applyTenantCustomerCapture(profile, data)
+}
+
 /** Email/password login for all personas. */
 export async function login(
   input: LoginInput,
@@ -174,7 +201,52 @@ export async function login(
 
   const profile = await fetchProfile(data.user.id)
   if (!profile.success) return profile
-  return profile
+  return createSuccessResponse(
+    await overlayTenantCustomerProfile(profile.data),
+  )
+}
+
+/** Start Google OAuth for the current restaurant host. */
+export async function loginWithGoogle(
+  redirectToPath?: string,
+): Promise<ServiceResponse<null>> {
+  const tenantSlug = resolveTenantSlugFromLocation({ persist: false })
+  if (!tenantSlug) {
+    return createErrorResponse(
+      'Could not determine which restaurant you are signing into.',
+    )
+  }
+
+  if (redirectToPath?.startsWith('/') && !redirectToPath.startsWith('//')) {
+    try {
+      sessionStorage.setItem(AUTH_REDIRECT_STORAGE_KEY, redirectToPath)
+    } catch {
+      // Private mode / blocked storage
+    }
+  }
+
+  persistOAuthTenantCookie(tenantSlug)
+
+  const preflight = googleOAuthPreflightUrl('/login', redirectToPath, undefined, tenantSlug)
+  if (preflight) {
+    window.location.assign(preflight)
+    return createSuccessResponse(null)
+  }
+
+  const redirectTo = googleOAuthRedirectTo('/login', tenantSlug)
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo,
+      queryParams: { prompt: 'select_account' },
+    },
+  })
+
+  if (error) {
+    return createErrorResponse(mapAuthError(error.message), error.message)
+  }
+
+  return createSuccessResponse(null)
 }
 
 /** Create a new email/password account for any persona (testing). */
@@ -250,7 +322,9 @@ export async function register(
 
   const profile = await fetchProfile(data.user.id)
   if (!profile.success) return profile
-  return profile
+  return createSuccessResponse(
+    await overlayTenantCustomerProfile(profile.data),
+  )
 }
 
 async function readFunctionsErrorMessage(
@@ -391,7 +465,9 @@ export async function loginWithWhatsAppOtp(
 
     const otpProfile = await fetchProfile(otpData.user.id)
     if (!otpProfile.success) return otpProfile
-    return otpProfile
+    return createSuccessResponse(
+      await overlayTenantCustomerProfile(otpProfile.data),
+    )
   }
 
   if (!data.access_token || !data.refresh_token) {
@@ -413,7 +489,9 @@ export async function loginWithWhatsAppOtp(
 
   const sessionProfile = await fetchProfile(sessionData.user.id)
   if (!sessionProfile.success) return sessionProfile
-  return sessionProfile
+  return createSuccessResponse(
+    await overlayTenantCustomerProfile(sessionProfile.data),
+  )
 }
 
 export async function logout(): Promise<ServiceResponse<null>> {
@@ -440,7 +518,11 @@ export async function getCurrentUser(): Promise<ServiceResponse<Profile | null>>
     return createSuccessResponse(null)
   }
 
-  return fetchProfile(data.session.user.id)
+  const profile = await fetchProfile(data.session.user.id)
+  if (!profile.success) return profile
+  return createSuccessResponse(
+    await overlayTenantCustomerProfile(profile.data),
+  )
 }
 
 export async function hasActiveSession(): Promise<boolean> {

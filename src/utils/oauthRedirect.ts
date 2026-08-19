@@ -1,0 +1,132 @@
+import { OAUTH_CONTINUE_GOOGLE } from '@/constants/AUTH'
+import {
+  OAUTH_CALLBACK_ORIGIN,
+  PLATFORM_ROOT_DOMAIN,
+} from '@/constants/PLATFORM'
+import {
+  isLocalDevHostname,
+  isPlatformApexHost,
+  resolveTenantSlugFromLocation,
+} from '@/utils/tenantHost'
+
+export interface OAuthRedirectLocation {
+  hostname: string
+  origin: string
+  port?: string
+}
+
+function readLocation(): OAuthRedirectLocation {
+  if (typeof window === 'undefined') {
+    return { hostname: 'localhost', origin: 'http://localhost:5173', port: '5173' }
+  }
+
+  return {
+    hostname: window.location.hostname,
+    origin: window.location.origin,
+    port: window.location.port || undefined,
+  }
+}
+
+function normalizePath(path: string): string {
+  const trimmed = path.trim() || '/login'
+  return trimmed.startsWith('/') ? trimmed : `/${trimmed}`
+}
+
+function localDevOrigin(port = '5173'): string {
+  return `http://localhost:${port}`
+}
+
+function callbackHostname(): string {
+  try {
+    return new URL(OAUTH_CALLBACK_ORIGIN).hostname
+  } catch {
+    return `www.${PLATFORM_ROOT_DOMAIN}`
+  }
+}
+
+export function shouldContinueGoogleOAuth(search: string): boolean {
+  const params = new URLSearchParams(search.startsWith('?') ? search : `?${search}`)
+  return params.get('continue') === OAUTH_CONTINUE_GOOGLE
+}
+
+/**
+ * Supabase OAuth `redirectTo`.
+ * Production always uses the platform callback origin with `?tenant=` so Supabase
+ * can allow one URL pattern and the `.directapp.in` tenant cookie still works.
+ */
+export function googleOAuthRedirectTo(
+  path: string,
+  tenantSlug?: string | null,
+  location: OAuthRedirectLocation = readLocation(),
+): string {
+  const slug =
+    tenantSlug?.trim().toLowerCase() ||
+    resolveTenantSlugFromLocation({
+      hostname: location.hostname,
+      search: typeof window !== 'undefined' ? window.location.search : '',
+      persist: false,
+    })
+
+  const normalizedPath = normalizePath(path)
+
+  if (slug && isLocalDevHostname(location.hostname)) {
+    const port = location.port || '5173'
+    return `${localDevOrigin(port)}${normalizedPath}?tenant=${encodeURIComponent(slug)}`
+  }
+
+  if (slug) {
+    return `${OAUTH_CALLBACK_ORIGIN}${normalizedPath}?tenant=${encodeURIComponent(slug)}`
+  }
+
+  return `${location.origin}${normalizedPath}`
+}
+
+/**
+ * Hop Google OAuth start onto the callback origin (`www.directapp.in` or bare
+ * localhost) so PKCE and redirectTo stay on one Supabase-allowlisted host.
+ */
+export function googleOAuthPreflightUrl(
+  loginPath: string,
+  nextPath?: string,
+  location: OAuthRedirectLocation = readLocation(),
+  tenantSlug?: string | null,
+): string | null {
+  const slug =
+    tenantSlug?.trim().toLowerCase() ||
+    resolveTenantSlugFromLocation({
+      hostname: location.hostname,
+      search: typeof window !== 'undefined' ? window.location.search : '',
+      persist: false,
+    })
+  if (!slug) return null
+
+  const params = new URLSearchParams({
+    tenant: slug,
+    continue: OAUTH_CONTINUE_GOOGLE,
+  })
+
+  if (nextPath?.startsWith('/') && !nextPath.startsWith('//')) {
+    params.set('next', nextPath)
+  }
+
+  const normalizedPath = normalizePath(loginPath)
+  const query = params.toString()
+
+  if (location.hostname.endsWith('.localhost')) {
+    const port = location.port || '5173'
+    return `${localDevOrigin(port)}${normalizedPath}?${query}`
+  }
+
+  if (isLocalDevHostname(location.hostname)) {
+    return null
+  }
+
+  if (
+    location.hostname === callbackHostname() ||
+    isPlatformApexHost(location.hostname, PLATFORM_ROOT_DOMAIN)
+  ) {
+    return null
+  }
+
+  return `${OAUTH_CALLBACK_ORIGIN}${normalizedPath}?${query}`
+}

@@ -179,6 +179,7 @@ async function resolveDeliveryQuote(
 
   if (error || !data) return none
   if (data.address_id !== addressId) return none
+  if (data.organization_id !== getCurrentOrganizationId()) return none
   if (data.consumed_by_order_id) return none
   if (new Date(data.expires_at as string).getTime() < Date.now()) return none
   if (!data.is_serviceable) return none

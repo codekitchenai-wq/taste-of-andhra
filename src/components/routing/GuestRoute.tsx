@@ -4,6 +4,7 @@ import { LoadingState } from '@/components/ui/LoadingState'
 import { AUTH_REDIRECT_STORAGE_KEY } from '@/constants/AUTH'
 import { ROUTES } from '@/constants/ROUTES'
 import { useAuth } from '@/hooks/useAuth'
+import { pendingOAuthTenantHandoff } from '@/utils/oauthHandoff'
 import { isPlatformMasterUser } from '@/utils/platformMaster'
 import { resolveCustomerPostAuthRedirect } from '@/utils/postAuthRedirect'
 
@@ -65,6 +66,10 @@ export function GuestRoute() {
   }, [isCustomer])
 
   if (isLoading) {
+    return <LoadingState fullPage variant="inline" />
+  }
+
+  if (pendingOAuthTenantHandoff()) {
     return <LoadingState fullPage variant="inline" />
   }
 

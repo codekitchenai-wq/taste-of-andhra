@@ -16,6 +16,7 @@ export function mapAddress(row: Record<string, unknown>): Address {
     pincode: row.pincode as string,
     latitude: row.latitude !== null ? Number(row.latitude) : null,
     longitude: row.longitude !== null ? Number(row.longitude) : null,
+    distance_km: row.distance_km != null ? Number(row.distance_km) : null,
     is_default: row.is_default as boolean,
     created_at: row.created_at as string,
   }

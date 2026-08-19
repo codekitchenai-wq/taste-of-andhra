@@ -1171,6 +1171,7 @@ DECLARE
   v_branch public.branches%ROWTYPE;
   v_settings public.delivery_settings%ROWTYPE;
   v_distance NUMERIC;
+  v_branch_found BOOLEAN := FALSE;
 BEGIN
   SELECT * INTO v_address FROM public.addresses WHERE id = p_address_id;
 
@@ -1192,24 +1193,42 @@ BEGIN
   END IF;
 
   IF p_branch_id IS NOT NULL THEN
-    SELECT * INTO v_branch FROM public.branches WHERE id = p_branch_id;
-  ELSE
     SELECT * INTO v_branch
       FROM public.branches
-     WHERE is_default AND is_active
-     LIMIT 1;
+     WHERE id = p_branch_id
+       AND organization_id = v_address.organization_id;
+
+    IF FOUND THEN
+      v_branch_found := TRUE;
+    END IF;
   END IF;
 
-  -- Branch settings win; the branch-less row is the default for everyone else.
-  SELECT * INTO v_settings
-    FROM public.delivery_settings
-   WHERE branch_id = v_branch.id
-   LIMIT 1;
+  IF NOT v_branch_found THEN
+    SELECT * INTO v_branch
+      FROM public.branches
+     WHERE organization_id = v_address.organization_id
+       AND is_default
+       AND is_active
+     LIMIT 1;
+
+    IF FOUND THEN
+      v_branch_found := TRUE;
+    END IF;
+  END IF;
+
+  IF v_branch_found THEN
+    SELECT * INTO v_settings
+      FROM public.delivery_settings
+     WHERE branch_id = v_branch.id
+       AND organization_id = v_address.organization_id
+     LIMIT 1;
+  END IF;
 
   IF NOT FOUND THEN
     SELECT * INTO v_settings
       FROM public.delivery_settings
      WHERE branch_id IS NULL
+       AND organization_id = v_address.organization_id
      LIMIT 1;
   END IF;
 
@@ -1237,7 +1256,8 @@ BEGIN
     RETURN;
   END IF;
 
-  IF v_branch.latitude IS NOT NULL
+  IF v_branch_found
+    AND v_branch.latitude IS NOT NULL
     AND v_branch.longitude IS NOT NULL
     AND v_address.latitude IS NOT NULL
     AND v_address.longitude IS NOT NULL
@@ -1269,7 +1289,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.check_delivery_service_area(UUID, UUID) IS
-  'Single source of truth for whether an address is inside the delivery area.';
+  'Single source of truth for whether an address is inside the delivery area (scoped by organization_id).';
 
 REVOKE ALL ON FUNCTION public.check_delivery_service_area(UUID, UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.check_delivery_service_area(UUID, UUID)

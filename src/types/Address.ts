@@ -13,6 +13,7 @@ export interface Address {
   pincode: string
   latitude: number | null
   longitude: number | null
+  distance_km: number | null
   is_default: boolean
   created_at: string
 }

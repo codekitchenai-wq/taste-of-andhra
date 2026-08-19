@@ -57,6 +57,7 @@ Vercel → **Project → Settings → Environment Variables**. Required for mult
 ```bash
 VITE_ENABLE_HOST_TENANT_RESOLUTION=true
 VITE_PLATFORM_ROOT_DOMAIN=directapp.in
+VITE_AUTH_OAUTH_CALLBACK_ORIGIN=https://www.directapp.in
 VITE_SUPABASE_URL=https://<prod-project-ref>.supabase.co
 VITE_SUPABASE_ANON_KEY=<production anon key>
 ```
@@ -64,6 +65,23 @@ VITE_SUPABASE_ANON_KEY=<production anon key>
 `VITE_*` variables are baked in at **build time**. After changing them, trigger a **new Production deploy** (Redeploy, or push a commit).
 
 Optional but recommended: same Supabase URL/key in Preview if you test tenant subdomains on preview URLs.
+
+### 1b. Supabase Google OAuth URL configuration (production)
+
+Project: **`qixpsqlifwsztncjevgl`** → **Authentication → URL Configuration**
+
+| Setting | Required value |
+|---------|----------------|
+| **Site URL** | `https://www.directapp.in` |
+| **Redirect URLs** | `https://www.directapp.in/**` |
+| | `https://*.directapp.in/**` |
+| | `http://localhost:5173/**` |
+
+**Do not** use `https://www.thetasteofandhra.com` as Site URL until per-tenant Google login is verified end-to-end.
+
+If `redirectTo` (`https://www.directapp.in/login?tenant=…`) is not allowlisted, Supabase falls back to Site URL and drops `?tenant=`. The tenant cookie is scoped to `.directapp.in`, so a fallback to `thetasteofandhra.com` cannot recover the restaurant.
+
+**Test after deploy:** From `https://chopsticksspicemalabar.directapp.in/login`, Continue with Google → after Google you should land on `www.directapp.in/login?tenant=chopsticksspicemalabar#…` (or briefly `thetasteofandhra.com/login#…` then auto-bounce to `www.directapp.in`) → then `chopsticksspicemalabar.directapp.in/login` logged in.
 
 ### 2. DNS and domains
 
@@ -232,3 +250,8 @@ Local `?tenant=` and `npm run seed:*` do not affect production until you point t
 **RLS / permission errors in console**
 
 - Confirm `20260815160000_architecture_gates_p0.sql` is applied. Public read on dishes uses `is_available = TRUE OR is_org_admin(organization_id)`.
+
+**Google login lands on `thetasteofandhra.com/login#` and stays there**
+
+- Update Supabase Site URL + Redirect URLs (Step 1b). Redeploy after code fix on branch `cursor/per-tenant-google-oauth`.
+- Expected: auto-redirect to `www.directapp.in`, then back to the restaurant subdomain.
