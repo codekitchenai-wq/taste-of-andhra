@@ -24,6 +24,7 @@ export interface CreateAddressInput {
   pincode: string
   latitude?: number | null
   longitude?: number | null
+  distanceKm?: number | null
   isDefault?: boolean
 }
 
@@ -172,6 +173,7 @@ export async function addAddress(
     pincode: input.pincode.trim(),
     latitude: input.latitude ?? null,
     longitude: input.longitude ?? null,
+    distance_km: input.distanceKm ?? null,
     is_default: isDefault,
   })
 
@@ -248,6 +250,10 @@ export async function updateAddress(
 
   if (input.longitude !== undefined) {
     updates.longitude = input.longitude
+  }
+
+  if (input.distanceKm !== undefined) {
+    updates.distance_km = input.distanceKm ?? null
   }
 
   if (input.isDefault !== undefined && input.isDefault) {
