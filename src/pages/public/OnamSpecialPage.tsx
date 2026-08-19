@@ -164,11 +164,11 @@ export default function OnamSpecialPage() {
 
     try {
       const dishResult = await dishService.getDishBySlug(service.dishSlug)
-      if (!dishResult.success || !dishResult.data) {
+      if (!dishResult.success) {
         toast.error(
           dishResult.message === 'Dish not found.'
             ? 'Onam menu is not set up yet for this restaurant. Please try again shortly or contact the restaurant.'
-            : dishResult.message || 'Onam dish is not available on the menu yet.',
+            : dishResult.message,
         )
         return
       }
