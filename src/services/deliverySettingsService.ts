@@ -153,14 +153,20 @@ export async function saveDeliverySettings(
     return createErrorResponse('Max distance must be greater than zero.')
   }
 
+  const organizationId = getCurrentOrganizationId()
+  const requireLocationPin =
+    input.requireLocationPin ||
+    input.maxDistanceKm !== null ||
+    input.perKmCharge > 0
+
   const payload = {
-    organization_id: getCurrentOrganizationId(),
+    organization_id: organizationId,
     branch_id: branchId,
     provider: input.provider,
     is_enabled: input.isEnabled,
     service_pincodes: normalizePincodes(input.servicePincodes),
     max_distance_km: input.maxDistanceKm,
-    require_location_pin: input.requireLocationPin,
+    require_location_pin: requireLocationPin,
     service_area_note: input.serviceAreaNote?.trim() || null,
     markup_flat: input.markupFlat,
     markup_percent: input.markupPercent,
@@ -175,6 +181,7 @@ export async function saveDeliverySettings(
     const { data: existing } = await supabase
       .from('delivery_settings')
       .select('id')
+      .eq('organization_id', organizationId)
       .is('branch_id', null)
       .maybeSingle()
 
