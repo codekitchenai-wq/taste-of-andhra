@@ -1,13 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { Crosshair, MapPin } from 'lucide-react'
+import { Home, MapPin, Navigation, Briefcase, MoreHorizontal, Truck } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
-import { Select } from '@/components/ui/Select'
-import { ADDRESS_TYPES } from '@/constants/ORDER'
 import { useAuth } from '@/hooks/useAuth'
+import { useDeliverySettings } from '@/hooks/useDeliverySettings'
 import type { CreateAddressInput } from '@/services/addressService'
 import * as addressService from '@/services/addressService'
 import type { Address } from '@/types/Address'
@@ -24,8 +23,8 @@ import {
   readBrowserCoordinates,
   type RestaurantLocation,
 } from '@/utils/nearbyAddress'
-
-type EntryMode = 'nearby' | 'manual'
+import { calculateRateCardAmount } from '@/utils/deliveryRateCard'
+import { formatPrice } from '@/utils/format'
 
 interface AddressFormValues {
   addressType: string
@@ -46,6 +45,9 @@ interface AddressFormModalProps {
   onSuccess: (addressId: string) => void
   addressToEdit?: Address | null
   restaurantLocation?: RestaurantLocation | null
+  branchId?: string | null
+  /** Cart subtotal used to calculate the free-delivery threshold preview */
+  subtotal?: number
 }
 
 const emptyValues: AddressFormValues = {
@@ -76,37 +78,51 @@ function toFormValues(address: Address): AddressFormValues {
   }
 }
 
+const ADDRESS_TYPE_OPTIONS = [
+  { value: 'home', label: 'Home', Icon: Home },
+  { value: 'work', label: 'Work', Icon: Briefcase },
+  { value: 'other', label: 'Other', Icon: MoreHorizontal },
+]
+
+type LocationState =
+  | { status: 'idle' }
+  | { status: 'locating' }
+  | { status: 'found'; distanceKm: number; latitude: number; longitude: number }
+  | { status: 'out_of_range'; distanceKm: number }
+  | { status: 'denied' }
+  | { status: 'error'; message: string }
+
 export function AddressFormModal({
   isOpen,
   onClose,
   onSuccess,
   addressToEdit = null,
   restaurantLocation = null,
+  branchId = null,
+  subtotal = 0,
 }: AddressFormModalProps) {
   const isEditing = Boolean(addressToEdit)
-  const canUseNearby = Boolean(restaurantLocation) && !isEditing
+  const canDetectLocation = Boolean(restaurantLocation) && !isEditing
   const { user } = useAuth()
-  const [entryMode, setEntryMode] = useState<EntryMode>('manual')
-  const [coordinates, setCoordinates] = useState<{
-    latitude: number
-    longitude: number
-  } | null>(null)
-  const [isLocating, setIsLocating] = useState(false)
-  const [nearbyMessage, setNearbyMessage] = useState<string | null>(null)
-  const [nearbyError, setNearbyError] = useState<string | null>(null)
+  const { settings: deliverySettings } = useDeliverySettings(branchId)
+
+  const [locationState, setLocationState] = useState<LocationState>({ status: 'idle' })
+
+  // Coordinates used at submit time — kept separate so edits after GPS don't lose the pin
+  const coordinatesRef = useRef<{ latitude: number; longitude: number } | null>(null)
+  // Distance recomputed whenever coordinates change
+  const [distanceKm, setDistanceKm] = useState<number | null>(null)
 
   const {
     register,
     handleSubmit,
     reset,
     setValue,
-    getValues,
     watch,
     formState: { errors, isSubmitting },
-  } = useForm<AddressFormValues>({
-    defaultValues: emptyValues,
-  })
+  } = useForm<AddressFormValues>({ defaultValues: emptyValues })
 
+  const addressType = watch('addressType')
   const addressLine1 = watch('addressLine1')
   const addressLine2 = watch('addressLine2')
   const landmark = watch('landmark')
@@ -117,35 +133,25 @@ export function AddressFormModal({
   useEffect(() => {
     if (!isOpen) return
 
-    setNearbyMessage(null)
-    setNearbyError(null)
-    setIsLocating(false)
+    setLocationState({ status: 'idle' })
+    coordinatesRef.current = null
+    setDistanceKm(null)
 
     if (addressToEdit) {
       reset(toFormValues(addressToEdit))
-      setCoordinates(
-        addressToEdit.latitude != null && addressToEdit.longitude != null
-          ? {
-              latitude: addressToEdit.latitude,
-              longitude: addressToEdit.longitude,
-            }
-          : null,
-      )
-      setEntryMode('manual')
+      if (addressToEdit.latitude != null && addressToEdit.longitude != null) {
+        coordinatesRef.current = {
+          latitude: addressToEdit.latitude,
+          longitude: addressToEdit.longitude,
+        }
+        setDistanceKm(addressToEdit.distance_km ?? null)
+      }
       return
     }
 
     const registeredPhone = user?.phone?.replace(/\D/g, '').slice(-10) ?? ''
-
-    reset({
-      ...emptyValues,
-      fullName: user?.full_name ?? '',
-      phone: registeredPhone,
-      isDefault: true,
-    })
-    setCoordinates(null)
-    setEntryMode(restaurantLocation ? 'nearby' : 'manual')
-  }, [isOpen, addressToEdit, user, reset, restaurantLocation])
+    reset({ ...emptyValues, fullName: user?.full_name ?? '', phone: registeredPhone })
+  }, [isOpen, addressToEdit, user, reset])
 
   const fillFromPlace = (place: {
     addressLine1?: string
@@ -156,83 +162,70 @@ export function AddressFormModal({
     pincode?: string
     formattedAddress?: string
   }) => {
-    const current = getValues()
-    const options = { shouldValidate: true, shouldDirty: true }
-    setValue(
-      'addressLine1',
-      place.addressLine1 || place.formattedAddress || current.addressLine1,
-      options,
-    )
-    if (place.addressLine2) setValue('addressLine2', place.addressLine2, options)
-    if (place.landmark) setValue('landmark', place.landmark, options)
-    if (place.city) setValue('city', place.city, options)
-    if (place.state) setValue('state', place.state, options)
-    if (place.pincode) setValue('pincode', place.pincode, options)
+    const opts = { shouldValidate: true, shouldDirty: true }
+    if (place.addressLine1 || place.formattedAddress)
+      setValue('addressLine1', place.addressLine1 || place.formattedAddress || '', opts)
+    if (place.addressLine2) setValue('addressLine2', place.addressLine2, opts)
+    if (place.landmark) setValue('landmark', place.landmark, opts)
+    if (place.city) setValue('city', place.city, opts)
+    if (place.state) setValue('state', place.state, opts)
+    if (place.pincode) setValue('pincode', place.pincode, opts)
   }
 
-  const handleUseNearbyLocation = async () => {
-    if (!restaurantLocation) {
-      setEntryMode('manual')
-      setNearbyError('Restaurant location is not set. Enter your address.')
-      return
-    }
-
-    setIsLocating(true)
-    setNearbyError(null)
-    setNearbyMessage(null)
+  const handleDetectLocation = async () => {
+    if (!restaurantLocation) return
+    setLocationState({ status: 'locating' })
 
     try {
       const coords = await readBrowserCoordinates()
-      const distanceKm = distanceToRestaurantKm(
-        coords.latitude,
-        coords.longitude,
-        restaurantLocation,
-      )
+      const km = distanceToRestaurantKm(coords.latitude, coords.longitude, restaurantLocation)
 
-      if (!isWithinNearbyDelivery(distanceKm)) {
-        setCoordinates(null)
-        setEntryMode('manual')
-        setNearbyError(
-          `You are about ${distanceKm.toFixed(1)} km from ${restaurantLocation.name}. We deliver within ${NEARBY_DELIVERY_MAX_KM} km. Enter your address below.`,
-        )
+      // Use the tenant's configured max_distance_km if available, otherwise
+      // fall back to the GPS-based nearby-delivery cap.
+      const maxKm = deliverySettings?.max_distance_km ?? NEARBY_DELIVERY_MAX_KM
+      if (!isWithinNearbyDelivery(km, maxKm)) {
+        coordinatesRef.current = null
+        setDistanceKm(null)
+        setLocationState({ status: 'out_of_range', distanceKm: km })
         return
       }
 
-      setCoordinates(coords)
+      coordinatesRef.current = coords
+      setDistanceKm(km)
+      setLocationState({ status: 'found', distanceKm: km, ...coords })
 
       if (isGoogleMapsConfigured) {
         try {
           const maps = await loadGoogleMaps()
-          const lookup = await reverseGeocode(
-            maps,
-            coords.latitude,
-            coords.longitude,
-          )
-          if (lookup.ok) {
-            fillFromPlace(lookup.place)
-          }
+          const lookup = await reverseGeocode(maps, coords.latitude, coords.longitude)
+          if (lookup.ok) fillFromPlace(lookup.place)
         } catch {
-          // Coordinates still count; the customer can type the remaining fields.
+          // GPS pin saved — fields can be typed manually
         }
       }
-
-      setNearbyMessage(
-        `You are about ${distanceKm.toFixed(1)} km from ${restaurantLocation.name}. Check the address below, then save.`,
-      )
-    } catch (error) {
-      setCoordinates(null)
-      setEntryMode('manual')
-      setNearbyError(
-        error instanceof Error
-          ? error.message
-          : 'Could not read your location. Enter your address instead.',
-      )
-    } finally {
-      setIsLocating(false)
+    } catch (err) {
+      coordinatesRef.current = null
+      setDistanceKm(null)
+      const msg = err instanceof Error ? err.message : 'Could not read your location.'
+      if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('blocked')) {
+        setLocationState({ status: 'denied' })
+      } else {
+        setLocationState({ status: 'error', message: msg })
+      }
     }
   }
 
   const onSubmit = async (values: AddressFormValues) => {
+    // Recompute distance if coords exist (catches manual edits after GPS)
+    let finalDistanceKm: number | null = distanceKm
+    if (coordinatesRef.current && restaurantLocation) {
+      finalDistanceKm = distanceToRestaurantKm(
+        coordinatesRef.current.latitude,
+        coordinatesRef.current.longitude,
+        restaurantLocation,
+      )
+    }
+
     const payload: CreateAddressInput = {
       addressType: values.addressType,
       fullName: values.fullName,
@@ -243,8 +236,9 @@ export function AddressFormModal({
       city: values.city,
       state: values.state,
       pincode: values.pincode,
-      latitude: coordinates?.latitude ?? addressToEdit?.latitude ?? null,
-      longitude: coordinates?.longitude ?? addressToEdit?.longitude ?? null,
+      latitude: coordinatesRef.current?.latitude ?? addressToEdit?.latitude ?? null,
+      longitude: coordinatesRef.current?.longitude ?? addressToEdit?.longitude ?? null,
+      distanceKm: finalDistanceKm,
       isDefault: values.isDefault,
     }
 
@@ -270,13 +264,22 @@ export function AddressFormModal({
       title={isEditing ? 'Edit Address' : 'Add Delivery Address'}
       className="max-w-xl"
       footer={
-        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        <div className="flex items-center gap-3">
+          <label className="flex flex-1 cursor-pointer items-center gap-2 text-sm text-text-primary">
+            <input
+              type="checkbox"
+              form="address-form"
+              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+              {...register('isDefault')}
+            />
+            Default address
+          </label>
           <Button
             type="button"
             variant="secondary"
             onClick={onClose}
             disabled={isSubmitting}
-            className="w-full sm:w-auto"
+            className="shrink-0"
           >
             Cancel
           </Button>
@@ -284,254 +287,254 @@ export function AddressFormModal({
             type="submit"
             form="address-form"
             disabled={isSubmitting}
-            className="w-full sm:w-auto"
+            className="shrink-0"
           >
-            {isSubmitting
-              ? 'Saving...'
-              : isEditing
-                ? 'Update Address'
-                : 'Save Address'}
+            {isSubmitting ? 'Saving...' : isEditing ? 'Update Address' : 'Save Address'}
           </Button>
         </div>
       }
     >
-      <form
-        id="address-form"
-        onSubmit={handleSubmit(onSubmit)}
-        className="space-y-4"
-        noValidate
-      >
-        {canUseNearby ? (
-          <div className="space-y-3">
-            <p className="text-sm font-medium text-text-primary">
-              Choose how to add this address
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                aria-pressed={entryMode === 'nearby'}
-                onClick={() => {
-                  setEntryMode('nearby')
-                  setNearbyError(null)
-                }}
-                className={cn(
-                  'flex min-h-[72px] flex-col items-start gap-1 rounded-[var(--radius-button)] border p-3 text-left text-sm transition-colors',
-                  entryMode === 'nearby'
-                    ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
-                    : 'border-gray-200 hover:border-primary/30',
-                )}
-              >
-                <Crosshair
-                  className={cn(
-                    'h-4 w-4',
-                    entryMode === 'nearby'
-                      ? 'text-primary'
-                      : 'text-text-secondary',
-                  )}
-                  aria-hidden="true"
-                />
-                <span className="font-semibold text-text-primary">
-                  Nearby location
-                </span>
-                <span className="text-xs text-text-secondary">
-                  Within {NEARBY_DELIVERY_MAX_KM} km of{' '}
-                  {restaurantLocation?.name}
-                </span>
-              </button>
-              <button
-                type="button"
-                aria-pressed={entryMode === 'manual'}
-                onClick={() => setEntryMode('manual')}
-                className={cn(
-                  'flex min-h-[72px] flex-col items-start gap-1 rounded-[var(--radius-button)] border p-3 text-left text-sm transition-colors',
-                  entryMode === 'manual'
-                    ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
-                    : 'border-gray-200 hover:border-primary/30',
-                )}
-              >
-                <MapPin
-                  className={cn(
-                    'h-4 w-4',
-                    entryMode === 'manual'
-                      ? 'text-primary'
-                      : 'text-text-secondary',
-                  )}
-                  aria-hidden="true"
-                />
-                <span className="font-semibold text-text-primary">
-                  Enter address
-                </span>
-                <span className="text-xs text-text-secondary">
-                  Type house, street and pincode
-                </span>
-              </button>
-            </div>
+      <form id="address-form" onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
 
-            {entryMode === 'nearby' ? (
-              <div className="space-y-3 rounded-[var(--radius-card)] border border-gray-200 bg-background p-3">
-                <p className="text-xs text-text-secondary">
-                  We use your phone location and check it against{' '}
-                  {restaurantLocation?.name}. No map is shown.
-                </p>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => void handleUseNearbyLocation()}
-                  disabled={isLocating}
-                >
-                  <Crosshair className="h-4 w-4" aria-hidden="true" />
-                  {isLocating ? 'Checking location...' : 'Use my location'}
-                </Button>
-                {nearbyMessage ? (
-                  <p className="text-sm text-text-primary">{nearbyMessage}</p>
-                ) : null}
+        {/* ── GPS / location detect strip ── */}
+        {canDetectLocation && (
+          <div
+            className={cn(
+              'rounded-xl border px-4 py-3 transition-colors',
+              locationState.status === 'found'
+                ? 'border-green-200 bg-green-50'
+                : locationState.status === 'out_of_range' || locationState.status === 'denied' || locationState.status === 'error'
+                  ? 'border-red-100 bg-red-50'
+                  : 'border-gray-200 bg-gray-50',
+            )}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <Navigation
+                  className={cn(
+                    'h-4 w-4 shrink-0',
+                    locationState.status === 'found' ? 'text-green-600' : 'text-text-secondary',
+                  )}
+                  aria-hidden="true"
+                />
+                <div className="min-w-0">
+                  {locationState.status === 'idle' && (
+                    <p className="text-sm font-medium text-text-primary">
+                      Detect my location
+                    </p>
+                  )}
+                  {locationState.status === 'locating' && (
+                    <p className="text-sm font-medium text-text-primary animate-pulse">
+                      Detecting…
+                    </p>
+                  )}
+                  {locationState.status === 'found' && (
+                    <>
+                      <p className="text-sm font-semibold text-green-700">
+                        Location detected
+                      </p>
+                      <p className="text-xs text-green-600">
+                        ~{locationState.distanceKm.toFixed(1)} km from {restaurantLocation?.name} · Review and correct fields below
+                      </p>
+                      {deliverySettings && (
+                        <p className="mt-1 flex items-center gap-1 text-xs text-green-700">
+                          <Truck className="h-3 w-3 shrink-0" aria-hidden="true" />
+                          {deliverySettings.free_delivery_threshold !== null &&
+                          subtotal >= deliverySettings.free_delivery_threshold
+                            ? 'Free delivery on this order'
+                            : `Est. delivery charge: ${formatPrice(
+                                calculateRateCardAmount(
+                                  deliverySettings,
+                                  subtotal,
+                                  locationState.distanceKm,
+                                ),
+                              )}`}
+                        </p>
+                      )}
+                    </>
+                  )}
+                  {locationState.status === 'out_of_range' && (
+                    <>
+                      <p className="text-sm font-semibold text-red-600">Outside delivery area</p>
+                      <p className="text-xs text-red-500">
+                        You are {locationState.distanceKm.toFixed(1)} km away — we deliver within{' '}
+                        {deliverySettings?.max_distance_km ?? NEARBY_DELIVERY_MAX_KM} km
+                      </p>
+                    </>
+                  )}
+                  {locationState.status === 'denied' && (
+                    <>
+                      <p className="text-sm font-semibold text-red-600">Location access blocked</p>
+                      <p className="text-xs text-red-500">
+                        Allow location in your browser settings, or enter your address below
+                      </p>
+                    </>
+                  )}
+                  {locationState.status === 'error' && (
+                    <p className="text-xs text-red-500">{locationState.message}</p>
+                  )}
+                </div>
               </div>
-            ) : null}
+
+              {locationState.status !== 'out_of_range' && (
+                <button
+                  type="button"
+                  onClick={() => void handleDetectLocation()}
+                  disabled={locationState.status === 'locating'}
+                  className={cn(
+                    'shrink-0 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors',
+                    locationState.status === 'found'
+                      ? 'border-green-300 text-green-700 hover:bg-green-100'
+                      : 'border-gray-300 text-text-primary hover:border-primary/40 hover:text-primary',
+                    locationState.status === 'locating' && 'cursor-not-allowed opacity-50',
+                  )}
+                >
+                  {locationState.status === 'found' ? 'Re-detect' : 'Use my location'}
+                </button>
+              )}
+            </div>
           </div>
-        ) : null}
-
-        {nearbyError ? (
-          <p className="text-sm text-error" role="alert">
-            {nearbyError}
-          </p>
-        ) : null}
-
-        <Select
-          label="Address Type"
-          options={ADDRESS_TYPES.map((type) => ({
-            label: type.label,
-            value: type.value,
-          }))}
-          {...register('addressType')}
-        />
-
-        <Input
-          label="Full Name"
-          error={errors.fullName?.message}
-          {...register('fullName', { required: 'Full name is required' })}
-        />
-
-        <Input
-          label="Phone"
-          type="tel"
-          inputMode="numeric"
-          placeholder="10-digit mobile number"
-          error={errors.phone?.message}
-          {...register('phone', {
-            required: 'Phone number is required',
-            pattern: {
-              value: /^\d{10}$/,
-              message: 'Enter a valid 10-digit phone number',
-            },
-          })}
-        />
-        {!isEditing && user?.phone && (
-          <p className="text-xs text-text-secondary">
-            Prefills from your registered mobile. You can change it for this
-            address.
-          </p>
         )}
 
-        <Input
-          label="Address Line 1"
-          placeholder="House / flat number, street"
-          error={errors.addressLine1?.message}
-          value={addressLine1}
-          {...register('addressLine1', { required: 'Address is required' })}
-          onChange={(event) =>
-            setValue('addressLine1', event.target.value, {
-              shouldValidate: true,
-              shouldDirty: true,
-            })
-          }
-        />
+        {/* ── Address type pills ── */}
+        <div>
+          <p className="mb-2 text-sm font-medium text-text-primary">Address type</p>
+          <div className="flex gap-2">
+            {ADDRESS_TYPE_OPTIONS.map(({ value, label, Icon }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setValue('addressType', value, { shouldDirty: true })}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
+                  addressType === value
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-gray-200 text-text-secondary hover:border-primary/30 hover:text-text-primary',
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
 
-        <Input
-          label="Address Line 2 (optional)"
-          placeholder="Apartment, floor, area"
-          value={addressLine2}
-          {...register('addressLine2')}
-          onChange={(event) =>
-            setValue('addressLine2', event.target.value, { shouldDirty: true })
-          }
-        />
+        {/* ── Contact ── */}
+        <div className="space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
+            Contact
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Input
+              label="Full Name"
+              error={errors.fullName?.message}
+              {...register('fullName', { required: 'Full name is required' })}
+            />
+            <Input
+              label="Phone"
+              type="tel"
+              inputMode="numeric"
+              placeholder="10-digit mobile"
+              error={errors.phone?.message}
+              {...register('phone', {
+                required: 'Phone number is required',
+                pattern: {
+                  value: /^\d{10}$/,
+                  message: 'Enter a valid 10-digit number',
+                },
+              })}
+            />
+          </div>
+        </div>
 
-        <Input
-          label="Nearest Landmark"
-          placeholder="e.g. Near Metro station / temple"
-          error={errors.landmark?.message}
-          value={landmark}
-          {...register('landmark', {
-            required: 'Nearest landmark is required',
-            minLength: {
-              value: 2,
-              message: 'Enter a nearby landmark',
-            },
-          })}
-          onChange={(event) =>
-            setValue('landmark', event.target.value, {
-              shouldValidate: true,
-              shouldDirty: true,
-            })
-          }
-        />
+        {/* ── Address ── */}
+        <div className="space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
+            Address
+          </p>
 
-        <div className="grid gap-4 sm:grid-cols-2">
           <Input
-            label="City"
-            error={errors.city?.message}
-            value={city}
-            {...register('city', { required: 'City is required' })}
-            onChange={(event) =>
-              setValue('city', event.target.value, {
-                shouldValidate: true,
-                shouldDirty: true,
-              })
+            label="House / Flat, Street"
+            placeholder="e.g. 12B, MG Road"
+            error={errors.addressLine1?.message}
+            value={addressLine1}
+            {...register('addressLine1', { required: 'Address line 1 is required' })}
+            onChange={(e) =>
+              setValue('addressLine1', e.target.value, { shouldValidate: true, shouldDirty: true })
             }
           />
+
           <Input
-            label="State"
-            error={errors.state?.message}
-            value={state}
-            {...register('state', { required: 'State is required' })}
-            onChange={(event) =>
-              setValue('state', event.target.value, {
-                shouldValidate: true,
-                shouldDirty: true,
-              })
+            label="Apartment / Floor / Area (optional)"
+            placeholder="e.g. 3rd floor, Sobha Apartments"
+            value={addressLine2}
+            {...register('addressLine2')}
+            onChange={(e) => setValue('addressLine2', e.target.value, { shouldDirty: true })}
+          />
+
+          <Input
+            label="Nearest Landmark"
+            placeholder="e.g. Near Metro station / temple"
+            error={errors.landmark?.message}
+            value={landmark}
+            {...register('landmark', {
+              required: 'Landmark is required — helps the delivery partner',
+              minLength: { value: 2, message: 'Enter a recognisable landmark' },
+            })}
+            onChange={(e) =>
+              setValue('landmark', e.target.value, { shouldValidate: true, shouldDirty: true })
             }
           />
         </div>
 
-        <Input
-          label="Pincode"
-          placeholder="6-digit pincode"
-          inputMode="numeric"
-          error={errors.pincode?.message}
-          value={pincode}
-          {...register('pincode', {
-            required: 'Pincode is required',
-            pattern: {
-              value: /^\d{6}$/,
-              message: 'Enter a valid 6-digit pincode',
-            },
-          })}
-          onChange={(event) =>
-            setValue('pincode', event.target.value, {
-              shouldValidate: true,
-              shouldDirty: true,
-            })
-          }
-        />
+        {/* ── Location ── */}
+        <div className="space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
+            Location
+          </p>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Input
+              label="City"
+              error={errors.city?.message}
+              value={city}
+              {...register('city', { required: 'City is required' })}
+              onChange={(e) =>
+                setValue('city', e.target.value, { shouldValidate: true, shouldDirty: true })
+              }
+            />
+            <Input
+              label="State"
+              error={errors.state?.message}
+              value={state}
+              {...register('state', { required: 'State is required' })}
+              onChange={(e) =>
+                setValue('state', e.target.value, { shouldValidate: true, shouldDirty: true })
+              }
+            />
+            <Input
+              label="Pincode"
+              placeholder="6 digits"
+              inputMode="numeric"
+              error={errors.pincode?.message}
+              value={pincode}
+              {...register('pincode', {
+                required: 'Pincode is required',
+                pattern: { value: /^\d{6}$/, message: 'Enter a valid 6-digit pincode' },
+              })}
+              onChange={(e) =>
+                setValue('pincode', e.target.value, { shouldValidate: true, shouldDirty: true })
+              }
+            />
+          </div>
+        </div>
 
-        <label className="flex items-center gap-3 text-sm text-text-primary">
-          <input
-            type="checkbox"
-            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-            {...register('isDefault')}
-          />
-          Set as default address
-        </label>
+        {/* ── Distance badge (editing with saved pin) ── */}
+        {isEditing && distanceKm != null && locationState.status === 'idle' && (
+          <div className="flex items-center gap-1.5 text-xs text-text-secondary">
+            <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
+            Saved distance: ~{distanceKm.toFixed(1)} km from {restaurantLocation?.name ?? 'restaurant'}
+          </div>
+        )}
       </form>
     </Modal>
   )

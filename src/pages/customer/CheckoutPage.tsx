@@ -732,6 +732,8 @@ export default function CheckoutPage() {
         isOpen={isAddressModalOpen}
         addressToEdit={addressToEdit}
         restaurantLocation={restaurantLocationFromBranch(selectedBranch)}
+        branchId={selectedBranch?.id ?? null}
+        subtotal={cart?.subtotal ?? 0}
         onClose={() => {
           setIsAddressModalOpen(false)
           setAddressToEdit(null)
