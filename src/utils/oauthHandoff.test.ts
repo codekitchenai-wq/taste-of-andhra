@@ -133,14 +133,14 @@ describe('disabledTasteOfAndhraRedirectUrl', () => {
     ).toBe('https://www.directapp.in/login')
   })
 
-  it('lets Google finish PKCE on the Site URL before bouncing', () => {
+  it('forwards Google return hash to www so the tenant cookie can be read', () => {
     expect(
       disabledTasteOfAndhraRedirectUrl({
         hostname: 'www.thetasteofandhra.com',
         pathname: '/login',
-        search: '?code=abc',
-        hash: '',
+        search: '',
+        hash: '#access_token=abc&refresh_token=def',
       }),
-    ).toBeNull()
+    ).toBe('https://www.directapp.in/login#access_token=abc&refresh_token=def')
   })
 })

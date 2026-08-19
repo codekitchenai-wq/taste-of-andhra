@@ -6,7 +6,7 @@ import {
 } from './oauthRedirect'
 
 describe('google OAuth redirect', () => {
-  it('hops production tenant subdomains through www with ?tenant=', () => {
+  it('hops production tenant subdomains through www with tenant in redirectTo', () => {
     const location = {
       hostname: 'chopsticksspicemalabar.directapp.in',
       origin: 'https://chopsticksspicemalabar.directapp.in',

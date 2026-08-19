@@ -47,3 +47,14 @@ export function clearOAuthTenantCookie(): void {
   const domainAttr = domain ? `; Domain=${domain}` : ''
   document.cookie = `${OAUTH_TENANT_COOKIE}=; Max-Age=0; Path=/; SameSite=Lax${secure}${domainAttr}`
 }
+
+/** Tenant slug from OAuth callback URL or the cross-subdomain cookie. */
+export function resolveOAuthTenantSlug(
+  search: string = typeof window !== 'undefined' ? window.location.search : '',
+): string | null {
+  const params = new URLSearchParams(search.startsWith('?') ? search : `?${search}`)
+  const fromUrl = params.get('tenant') || params.get('org')
+  if (fromUrl?.trim()) return fromUrl.trim().toLowerCase()
+
+  return readOAuthTenantCookie()
+}

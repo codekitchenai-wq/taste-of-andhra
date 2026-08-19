@@ -36,6 +36,14 @@ function localDevOrigin(port = '5173'): string {
   return `http://localhost:${port}`
 }
 
+function callbackHostname(): string {
+  try {
+    return new URL(OAUTH_CALLBACK_ORIGIN).hostname
+  } catch {
+    return `www.${PLATFORM_ROOT_DOMAIN}`
+  }
+}
+
 export function shouldContinueGoogleOAuth(search: string): boolean {
   const params = new URLSearchParams(search.startsWith('?') ? search : `?${search}`)
   return params.get('continue') === OAUTH_CONTINUE_GOOGLE
@@ -43,9 +51,8 @@ export function shouldContinueGoogleOAuth(search: string): boolean {
 
 /**
  * Supabase OAuth `redirectTo`.
- * Production always returns to the platform callback origin with `?tenant=` so a
- * Site URL fallback (Taste of Andhra) cannot drop the restaurant context.
- * Local `{slug}.localhost` returns through bare localhost with `?tenant=`.
+ * Production always uses the platform callback origin with `?tenant=` so Supabase
+ * can allow one URL pattern and the `.directapp.in` tenant cookie still works.
  */
 export function googleOAuthRedirectTo(
   path: string,
@@ -75,8 +82,8 @@ export function googleOAuthRedirectTo(
 }
 
 /**
- * Move Google OAuth start onto the callback origin so PKCE and redirectTo match.
- * `{slug}.directapp.in` and custom domains hop through www; `{slug}.localhost` through localhost.
+ * Hop Google OAuth start onto the callback origin (`www.directapp.in` or bare
+ * localhost) so PKCE and redirectTo stay on one Supabase-allowlisted host.
  */
 export function googleOAuthPreflightUrl(
   loginPath: string,
@@ -114,16 +121,11 @@ export function googleOAuthPreflightUrl(
     return null
   }
 
-  if (isPlatformApexHost(location.hostname, PLATFORM_ROOT_DOMAIN)) {
+  if (
+    location.hostname === callbackHostname() ||
+    isPlatformApexHost(location.hostname, PLATFORM_ROOT_DOMAIN)
+  ) {
     return null
-  }
-
-  try {
-    if (new URL(OAUTH_CALLBACK_ORIGIN).hostname === location.hostname) {
-      return null
-    }
-  } catch {
-    // ignore invalid env
   }
 
   return `${OAUTH_CALLBACK_ORIGIN}${normalizedPath}?${query}`

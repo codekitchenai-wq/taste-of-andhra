@@ -10,7 +10,7 @@ import { supabase } from '@/services/supabaseClient'
 import {
   clearOAuthTenantCookie,
   persistOAuthTenantCookie,
-  readOAuthTenantCookie,
+  resolveOAuthTenantSlug,
 } from '@/utils/authTenantCookie'
 import {
   googleOAuthRedirectTo,
@@ -80,9 +80,6 @@ export function disabledTasteOfAndhraRedirectUrl(location: {
 }): string | null {
   if (ENABLE_TASTE_OF_ANDHRA_CUSTOM_DOMAIN) return null
   if (!isTasteOfAndhraCustomHost(location.hostname)) return null
-  if (isGoogleOAuthReturn(location.search ?? '', location.hash ?? '')) {
-    return null
-  }
 
   const path = location.pathname || '/'
   return `${PLATFORM_WWW_URL}${path}${location.search ?? ''}${location.hash ?? ''}`
@@ -191,11 +188,7 @@ export function pendingOAuthTenantHandoff(
   }
   if (!isOAuthCompletionHost(hostname)) return false
 
-  const params = new URLSearchParams(search)
-  const tenant =
-    params.get('tenant')?.trim().toLowerCase() ||
-    readOAuthTenantCookie()?.trim().toLowerCase() ||
-    null
+  const tenant = resolveOAuthTenantSlug(search)
 
   return Boolean(tenant && !hostServesTenant(hostname, tenant))
 }
@@ -213,10 +206,7 @@ export async function handoffOAuthSessionToTenantIfNeeded(): Promise<boolean> {
   if (parseSessionFromUrlHash()) return false
 
   const params = new URLSearchParams(window.location.search)
-  const tenant =
-    params.get('tenant')?.trim().toLowerCase() ||
-    readOAuthTenantCookie()?.trim().toLowerCase() ||
-    null
+  const tenant = resolveOAuthTenantSlug(window.location.search)
 
   const leaveTasteOfAndhra =
     !ENABLE_TASTE_OF_ANDHRA_CUSTOM_DOMAIN &&
@@ -255,10 +245,7 @@ export function recoverOAuthTenantHostIfNeeded(): boolean {
 
   const search = window.location.search
   const params = new URLSearchParams(search)
-  const tenant =
-    params.get('tenant')?.trim().toLowerCase() ||
-    readOAuthTenantCookie()?.trim().toLowerCase() ||
-    null
+  const tenant = resolveOAuthTenantSlug(search)
 
   if (!tenant) return false
 
@@ -300,10 +287,7 @@ export function recoverOAuthTenantHostIfNeeded(): boolean {
 /** Start Google OAuth from the platform login hop (`continue=google`). */
 export async function continueGoogleOAuthFromPreflight(): Promise<string | null> {
   const params = new URLSearchParams(window.location.search)
-  const tenant =
-    params.get('tenant')?.trim().toLowerCase() ||
-    readOAuthTenantCookie()?.trim().toLowerCase() ||
-    null
+  const tenant = resolveOAuthTenantSlug(window.location.search)
 
   if (!tenant) {
     return 'Missing restaurant context for Google sign-in.'
