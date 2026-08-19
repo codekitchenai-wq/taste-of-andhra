@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { QrCode } from 'lucide-react'
 import { MenuDishCard } from '@/components/menu/MenuDishCard'
+import { MenuGoToCartBar } from '@/components/menu/MenuGoToCartBar'
 import { Container } from '@/components/ui/Container'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
@@ -71,7 +72,7 @@ export default function QrMenuPage() {
   }, [refetch])
 
   return (
-    <Container as="div" className="py-8 md:py-12">
+    <Container as="div" className="pb-24 py-8 md:pb-28 md:py-12">
       {qrTable && (
         <PageHeader
           title={qrTable.branch.name}
@@ -117,6 +118,8 @@ export default function QrMenuPage() {
           </div>
         </>
       )}
+
+      <MenuGoToCartBar />
     </Container>
   )
 }

@@ -9,6 +9,36 @@ import { storefrontHero, isSpiceMalabarStorefront } from '@/utils/storefrontCopy
 export function HeroSection() {
   const org = useOrganization()
   const hero = storefrontHero(org)
+  const isSpiceMalabar = isSpiceMalabarStorefront(org)
+
+  if (isSpiceMalabar) {
+    return (
+      <section className="border-b border-gray-100 bg-white">
+        <Container as="div" className="py-10 md:py-14">
+          <div className="mx-auto max-w-4xl text-center">
+            <h1 className="font-heading text-3xl font-bold leading-tight text-text-primary md:text-4xl lg:text-5xl">
+              Kerala · South Indian · North Indian · Indo-Chinese
+            </h1>
+            <p className="mt-4 text-base leading-relaxed text-text-secondary md:text-lg">
+              Authentic favorites from Chopstick Spice Malabar, freshly prepared for dine-in, pickup, and delivery.
+            </p>
+            <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
+              <Link to={ROUTES.ONAM}>
+                <Button size="lg" className="w-full sm:w-auto">
+                  Pre-book Onam Sadhya
+                </Button>
+              </Link>
+              <Link to={ROUTES.MENU}>
+                <Button size="lg" variant="secondary" className="w-full sm:w-auto">
+                  View Menu
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </Container>
+      </section>
+    )
+  }
 
   return (
     <section className="relative flex min-h-[85vh] items-center">
@@ -33,26 +63,18 @@ export function HeroSection() {
             {hero.description}
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:gap-4">
-            {isSpiceMalabarStorefront(org) ? (
-              <Link to={ROUTES.ONAM}>
-                <Button size="lg" className="w-full sm:w-auto">
-                  Pre-book Onam Sadhya
-                </Button>
-              </Link>
-            ) : (
-              <Link to={ROUTES.MENU}>
-                <Button size="lg" className="w-full sm:w-auto">
-                  View Menu
-                </Button>
-              </Link>
-            )}
-            <Link to={isSpiceMalabarStorefront(org) ? ROUTES.MENU : ROUTES.LIGHT_MENU}>
+            <Link to={ROUTES.MENU}>
+              <Button size="lg" className="w-full sm:w-auto">
+                View Menu
+              </Button>
+            </Link>
+            <Link to={ROUTES.LIGHT_MENU}>
               <Button
                 size="lg"
                 variant="secondary"
                 className="w-full border-white bg-white/10 text-white hover:bg-white/20 sm:w-auto"
               >
-                {isSpiceMalabarStorefront(org) ? 'View Menu' : 'Quick Order'}
+                Quick Order
               </Button>
             </Link>
           </div>

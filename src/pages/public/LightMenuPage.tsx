@@ -1,15 +1,14 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ImageIcon, ShoppingCart } from 'lucide-react'
+import { ImageIcon } from 'lucide-react'
 import { LightMenuRow } from '@/components/menu/LightMenuRow'
+import { MenuGoToCartBar } from '@/components/menu/MenuGoToCartBar'
 import { MenuSearchBar } from '@/components/menu/MenuSearchBar'
-import { Button } from '@/components/ui/Button'
 import { Container } from '@/components/ui/Container'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { LoadingState } from '@/components/ui/LoadingState'
 import { ROUTES } from '@/constants/ROUTES'
-import { useCart } from '@/hooks/useCart'
 import {
   DEFAULT_MENU_FILTERS,
   useMenuDishes,
@@ -17,7 +16,6 @@ import {
   type MenuFilterState,
 } from '@/hooks/useMenuDishes'
 import { usePublicCategories } from '@/hooks/usePublicCategories'
-import { formatPrice } from '@/utils/format'
 import { cn } from '@/utils/cn'
 
 const DIET_OPTIONS: { value: DietFilter; label: string }[] = [
@@ -30,7 +28,6 @@ export default function LightMenuPage() {
   const [filters, setFilters] = useState<MenuFilterState>(DEFAULT_MENU_FILTERS)
   const { categories } = usePublicCategories()
   const { dishes, isLoading, error, refetch } = useMenuDishes(filters)
-  const { itemCount, subtotal } = useCart()
 
   const groupedDishes = useMemo(() => {
     const categoryOrder = new Map(
@@ -166,26 +163,7 @@ export default function LightMenuPage() {
         </div>
       )}
 
-      {itemCount > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-50 border-t border-black/10 bg-surface/95 p-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] backdrop-blur">
-          <Container as="div" className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-medium text-text-primary">
-                {itemCount} {itemCount === 1 ? 'item' : 'items'}
-              </p>
-              <p className="text-sm text-text-secondary">
-                {formatPrice(subtotal)}
-              </p>
-            </div>
-            <Link to={ROUTES.CART}>
-              <Button size="md" className="min-w-[9rem]">
-                <ShoppingCart className="h-4 w-4" aria-hidden="true" />
-                View Cart
-              </Button>
-            </Link>
-          </Container>
-        </div>
-      )}
+      <MenuGoToCartBar />
     </Container>
   )
 }

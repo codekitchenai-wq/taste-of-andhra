@@ -5,6 +5,7 @@ import { WhatsAppLink } from '@/components/ui/WhatsAppLink'
 import { useStorefrontWhatsApp } from '@/hooks/useStorefrontWhatsApp'
 import { MenuDishCard } from '@/components/menu/MenuDishCard'
 import { MenuFilters } from '@/components/menu/MenuFilters'
+import { MenuGoToCartBar } from '@/components/menu/MenuGoToCartBar'
 import { Container } from '@/components/ui/Container'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
@@ -45,7 +46,7 @@ export default function MenuPage() {
     filters.sortBy !== 'default'
 
   return (
-    <Container as="div" className="py-3 md:py-4">
+    <Container as="div" className="pb-24 py-3 md:pb-28 md:py-4">
       <header className="mb-2 flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-baseline gap-2">
           <h1 className="font-heading text-xl font-bold md:text-2xl">Our Menu</h1>
@@ -113,6 +114,8 @@ export default function MenuPage() {
           </div>
         )}
       </div>
+
+      <MenuGoToCartBar />
     </Container>
   )
 }

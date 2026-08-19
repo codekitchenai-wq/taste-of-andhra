@@ -14,44 +14,49 @@ import { Container } from '@/components/ui/Container'
 import { Input } from '@/components/ui/Input'
 import { LazyImage } from '@/components/ui/LazyImage'
 import { Select } from '@/components/ui/Select'
-import { WhatsAppLink } from '@/components/ui/WhatsAppLink'
 import { OnamDeliveryAddress } from '@/components/checkout/OnamDeliveryAddress'
 import { ONAM_SADHYA } from '@/constants/ONAM_SADHYA'
 import { AUTH_REDIRECT_STORAGE_KEY } from '@/constants/AUTH'
 import { ROUTES } from '@/constants/ROUTES'
 import { useAuth } from '@/hooks/useAuth'
 import { useCart } from '@/hooks/useCart'
+import { useAddresses } from '@/hooks/useAddresses'
 import { useOrganization } from '@/contexts/OrganizationContext'
-import * as dishService from '@/services/dishService'
+import { whatsappShareUrl } from '@/services/paymentShareService'
 import { formatPrice } from '@/utils/format'
+import { normalizeIndianPhone } from '@/utils/phone'
 import {
   clampOnamPlates,
   defaultOnamPrebook,
   onamDateLabel,
   onamTimeSlots,
-  onamWhatsAppUrl,
   readOnamPrebook,
   writeOnamPrebook,
   type OnamPrebook,
 } from '@/utils/onamPrebook'
 import { writeCheckoutAddressId } from '@/utils/checkoutAddress'
+import { formatAddressLine } from '@/utils/mapAddress'
 import { isSpiceMalabarStorefront } from '@/utils/storefrontCopy'
 import { useStorefrontWhatsApp } from '@/hooks/useStorefrontWhatsApp'
+import { storefrontWhatsAppPhone } from '@/utils/storefrontWhatsApp'
 
 export default function OnamSpecialPage() {
   const org = useOrganization()
   const whatsApp = useStorefrontWhatsApp()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { isAuthenticated, isLoading: isAuthLoading } = useAuth()
-  const { addItem, isUpdating } = useCart()
+  const { isAuthenticated, isLoading: isAuthLoading, user } = useAuth()
+  const { isUpdating } = useCart()
+  const { addresses } = useAddresses()
   const [prebook, setPrebook] = useState<OnamPrebook>(defaultOnamPrebook)
-  const [isPlacing, setIsPlacing] = useState(false)
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
     null,
   )
   const [requestAddAddress, setRequestAddAddress] = useState(0)
   const [isAddressLoading, setIsAddressLoading] = useState(false)
+  const [showWhatsAppPreview, setShowWhatsAppPreview] = useState(false)
+  const [whatsAppTargetPhone, setWhatsAppTargetPhone] = useState('')
+  const [whatsAppPreviewMessage, setWhatsAppPreviewMessage] = useState('')
   const promptedCheckoutRef = useRef(false)
 
   const slots = useMemo(() => onamTimeSlots(), [])
@@ -74,10 +79,48 @@ export default function OnamSpecialPage() {
     if (saved) setPrebook({ ...saved, service: 'parcel' })
   }, [])
 
-  const placeOnlineOrder = async (fromForm = false) => {
+  const selectedAddress =
+    addresses.find((address) => address.id === selectedAddressId) ?? null
+
+  useEffect(() => {
+    const defaultPhone = storefrontWhatsAppPhone(whatsApp.contact) ?? ''
+    if (!defaultPhone) return
+    if (!whatsAppTargetPhone.trim()) {
+      setWhatsAppTargetPhone(defaultPhone)
+    }
+  }, [whatsApp.contact, whatsAppTargetPhone])
+
+  const buildOnamWhatsAppMessage = (booking: OnamPrebook) => {
+    const offer = ONAM_SADHYA.services[booking.service]
+    const customerName =
+      booking.customerName.trim() ||
+      selectedAddress?.full_name ||
+      user?.full_name ||
+      'Customer'
+    const customerPhone = selectedAddress?.phone || user?.phone || ''
+    return [
+      `Hi ${whatsApp.contact.name},`,
+      'I want to place an Onam Sadhya order.',
+      '',
+      'Order details:',
+      `• ${offer.label}`,
+      `• ${booking.plates} plate${booking.plates === 1 ? '' : 's'}`,
+      `• Date: ${onamDateLabel(booking.date)}`,
+      `• Slot: ${slots.find((slot) => slot.value === booking.slot)?.label ?? booking.slot}`,
+      `• Amount: ${formatPrice(subtotal)} + tax`,
+      '',
+      'Customer details:',
+      `• Name: ${customerName}`,
+      `• Contact: ${customerPhone || '(share on call)'}`,
+      `• Address: ${selectedAddress ? formatAddressLine(selectedAddress) : '(missing address)'}`,
+      '',
+      'Please share UPI payment link and confirm this booking.',
+    ].join('\n')
+  }
+
+  const placeOnamWhatsAppOrder = (fromForm = false) => {
     const booking = fromForm ? prebook : (readOnamPrebook() ?? prebook)
     writeOnamPrebook(booking)
-    const offer = ONAM_SADHYA.services[booking.service]
 
     if (!isAuthenticated) {
       const next = `${ROUTES.ONAM}?checkout=1`
@@ -97,30 +140,34 @@ export default function OnamSpecialPage() {
       return
     }
 
+    if (!selectedAddress) {
+      toast.error('Select a delivery address to continue')
+      return
+    }
+
     writeCheckoutAddressId(selectedAddressId)
+    setWhatsAppPreviewMessage(buildOnamWhatsAppMessage(booking))
+    if (!whatsAppTargetPhone.trim()) {
+      setWhatsAppTargetPhone(storefrontWhatsAppPhone(whatsApp.contact) ?? '')
+    }
+    setShowWhatsAppPreview(true)
+  }
 
-    setIsPlacing(true)
-    const dishResult = await dishService.getDishBySlug(offer.dishSlug)
-    if (!dishResult.success) {
-      setIsPlacing(false)
-      toast.error(
-        'Online ordering for this offer is not ready yet. Message the restaurant to pre-book.',
-      )
+  const openWhatsAppWithPreview = () => {
+    const normalized = normalizeIndianPhone(whatsAppTargetPhone)
+    if (!normalized) {
+      toast.error('Enter a valid 10-digit WhatsApp number')
       return
     }
-
-    const cartResult = await addItem(dishResult.data.id, booking.plates)
-    setIsPlacing(false)
-
-    if (!cartResult.success) {
-      toast.error(cartResult.message)
+    const message = whatsAppPreviewMessage.trim()
+    if (!message) {
+      toast.error('Order message is empty. Please try again.')
       return
     }
-
-    toast.success(
-      `${booking.plates}× Onam Sadhya added for ${onamDateLabel(booking.date)}`,
-    )
-    navigate(ROUTES.CHECKOUT)
+    const url = whatsappShareUrl(normalized, message)
+    window.open(url, '_blank', 'noopener,noreferrer')
+    toast.success(`Opening WhatsApp to +91 ${normalized}`)
+    setShowWhatsAppPreview(false)
   }
 
   useEffect(() => {
@@ -323,33 +370,22 @@ export default function OnamSpecialPage() {
             </div>
 
             <div className="mt-5 space-y-3">
-              {whatsApp.enabled ? (
-                <WhatsAppLink
-                  href={onamWhatsAppUrl(prebook)}
-                  variant="button"
-                  fullWidth
-                  className="h-12 text-base"
-                >
-                  Message restaurant
-                </WhatsAppLink>
-              ) : null}
               <Button
                 type="button"
-                variant="secondary"
+                variant="primary"
                 fullWidth
                 size="lg"
                 disabled={
-                  isPlacing ||
                   isUpdating ||
                   (isAuthenticated && isAddressLoading)
                 }
-                onClick={() => void placeOnlineOrder(true)}
+                onClick={() => placeOnamWhatsAppOrder(true)}
               >
-                {isPlacing || isUpdating
-                  ? 'Adding to order…'
+                {isUpdating
+                  ? 'Preparing details…'
                   : isAuthenticated && isAddressLoading
                     ? 'Loading address…'
-                    : 'Place delivery order'}
+                    : 'Send order on WhatsApp'}
               </Button>
               <Button
                 type="button"
@@ -361,11 +397,50 @@ export default function OnamSpecialPage() {
                 Share this offer
               </Button>
             </div>
+            {showWhatsAppPreview ? (
+              <div className="mt-4 rounded-[var(--radius-card)] border border-primary/20 bg-primary/5 p-3">
+                <p className="text-sm font-semibold text-text-primary">
+                  Review before sending (testing)
+                </p>
+                <div className="mt-3 space-y-3">
+                  <Input
+                    label="Send to WhatsApp number"
+                    value={whatsAppTargetPhone}
+                    onChange={(event) => setWhatsAppTargetPhone(event.target.value)}
+                    placeholder="10-digit mobile number"
+                    inputMode="numeric"
+                  />
+                  <div>
+                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-text-secondary">
+                      Message preview
+                    </p>
+                    <textarea
+                      value={whatsAppPreviewMessage}
+                      onChange={(event) => setWhatsAppPreviewMessage(event.target.value)}
+                      rows={10}
+                      className="w-full rounded-[var(--radius-input)] border border-gray-300 bg-white px-3 py-2 text-sm text-text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button type="button" className="flex-1" onClick={openWhatsAppWithPreview}>
+                      Open WhatsApp
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="flex-1"
+                      onClick={() => setShowWhatsAppPreview(false)}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
             {whatsApp.enabled ? (
             <p className="mt-3 text-xs text-text-secondary">
-              WhatsApp sends your plates and slot to {ONAM_SADHYA.restaurant}.
-              Online orders keep the same slot as a delivery note for 25–26
-              August.
+              This sends full order + customer details to {ONAM_SADHYA.restaurant} so
+              they can share UPI payment and confirm your booking.
             </p>
             ) : (
             <p className="mt-3 text-xs text-text-secondary">
