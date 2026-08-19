@@ -10,6 +10,18 @@ export const STOREFRONT_WHATSAPP_SETTING_KEY = 'storefront_whatsapp_enabled'
 /** Restaurant-admin toggle for customer WhatsApp OTP on /login and /register. */
 export const WHATSAPP_OTP_LOGIN_SETTING_KEY = 'whatsapp_otp_login_enabled'
 
+/** Click-to-WhatsApp and customer handoffs use this number when set. */
+export const RESTAURANT_WHATSAPP_PHONE_SETTING_KEY = 'restaurant_whatsapp_phone'
+
+export function restaurantWhatsAppPhoneFromSettings(
+  settings: Record<string, unknown> | null | undefined,
+): string | null {
+  const raw = settings?.[RESTAURANT_WHATSAPP_PHONE_SETTING_KEY]
+  if (typeof raw !== 'string') return null
+  const trimmed = raw.trim()
+  return trimmed || null
+}
+
 export function parseBooleanSetting(value: unknown): boolean | undefined {
   if (typeof value === 'boolean') return value
   if (typeof value === 'number') {

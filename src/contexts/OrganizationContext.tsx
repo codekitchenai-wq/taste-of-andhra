@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useMemo,
   useState,
@@ -16,7 +17,7 @@ import { setCurrentOrganizationId } from '@/services/currentOrganization'
 import { supabase } from '@/services/supabaseClient'
 import { organizationSlugCandidates } from '@/constants/TENANTS'
 import { isMissingColumnError } from '@/utils/supabaseSchema'
-import { storefrontWhatsAppEnabledFromSettings, whatsappOtpLoginEnabledFromSettings } from '@/utils/tenantFeatures'
+import { storefrontWhatsAppEnabledFromSettings, whatsappOtpLoginEnabledFromSettings, RESTAURANT_WHATSAPP_PHONE_SETTING_KEY } from '@/utils/tenantFeatures'
 import {
   customDomainHostVariants,
   isPlatformHostname,
@@ -43,6 +44,13 @@ export interface OrganizationContextValue {
   /** Admin-controlled customer WhatsApp OTP login. Off for new restaurants. */
   whatsappOtpLoginEnabled: boolean
   setWhatsAppOtpLoginEnabled: (enabled: boolean) => void
+  /** Update phone, email, and WhatsApp number after admin saves contact settings. */
+  patchRestaurantContact: (patch: {
+    phone?: string | null
+    alternatePhone?: string | null
+    email?: string | null
+    whatsappPhone?: string | null
+  }) => void
   /** True when host resolution is on and a non-default host was mapped. */
   resolvedFromHost: boolean
   isLoading: boolean
@@ -53,6 +61,7 @@ type ResolvedOrganization = Omit<
   | 'isLoading'
   | 'setStorefrontWhatsAppEnabled'
   | 'setWhatsAppOtpLoginEnabled'
+  | 'patchRestaurantContact'
 >
 
 const OrganizationContext = createContext<OrganizationContextValue | null>(null)
@@ -375,6 +384,33 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const patchRestaurantContact = useCallback(
+    (patch: {
+      phone?: string | null
+      alternatePhone?: string | null
+      email?: string | null
+      whatsappPhone?: string | null
+    }) => {
+      if (patch.phone !== undefined) setPhone(patch.phone)
+      if (patch.alternatePhone !== undefined) {
+        setAlternatePhone(patch.alternatePhone)
+      }
+      if (patch.email !== undefined) setEmail(patch.email)
+      if (patch.whatsappPhone !== undefined) {
+        setSettings((prev) => {
+          const next = { ...prev }
+          if (patch.whatsappPhone?.trim()) {
+            next[RESTAURANT_WHATSAPP_PHONE_SETTING_KEY] = patch.whatsappPhone.trim()
+          } else {
+            delete next[RESTAURANT_WHATSAPP_PHONE_SETTING_KEY]
+          }
+          return next
+        })
+      }
+    },
+    [],
+  )
+
   const value = useMemo<OrganizationContextValue>(
     () => ({
       organizationId,
@@ -394,6 +430,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       setStorefrontWhatsAppEnabled,
       whatsappOtpLoginEnabled,
       setWhatsAppOtpLoginEnabled,
+      patchRestaurantContact,
       resolvedFromHost,
       isLoading,
     }),
@@ -413,6 +450,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       settings,
       storefrontWhatsAppEnabled,
       whatsappOtpLoginEnabled,
+      patchRestaurantContact,
       resolvedFromHost,
       isLoading,
     ],
@@ -452,6 +490,7 @@ export function useOrganization(): OrganizationContextValue {
         { organizationId: DEFAULT_ORGANIZATION_ID },
       ),
       setWhatsAppOtpLoginEnabled: () => undefined,
+      patchRestaurantContact: () => undefined,
       resolvedFromHost: false,
       isLoading: false,
     }

@@ -8,6 +8,7 @@ export function storefrontWhatsAppPhone(
   contact: StorefrontContact,
 ): string | null {
   return (
+    normalizeIndianPhone(contact.whatsappPhone ?? '') ??
     normalizeIndianPhone(contact.phone) ??
     normalizeIndianPhone(contact.phones[0] ?? '')
   )

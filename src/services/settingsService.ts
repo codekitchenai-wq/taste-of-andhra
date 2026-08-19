@@ -33,11 +33,13 @@ import {
 import {
   defaultOrderNumberSequence,
   restaurantDisplayName,
+  RESTAURANT_WHATSAPP_PHONE_SETTING_KEY,
   STOREFRONT_WHATSAPP_SETTING_KEY,
   storefrontWhatsAppEnabledFromSettings,
   WHATSAPP_OTP_LOGIN_SETTING_KEY,
   whatsappOtpLoginEnabledFromSettings,
 } from '@/utils/tenantFeatures'
+import { normalizeIndianPhone } from '@/utils/phone'
 
 const DEFAULT_ETA_KEY = 'default_eta_minutes'
 const UPI_VPA_KEY = 'upi_vpa'
@@ -53,6 +55,13 @@ function orderNumberSequenceKey(branchId?: string | null): string {
 export interface UpiSettings {
   vpa: string
   payeeName: string
+}
+
+export interface RestaurantContactSettings {
+  phone: string
+  alternatePhone: string
+  email: string
+  whatsappPhone: string
 }
 
 function parseEtaMinutes(raw: string | null | undefined): number {
@@ -341,6 +350,139 @@ export async function setUpiSettings(
   if (!nameResult.success) return nameResult
 
   return createSuccessResponse({ vpa, payeeName })
+}
+
+async function loadCurrentRestaurantContact(): Promise<{
+  phone: string | null
+  email: string | null
+  settings: Record<string, unknown>
+}> {
+  const { data, error } = await supabase
+    .from('organizations')
+    .select('phone, email, settings')
+    .eq('id', getCurrentOrganizationId())
+    .maybeSingle()
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  const settings =
+    data?.settings && typeof data.settings === 'object'
+      ? (data.settings as Record<string, unknown>)
+      : {}
+
+  return {
+    phone: typeof data?.phone === 'string' ? data.phone : null,
+    email: typeof data?.email === 'string' ? data.email : null,
+    settings,
+  }
+}
+
+function optionalPhoneError(label: string, value: string): string | null {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  if (!normalizeIndianPhone(trimmed)) {
+    return `Enter a valid ${label} (10-digit Indian mobile).`
+  }
+  return null
+}
+
+export async function getRestaurantContactSettings(): Promise<
+  ServiceResponse<RestaurantContactSettings>
+> {
+  try {
+    const org = await loadCurrentRestaurantContact()
+    const alternate =
+      typeof org.settings.alternate_phone === 'string'
+        ? org.settings.alternate_phone
+        : ''
+    const whatsapp =
+      typeof org.settings[RESTAURANT_WHATSAPP_PHONE_SETTING_KEY] === 'string'
+        ? (org.settings[RESTAURANT_WHATSAPP_PHONE_SETTING_KEY] as string)
+        : ''
+
+    return createSuccessResponse({
+      phone: org.phone?.trim() ?? '',
+      alternatePhone: alternate.trim(),
+      email: org.email?.trim() ?? '',
+      whatsappPhone: whatsapp.trim(),
+    })
+  } catch (error) {
+    return createErrorResponse(
+      'Unable to load restaurant contact details.',
+      error instanceof Error ? error.message : undefined,
+    )
+  }
+}
+
+export async function setRestaurantContactSettings(
+  input: RestaurantContactSettings,
+): Promise<ServiceResponse<RestaurantContactSettings>> {
+  const phone = input.phone.trim()
+  const alternatePhone = input.alternatePhone.trim()
+  const email = input.email.trim()
+  const whatsappPhone = input.whatsappPhone.trim()
+
+  for (const [label, value] of [
+    ['phone number', phone],
+    ['alternate phone number', alternatePhone],
+    ['WhatsApp number', whatsappPhone],
+  ] as const) {
+    const phoneError = optionalPhoneError(label, value)
+    if (phoneError) return createErrorResponse(phoneError)
+  }
+
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return createErrorResponse('Enter a valid email address.')
+  }
+
+  const orgId = getCurrentOrganizationId()
+
+  try {
+    const org = await loadCurrentRestaurantContact()
+    const nextSettings = { ...org.settings }
+
+    if (alternatePhone) {
+      nextSettings.alternate_phone = alternatePhone
+    } else {
+      delete nextSettings.alternate_phone
+    }
+
+    if (whatsappPhone) {
+      nextSettings[RESTAURANT_WHATSAPP_PHONE_SETTING_KEY] = whatsappPhone
+    } else {
+      delete nextSettings[RESTAURANT_WHATSAPP_PHONE_SETTING_KEY]
+    }
+
+    const { error } = await supabase
+      .from('organizations')
+      .update({
+        phone: phone || null,
+        email: email || null,
+        settings: nextSettings,
+      })
+      .eq('id', orgId)
+
+    if (error) {
+      return createErrorResponse(
+        'Unable to save restaurant contact details.',
+        error.message,
+      )
+    }
+
+    return createSuccessResponse({
+      phone,
+      alternatePhone,
+      email,
+      whatsappPhone,
+    })
+  } catch (error) {
+    return createErrorResponse(
+      'Unable to save restaurant contact details.',
+      error instanceof Error ? error.message : undefined,
+    )
+  }
 }
 
 export async function getStorefrontWhatsAppEnabled(): Promise<

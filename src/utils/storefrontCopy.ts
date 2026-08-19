@@ -4,7 +4,10 @@ import { SHOW_TEST_HELPERS } from '@/constants/DEMO_ACCOUNTS'
 import { heroContent, testimonials, whyChooseUsItems } from '@/data/home'
 import type { OrganizationContextValue } from '@/contexts/OrganizationContext'
 import { isSpiceMalabarSlug, isTasteOfAndhraSlug } from '@/constants/TENANTS'
-import { restaurantDisplayName } from '@/utils/tenantFeatures'
+import {
+  restaurantDisplayName,
+  restaurantWhatsAppPhoneFromSettings,
+} from '@/utils/tenantFeatures'
 import { isAndhraLocalAsset, optimizeMenuImage } from '@/utils/menuImage'
 import { isPlatformMarketingHost } from '@/utils/platformHost'
 
@@ -229,6 +232,8 @@ export interface StorefrontContact {
   phone: string
   alternatePhone: string | null
   phones: string[]
+  /** Dedicated WhatsApp number for click-to-order and customer handoffs. */
+  whatsappPhone: string | null
   email: string | null
   address: string
   mapsUrl: string
@@ -247,6 +252,7 @@ export function storefrontContact(
       org.alternatePhone?.trim() ||
       (spice ? SPICE_MALABAR_CONTACT.alternatePhone : '')
     const phones = [phone, alternate].filter(Boolean)
+    const whatsappPhone = restaurantWhatsAppPhoneFromSettings(org.settings)
     const address =
       org.address?.trim() ||
       (spice ? SPICE_MALABAR_CONTACT.address : CONTACT.address)
@@ -268,6 +274,7 @@ export function storefrontContact(
       phone: phone || (spice ? SPICE_MALABAR_CONTACT.phone : ''),
       alternatePhone: alternate || null,
       phones: phones.length > 0 ? phones : spice ? [SPICE_MALABAR_CONTACT.phone] : [],
+      whatsappPhone,
       email: publicEmail(org.email),
       address,
       mapsUrl: mapsUrlFor(address),
@@ -283,6 +290,7 @@ export function storefrontContact(
     phone: CONTACT.phone,
     alternatePhone: null,
     phones: [CONTACT.phone],
+    whatsappPhone: restaurantWhatsAppPhoneFromSettings(org.settings),
     email: CONTACT.email,
     address: CONTACT.address,
     mapsUrl: CONTACT.mapsDirectionsUrl,

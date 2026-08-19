@@ -39,6 +39,12 @@ export default function AdminSettingsPage() {
   const [razorpayKeyId, setRazorpayKeyId] = useState('')
   const [isLoadingRazorpay, setIsLoadingRazorpay] = useState(true)
   const [isSavingRazorpay, setIsSavingRazorpay] = useState(false)
+  const [contactPhone, setContactPhone] = useState('')
+  const [contactAlternatePhone, setContactAlternatePhone] = useState('')
+  const [contactEmail, setContactEmail] = useState('')
+  const [contactWhatsappPhone, setContactWhatsappPhone] = useState('')
+  const [isLoadingContact, setIsLoadingContact] = useState(true)
+  const [isSavingContact, setIsSavingContact] = useState(false)
   const [pidgeStatus, setPidgeStatus] = useState<PidgeConfigStatus | null>(null)
 
   const razorpayLive = isRazorpayConfigured({
@@ -57,11 +63,13 @@ export default function AdminSettingsPage() {
       setIsLoadingEta(true)
       setIsLoadingUpi(true)
       setIsLoadingRazorpay(true)
-      const [etaResult, upiResult, razorpayResult, pidgeResult] =
+      setIsLoadingContact(true)
+      const [etaResult, upiResult, razorpayResult, contactResult, pidgeResult] =
         await Promise.all([
           settingsService.getDefaultEtaMinutes(),
           settingsService.getUpiSettings(),
           settingsService.getRazorpayPublishableKey(),
+          settingsService.getRestaurantContactSettings(),
           deliveryQuoteService.getPidgeStatus(),
         ])
       if (cancelled) return
@@ -76,12 +84,19 @@ export default function AdminSettingsPage() {
       if (razorpayResult.success) {
         setRazorpayKeyId(razorpayResult.data)
       }
+      if (contactResult.success) {
+        setContactPhone(contactResult.data.phone)
+        setContactAlternatePhone(contactResult.data.alternatePhone)
+        setContactEmail(contactResult.data.email)
+        setContactWhatsappPhone(contactResult.data.whatsappPhone)
+      }
       if (pidgeResult.success) {
         setPidgeStatus(pidgeResult.data)
       }
       setIsLoadingEta(false)
       setIsLoadingUpi(false)
       setIsLoadingRazorpay(false)
+      setIsLoadingContact(false)
     }
 
     void load()
@@ -135,6 +150,34 @@ export default function AdminSettingsPage() {
 
     setRazorpayKeyId(result.data)
     toast.success('Razorpay Key ID saved for this restaurant')
+  }
+
+  const handleSaveContact = async () => {
+    setIsSavingContact(true)
+    const result = await settingsService.setRestaurantContactSettings({
+      phone: contactPhone,
+      alternatePhone: contactAlternatePhone,
+      email: contactEmail,
+      whatsappPhone: contactWhatsappPhone,
+    })
+    setIsSavingContact(false)
+
+    if (!result.success) {
+      toast.error(result.message)
+      return
+    }
+
+    setContactPhone(result.data.phone)
+    setContactAlternatePhone(result.data.alternatePhone)
+    setContactEmail(result.data.email)
+    setContactWhatsappPhone(result.data.whatsappPhone)
+    org.patchRestaurantContact({
+      phone: result.data.phone || null,
+      alternatePhone: result.data.alternatePhone || null,
+      email: result.data.email || null,
+      whatsappPhone: result.data.whatsappPhone || null,
+    })
+    toast.success('Restaurant contact details saved')
   }
 
   return (
@@ -269,21 +312,54 @@ export default function AdminSettingsPage() {
               </a>
             </dd>
           </div>
-          <div>
-            <dt className="text-sm text-text-secondary">Phone</dt>
-            <dd className="font-medium text-text-primary">
-              {contact.phones.join(' / ')}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-sm text-text-secondary">Email</dt>
-            <dd className="font-medium text-text-primary">
-              {contact.email || 'Not listed'}
-            </dd>
-          </div>
         </dl>
+        <p className="mt-4 text-sm text-text-secondary">
+          Phone, email, and WhatsApp numbers shown on your website and used for
+          click-to-WhatsApp ordering.
+        </p>
+        <div className="mt-4 grid max-w-xl gap-3 sm:grid-cols-2">
+          <Input
+            label="Phone"
+            value={contactPhone}
+            disabled={isLoadingContact || isSavingContact}
+            onChange={(event) => setContactPhone(event.target.value)}
+            placeholder="+91 98765 43210"
+          />
+          <Input
+            label="Alternate phone"
+            value={contactAlternatePhone}
+            disabled={isLoadingContact || isSavingContact}
+            onChange={(event) => setContactAlternatePhone(event.target.value)}
+            placeholder="+91 98765 43210"
+          />
+          <Input
+            label="Email"
+            type="email"
+            value={contactEmail}
+            disabled={isLoadingContact || isSavingContact}
+            onChange={(event) => setContactEmail(event.target.value)}
+            placeholder="hello@restaurant.com"
+          />
+          <Input
+            label="WhatsApp number"
+            value={contactWhatsappPhone}
+            disabled={isLoadingContact || isSavingContact}
+            onChange={(event) => setContactWhatsappPhone(event.target.value)}
+            placeholder="+91 98765 43210"
+          />
+        </div>
+        <Button
+          type="button"
+          className="mt-4"
+          disabled={isLoadingContact || isSavingContact}
+          onClick={() => void handleSaveContact()}
+        >
+          {isSavingContact ? 'Saving…' : 'Save contact details'}
+        </Button>
         <p className="mt-4 text-xs text-text-secondary">
           Store open hours are managed in <strong>Store timings</strong> above.
+          WhatsApp ordering uses the WhatsApp number above when set; otherwise
+          the primary phone.
         </p>
       </section>
 

@@ -16,6 +16,7 @@ const contact: StorefrontContact = {
   phone: '+91 78418 22215',
   alternatePhone: null,
   phones: ['+91 78418 22215'],
+  whatsappPhone: null,
   email: null,
   address: 'Pune',
   mapsUrl: 'https://maps.example',
@@ -26,6 +27,15 @@ const contact: StorefrontContact = {
 describe('storefrontWhatsAppPhone', () => {
   it('normalizes Indian mobile from contact', () => {
     expect(storefrontWhatsAppPhone(contact)).toBe('7841822215')
+  })
+
+  it('prefers dedicated WhatsApp number over phone', () => {
+    expect(
+      storefrontWhatsAppPhone({
+        ...contact,
+        whatsappPhone: '+91 98900 82699',
+      }),
+    ).toBe('9890082699')
   })
 })
 
