@@ -14,11 +14,14 @@ import {
   Store,
   QrCode,
   Leaf,
+  Sparkles,
+  ClipboardList,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { ROUTES } from '@/constants/ROUTES'
 import type { OrganizationContextValue } from '@/contexts/OrganizationContext'
 import { isSpiceMalabarStorefront } from '@/utils/storefrontCopy'
+import { isWebsiteStarterTrack } from '@/utils/websiteStarter'
 
 export interface AdminNavItem {
   label: string
@@ -75,6 +78,41 @@ export const adminOnamNavItem: AdminNavItem = {
 export function getAdminPrimaryNavItems(
   org: OrganizationContextValue,
 ): AdminNavItem[] {
+  if (isWebsiteStarterTrack(org.settings)) {
+    return [
+      {
+        label: 'Setup',
+        to: ROUTES.ADMIN.SETUP,
+        icon: ClipboardList,
+        description: 'Complete profile, photos, and menu for Website Starter.',
+      },
+      {
+        label: 'Starter tools',
+        to: ROUTES.ADMIN.STARTER_TOOLS,
+        icon: Sparkles,
+        description: 'QR, share, SEO checklist, and basic analytics.',
+      },
+      {
+        label: 'Dishes',
+        to: ROUTES.ADMIN.DISHES,
+        icon: UtensilsCrossed,
+        description: 'Edit menu items (up to 15 on Website Starter).',
+      },
+      {
+        label: 'Categories',
+        to: ROUTES.ADMIN.CATEGORIES,
+        icon: FolderOpen,
+        description: 'Organize menu categories.',
+      },
+      {
+        label: 'Settings',
+        to: ROUTES.ADMIN.SETTINGS,
+        icon: Settings,
+        description: 'Restaurant configuration.',
+      },
+    ]
+  }
+
   if (!isSpiceMalabarStorefront(org)) {
     return adminPrimaryNavItems
   }
@@ -145,6 +183,18 @@ export const adminSecondaryNavItems: AdminNavItem[] = [
     to: ROUTES.ADMIN.SETTINGS,
     icon: Settings,
     description: 'Restaurant configuration and platform status.',
+  },
+  {
+    label: 'Setup wizard',
+    to: ROUTES.ADMIN.SETUP,
+    icon: ClipboardList,
+    description: 'Website Starter onboarding wizard.',
+  },
+  {
+    label: 'Starter tools',
+    to: ROUTES.ADMIN.STARTER_TOOLS,
+    icon: Sparkles,
+    description: 'QR, share, SEO, and starter analytics.',
   },
 ]
 

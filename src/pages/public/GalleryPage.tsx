@@ -13,6 +13,7 @@ import {
   storefrontContact,
 } from '@/utils/storefrontCopy'
 import { isTasteOfAndhraSlug } from '@/constants/TENANTS'
+import { galleryImageList } from '@/utils/websiteStarter'
 
 export default function GalleryPage() {
   const org = useOrganization()
@@ -23,6 +24,17 @@ export default function GalleryPage() {
   useEffect(() => {
     let cancelled = false
     if (org.isLoading) return
+
+    const orgGallery = galleryImageList(org.settings).map((item) => ({
+      src: item.url,
+      alt: `${contact.name} — ${item.label}`,
+    }))
+
+    if (orgGallery.length > 0) {
+      setUrls(orgGallery)
+      setIsLoading(false)
+      return
+    }
 
     void dishService.getDishes().then((result) => {
       if (cancelled) return
@@ -46,7 +58,7 @@ export default function GalleryPage() {
     return () => {
       cancelled = true
     }
-  }, [contact.name, org.isLoading, org.slug, org.organizationId])
+  }, [contact.name, org.isLoading, org.slug, org.organizationId, org.settings])
 
   const description = useMemo(() => {
     if (isSpiceMalabarStorefront(org)) {

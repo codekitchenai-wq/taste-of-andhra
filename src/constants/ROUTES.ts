@@ -30,10 +30,15 @@ export const ROUTES = {
     DASHBOARD: '/master',
     TENANTS: '/master/tenants',
     ONBOARD: '/master/tenants/new',
+    STARTER_INTAKE: '/master/starter-intake',
     FEATURES: '/master/features',
     featuresForOrg: (orgId: string) =>
       `/master/features?org=${encodeURIComponent(orgId)}`,
     tenant: (orgId: string) => `/master/tenants/${orgId}`,
+  },
+  SETUP: {
+    TOKEN: (token: string) => `/setup/${token}`,
+    WIZARD: '/admin/setup',
   },
   ADMIN: {
     LOGIN: '/admin/login',
@@ -52,6 +57,8 @@ export const ROUTES = {
     BRANCHES: '/admin/branches',
     QR_TABLES: '/admin/qr-tables',
     SETTINGS: '/admin/settings',
+    SETUP: '/admin/setup',
+    STARTER_TOOLS: '/admin/starter',
   },
   DELIVERY: {
     LOGIN: '/delivery/login',

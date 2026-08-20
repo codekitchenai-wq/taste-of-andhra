@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Zap } from 'lucide-react'
 import { WhatsAppLink } from '@/components/ui/WhatsAppLink'
@@ -11,19 +11,29 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { LoadingState } from '@/components/ui/LoadingState'
 import { ROUTES } from '@/constants/ROUTES'
+import { useOrganization } from '@/contexts/OrganizationContext'
 import {
   DEFAULT_MENU_FILTERS,
   useMenuDishes,
 } from '@/hooks/useMenuDishes'
 import { usePublicCategories } from '@/hooks/usePublicCategories'
 import { useMenuImageFallbacks } from '@/hooks/useMenuImageFallbacks'
+import { bumpStarterAnalytics } from '@/utils/starterAnalytics'
+import { isWebsiteStarterTrack } from '@/utils/websiteStarter'
 
 export default function MenuPage() {
+  const org = useOrganization()
   const { enabled: showWhatsApp, orderUrl: whatsAppHref } = useStorefrontWhatsApp()
   const [filters, setFilters] = useState(DEFAULT_MENU_FILTERS)
   const { categories } = usePublicCategories()
   const { dishes, isLoading, error, refetch } = useMenuDishes(filters)
   const categoryImages = useMenuImageFallbacks(categories, dishes)
+
+  useEffect(() => {
+    if (isWebsiteStarterTrack(org.settings)) {
+      bumpStarterAnalytics(org.organizationId, 'menuViews')
+    }
+  }, [org.organizationId, org.settings])
 
   const categoryNames = useMemo(
     () => Object.fromEntries(categories.map((category) => [category.id, category.name])),

@@ -4,9 +4,12 @@ import { WhatsAppGlyph } from '@/components/ui/WhatsAppLink'
 import { ROUTES } from '@/constants/ROUTES'
 import { useAuth } from '@/hooks/useAuth'
 import { useCart } from '@/hooks/useCart'
+import { useOrganization } from '@/contexts/OrganizationContext'
 import { useStorefrontWhatsApp } from '@/hooks/useStorefrontWhatsApp'
 import { useIsLandingPage } from '@/hooks/useIsLandingPage'
 import { cn } from '@/utils/cn'
+import { bumpStarterAnalytics } from '@/utils/starterAnalytics'
+import { isWebsiteStarterTrack } from '@/utils/websiteStarter'
 
 /** Mobile-friendly floating WhatsApp order button. Hidden unless admin enabled it. */
 export function WhatsAppFab() {
@@ -14,6 +17,7 @@ export function WhatsAppFab() {
   const isLandingPage = useIsLandingPage()
   const { isAuthenticated } = useAuth()
   const { cart } = useCart()
+  const org = useOrganization()
   const whatsApp = useStorefrontWhatsApp()
 
   const href = useMemo(() => {
@@ -35,8 +39,13 @@ export function WhatsAppFab() {
       href={href}
       target="_blank"
       rel="noreferrer"
-      aria-label="Order on WhatsApp"
-      title="Order on WhatsApp"
+      aria-label="Chat on WhatsApp"
+      title="Chat on WhatsApp"
+      onClick={() => {
+        if (isWebsiteStarterTrack(org.settings)) {
+          bumpStarterAnalytics(org.organizationId, 'whatsappClicks')
+        }
+      }}
       className={cn(
         'fixed right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg transition-transform hover:scale-105 active:scale-95',
         aboveCheckoutBar ? 'bottom-28' : 'bottom-6',

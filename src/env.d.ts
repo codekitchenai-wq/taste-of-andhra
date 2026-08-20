@@ -12,6 +12,7 @@ interface ImportMetaEnv {
   readonly VITE_ENABLE_RAZORPAY_ROUTE?: string
   readonly VITE_ENABLE_META_EMBEDDED_SIGNUP?: string
   readonly VITE_ENABLE_AI?: string
+  readonly VITE_ENABLE_STARTER_ONBOARDING?: string
   readonly VITE_UPI_VPA?: string
   readonly VITE_UPI_PAYEE_NAME?: string
   readonly VITE_GOOGLE_MAPS_API_KEY?: string

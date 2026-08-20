@@ -5,8 +5,41 @@ import { ROUTES } from '@/constants/ROUTES'
 export const STARTER_PLAN_ID = 'b0000000-0000-4000-8000-000000000001'
 export const GROWTH_PLAN_ID = 'b0000000-0000-4000-8000-000000000002'
 export const PRO_PLAN_ID = 'b0000000-0000-4000-8000-000000000003'
+/** Free website-only track for new restaurants (does not replace STARTER_PLAN_ID). */
+export const WEBSITE_STARTER_PLAN_ID = 'b0000000-0000-4000-8000-000000000010'
+export const WEBSITE_STARTER_PLAN_CODE = 'website_starter'
+
+export const WEBSITE_STARTER_MAX_MENU_ITEMS = 15
+export const WEBSITE_STARTER_MAX_GALLERY = 3
 
 export const DEFAULT_TRIAL_DAYS = 30
+
+/** Features explicitly disabled on website_starter (default_enabled may still be true). */
+export const WEBSITE_STARTER_DISABLED_FEATURES = [
+  'orders',
+  'customers',
+  'offers',
+  'reports',
+  'delivery_own',
+  'delivery_pidge',
+  'branches',
+  'qr_tables',
+  'party_inquiries',
+  'loyalty',
+  'payments_direct_upi',
+  'payments_razorpay',
+  'whatsapp_notifications',
+  'whatsapp_ordering',
+  'sms_notifications',
+] as const
+
+export type GallerySlotKind = 'front' | 'interior' | 'food'
+
+export const GALLERY_SLOT_LABELS: Record<GallerySlotKind, string> = {
+  front: 'Shop front / exterior',
+  interior: 'Interior',
+  food: 'Food / signature dish',
+}
 
 export type BillingMode = 'trial' | 'paid'
 export type BillingCycle = 'monthly' | 'yearly'

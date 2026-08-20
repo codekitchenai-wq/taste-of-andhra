@@ -118,8 +118,14 @@ const MasterOnboardTenantPage = lazy(
 const MasterTenantDetailPage = lazy(
   () => import('@/pages/master/MasterTenantDetailPage'),
 )
-const MasterFeaturesPage = lazy(
-  () => import('@/pages/master/MasterFeaturesPage'),
+const MasterStarterIntakePage = lazy(
+  () => import('@/pages/master/MasterStarterIntakePage'),
+)
+const StarterSetupWizardPage = lazy(
+  () => import('@/pages/admin/StarterSetupWizardPage'),
+)
+const AdminStarterToolsPage = lazy(
+  () => import('@/pages/admin/AdminStarterToolsPage'),
 )
 
 const sharedStaffRoutes = [
@@ -134,9 +140,10 @@ const sharedStaffRoutes = [
         children: [
           { path: ROUTES.MASTER.DASHBOARD, element: <MasterDashboardPage /> },
           { path: ROUTES.MASTER.TENANTS, element: <MasterTenantsPage /> },
+          { path: ROUTES.MASTER.ONBOARD, element: <MasterOnboardTenantPage /> },
           {
-            path: ROUTES.MASTER.ONBOARD,
-            element: <MasterOnboardTenantPage />,
+            path: ROUTES.MASTER.STARTER_INTAKE,
+            element: <MasterStarterIntakePage />,
           },
           {
             path: '/master/tenants/:orgId',
@@ -146,6 +153,10 @@ const sharedStaffRoutes = [
         ],
       },
     ],
+  },
+  {
+    path: '/setup/:token',
+    element: <StarterSetupWizardPage />,
   },
   {
     element: <AdminRoute />,
@@ -186,6 +197,11 @@ const sharedStaffRoutes = [
           { path: ROUTES.ADMIN.QR_TABLES, element: <AdminQrTablesPage /> },
           { path: ROUTES.ADMIN.REPORTS, element: <AdminReportsPage /> },
           { path: ROUTES.ADMIN.SETTINGS, element: <AdminSettingsPage /> },
+          { path: ROUTES.ADMIN.SETUP, element: <StarterSetupWizardPage /> },
+          {
+            path: ROUTES.ADMIN.STARTER_TOOLS,
+            element: <AdminStarterToolsPage />,
+          },
         ],
       },
     ],

@@ -38,6 +38,15 @@ export const ENABLE_META_EMBEDDED_SIGNUP = envFlag(
 export const ENABLE_AI = envFlag('VITE_ENABLE_AI', false)
 
 /**
+ * Website Starter assisted onboarding (Master intake, /setup wizard).
+ * Isolation from live tenants is via website_starter plan — not this gate.
+ */
+export const ENABLE_STARTER_ONBOARDING = envFlag(
+  'VITE_ENABLE_STARTER_ONBOARDING',
+  true,
+)
+
+/**
  * Taste of Andhra custom domains (thetasteofandhra.com).
  * Off: those hosts bounce to www.directapp.in so Google Site URL cannot
  * leave customers on Taste of Andhra. Re-enable with VITE_ENABLE_TASTE_OF_ANDHRA_CUSTOM_DOMAIN=true.

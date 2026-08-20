@@ -4,6 +4,13 @@ export type OrganizationStatus =
   | 'suspended'
   | 'cancelled'
 
+export type OnboardingStatus =
+  | 'intake'
+  | 'pending_setup'
+  | 'pending_review'
+  | 'live'
+  | 'rejected'
+
 export type OrganizationMemberRole =
   | 'restaurant_owner'
   | 'restaurant_admin'
@@ -51,11 +58,19 @@ export type FeatureKey =
   | 'sms_notifications'
   | 'payments_direct_upi'
   | 'payments_razorpay'
+  | 'ai_menu_import'
 
 export interface OrganizationBranding {
   logo_url?: string | null
   primary_color?: string | null
+  hero_url?: string | null
   [key: string]: unknown
+}
+
+export interface OrganizationGallery {
+  front?: string | null
+  interior?: string | null
+  food?: string | null
 }
 
 export interface OrganizationOpeningHours {
@@ -69,6 +84,7 @@ export interface Organization {
   name: string
   slug: string
   status: OrganizationStatus
+  legal_name: string | null
   branding: OrganizationBranding
   tagline: string | null
   description: string | null
@@ -78,6 +94,9 @@ export interface Organization {
   opening_hours: OrganizationOpeningHours
   gstin: string | null
   fssai_license: string | null
+  fssai_valid_until: string | null
+  fssai_certificate_url: string | null
+  onboarding_status: OnboardingStatus | null
   homepage_mode: HomepageMode
   custom_domain: string | null
   homepage_url: string | null

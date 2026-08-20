@@ -5,6 +5,7 @@ import {
   ENABLE_META_EMBEDDED_SIGNUP,
   ENABLE_RAZORPAY_ROUTE,
   ENABLE_SCOPED_ORG_ADMIN_AUTH,
+  ENABLE_STARTER_ONBOARDING,
   ENABLE_TASTE_OF_ANDHRA_CUSTOM_DOMAIN,
 } from '@/constants/ARCHITECTURE_GATES'
 import { DEFAULT_ORGANIZATION_ID } from '@/constants/ORGANIZATION'
@@ -16,6 +17,10 @@ describe('architecture gates defaults', () => {
     expect(ENABLE_META_EMBEDDED_SIGNUP).toBe(false)
     expect(ENABLE_AI).toBe(false)
     expect(ENABLE_TASTE_OF_ANDHRA_CUSTOM_DOMAIN).toBe(false)
+  })
+
+  it('enables Website Starter onboarding UI by default (isolated via plan)', () => {
+    expect(ENABLE_STARTER_ONBOARDING).toBe(true)
   })
 
   it('scopes admin and delivery logins to the current restaurant', () => {

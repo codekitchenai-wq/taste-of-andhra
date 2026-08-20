@@ -10,6 +10,10 @@ import {
 } from '@/utils/tenantFeatures'
 import { isAndhraLocalAsset, optimizeMenuImage } from '@/utils/menuImage'
 import { isPlatformMarketingHost } from '@/utils/platformHost'
+import {
+  galleryFromSettings,
+  isWebsiteStarterTrack,
+} from '@/utils/websiteStarter'
 
 export const SPICE_MALABAR_HERO = '/images/tenants/spice-malabar-hero.png'
 
@@ -71,13 +75,22 @@ export function storefrontHero(org: OrganizationContextValue) {
   }
 
   if (isOtherTenant(org)) {
+    const gallery = galleryFromSettings(org.settings)
+    const starterHero =
+      isWebsiteStarterTrack(org.settings) && gallery.front
+        ? gallery.front
+        : null
     return {
       kicker: `Welcome to ${name}`,
-      headline: org.tagline?.trim() || 'Order online',
+      headline:
+        org.tagline?.trim() ||
+        (isWebsiteStarterTrack(org.settings)
+          ? 'View our menu'
+          : 'Order online'),
       description:
         org.description?.trim() ||
         `Fresh meals from ${name} — delivery and pickup.`,
-      imageUrl: brandingHero || SPICE_MALABAR_HERO,
+      imageUrl: brandingHero || starterHero || SPICE_MALABAR_HERO,
       imageAlt: `${name} kitchen`,
     }
   }

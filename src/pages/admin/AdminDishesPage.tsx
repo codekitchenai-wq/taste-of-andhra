@@ -8,11 +8,19 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { Input } from '@/components/ui/Input'
 import { LoadingState } from '@/components/ui/LoadingState'
+import { WEBSITE_STARTER_MAX_MENU_ITEMS } from '@/constants/ONBOARDING'
 import { useCategories } from '@/hooks/useCategories'
 import { useDishes } from '@/hooks/useDishes'
+import { useOrganization } from '@/contexts/OrganizationContext'
 import type { DishWithCategory } from '@/utils/mapDish'
+import {
+  isWebsiteStarterTrack,
+  MAX_MENU_ITEMS_SETTING_KEY,
+} from '@/utils/websiteStarter'
+import { toast } from 'react-hot-toast'
 
 export default function AdminDishesPage() {
+  const org = useOrganization()
   const { dishes, isLoading, error, refetch } = useDishes()
   const { categories } = useCategories()
   const [search, setSearch] = useState('')
@@ -21,6 +29,11 @@ export default function AdminDishesPage() {
   const [deletingDish, setDeletingDish] = useState<DishWithCategory | null>(
     null,
   )
+
+  const maxMenuItems = isWebsiteStarterTrack(org.settings)
+    ? Number(org.settings[MAX_MENU_ITEMS_SETTING_KEY]) ||
+      WEBSITE_STARTER_MAX_MENU_ITEMS
+    : null
 
   const filteredDishes = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -37,6 +50,12 @@ export default function AdminDishesPage() {
   }, [dishes, search])
 
   const openCreateModal = () => {
+    if (maxMenuItems != null && dishes.length >= maxMenuItems) {
+      toast.error(
+        `Website Starter allows up to ${maxMenuItems} menu items. Remove one or upgrade.`,
+      )
+      return
+    }
     setEditingDish(null)
     setIsFormOpen(true)
   }
@@ -53,8 +72,13 @@ export default function AdminDishesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
-        <Button onClick={openCreateModal} className="shrink-0">
+      <div className="flex items-center justify-between gap-3">
+        {maxMenuItems != null && (
+          <p className="text-sm text-text-secondary">
+            Website Starter: {dishes.length}/{maxMenuItems} items
+          </p>
+        )}
+        <Button onClick={openCreateModal} className="ml-auto shrink-0">
           <Plus className="h-4 w-4" />
           Add Dish
         </Button>
