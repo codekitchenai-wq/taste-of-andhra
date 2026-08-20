@@ -1,209 +1,159 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MasterWhatsAppObservability } from '@/components/master/MasterWhatsAppObservability'
-import {
-  DEMO_PASSWORD,
-  MASTER_ACCOUNT,
-  TENANT_TASTE_OF_ANDHRA,
-  productionLoginUrl,
-  productionOriginForOrg,
-  tenantPersonaAccounts,
-} from '@/constants/DEMO_ACCOUNTS'
-import { ROUTES } from '@/constants/ROUTES'
-import { USER_ROLE } from '@/constants/USER_ROLE'
 import { listMasterOrganizations } from '@/services/entitlementService'
 import type { MasterOrganizationSummary } from '@/types/Organization'
+import { ROUTES } from '@/constants/ROUTES'
+import { LoadingState } from '@/components/ui/LoadingState'
+import { ErrorState } from '@/components/ui/ErrorState'
+import { cn } from '@/utils/cn'
 
-const PORTAL_BY_ROLE = {
-  platform_master: ROUTES.MASTER.LOGIN,
-  admin: ROUTES.ADMIN.LOGIN,
-  delivery: ROUTES.DELIVERY.LOGIN,
-  customer: ROUTES.LOGIN,
-} as const
+const STATUS_COLOR: Record<string, string> = {
+  active: 'bg-success/10 text-success',
+  trialing: 'bg-amber-100 text-amber-800',
+  suspended: 'bg-red-100 text-red-700',
+  cancelled: 'bg-black/10 text-text-secondary',
+}
 
 export default function MasterTenantsPage() {
   const [orgs, setOrgs] = useState<MasterOrganizationSummary[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  async function load() {
+    setLoading(true)
+    const result = await listMasterOrganizations()
+    setLoading(false)
+    if (!result.success) {
+      setError(result.message)
+      return
+    }
+    setError(null)
+    setOrgs(result.data)
+  }
 
   useEffect(() => {
-    void listMasterOrganizations().then((result) => {
-      if (result.success) setOrgs(result.data)
-    })
+    void load()
   }, [])
+
+  if (loading) return <LoadingState variant="inline" />
+
+  if (error) {
+    return (
+      <ErrorState
+        title="Could not load restaurants"
+        message={error}
+        onRetry={() => void load()}
+      />
+    )
+  }
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="font-heading text-3xl font-bold">Tenants & logins</h1>
-        <p className="mt-2 text-sm text-text-secondary">
-          Tenant #1 is Taste of Andhra. DirectApp Master can manage every
-          restaurant from this console. Shared password for every account:{' '}
-          <span className="font-mono font-medium text-text-primary">
-            {DEMO_PASSWORD}
-          </span>
-        </p>
-        <Link
-          to={ROUTES.MASTER.ONBOARD}
-          className="mt-4 inline-flex h-11 items-center rounded-[var(--radius-button)] bg-primary px-6 text-sm font-medium text-white hover:bg-primary-dark"
-        >
-          Onboard restaurant
-        </Link>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="font-heading text-3xl font-bold">Restaurants</h1>
+          <p className="mt-1 text-sm text-text-secondary">
+            All restaurants on this DirectApp platform. Click a restaurant to
+            manage details, subscription, and feature toggles.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            to={ROUTES.MASTER.STARTER_INTAKE}
+            className="inline-flex h-10 items-center rounded-[var(--radius-button)] border border-primary px-5 text-sm font-medium text-primary hover:bg-primary/5"
+          >
+            Website Starter intake
+          </Link>
+          <Link
+            to={ROUTES.MASTER.ONBOARD}
+            className="inline-flex h-10 items-center rounded-[var(--radius-button)] bg-primary px-5 text-sm font-medium text-white hover:bg-primary-dark"
+          >
+            + Onboard Growth restaurant
+          </Link>
+        </div>
       </div>
 
-      {orgs.length > 0 && (
-        <section>
-          <h2 className="text-lg font-semibold">Restaurants</h2>
-          <ul className="mt-3 space-y-3">
-            {orgs.map((org) => (
-              <li
-                key={org.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-card)] border border-black/10 bg-surface px-4 py-3"
-              >
-                <div>
-                  <p className="font-medium">{org.name}</p>
-                  <p className="font-mono text-xs text-text-secondary">
-                    {org.slug} · {org.status}
-                    {org.subscription_active ? '' : ' · subscription inactive'}
-                  </p>
-                  {org.homepage.homepageUrl ? (
-                    <a
-                      href={org.homepage.homepageUrl}
-                      className="mt-1 block break-all font-mono text-xs text-primary hover:underline"
-                      target="_blank"
-                      rel="noreferrer"
+      {orgs.length === 0 ? (
+        <p className="text-sm text-text-secondary">
+          No restaurants yet.{' '}
+          <Link to={ROUTES.MASTER.ONBOARD} className="text-primary hover:underline">
+            Onboard the first one.
+          </Link>
+        </p>
+      ) : (
+        <div className="overflow-hidden rounded-[var(--radius-card)] border border-black/10">
+          <table className="min-w-full text-left text-sm">
+            <thead className="bg-black/5 text-xs uppercase tracking-wide text-text-secondary">
+              <tr>
+                <th className="px-4 py-3">Restaurant</th>
+                <th className="px-4 py-3">Slug</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Subscription</th>
+                <th className="px-4 py-3">Homepage</th>
+                <th className="px-4 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orgs.map((org) => (
+                <tr
+                  key={org.id}
+                  className="border-t border-black/5 hover:bg-black/[0.02]"
+                >
+                  <td className="px-4 py-3 font-medium">{org.name}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-text-secondary">
+                    {org.slug}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={cn(
+                        'rounded px-2 py-0.5 text-xs font-medium',
+                        STATUS_COLOR[org.status] ?? 'bg-black/10 text-text-secondary',
+                      )}
                     >
-                      {org.homepage.homepageUrl}
-                    </a>
-                  ) : (
-                    <p className="mt-1 text-xs text-text-secondary">
-                      Homepage not set — add or change on the tenant page
-                    </p>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-3 text-sm">
-                  <Link
-                    to={ROUTES.MASTER.tenant(org.id)}
-                    className="text-primary hover:underline"
-                  >
-                    Subscription & details
-                  </Link>
-                  <Link
-                    to={ROUTES.MASTER.featuresForOrg(org.id)}
-                    className="text-primary hover:underline"
-                  >
-                    Manage features
-                  </Link>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
+                      {org.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-text-secondary">
+                    {org.subscription_active ? (
+                      <span className="font-medium text-success">Active</span>
+                    ) : (
+                      <span className="text-amber-600">Inactive</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 max-w-[200px]">
+                    {org.homepage.homepageUrl ? (
+                      <a
+                        href={org.homepage.homepageUrl}
+                        className="block truncate font-mono text-xs text-primary hover:underline"
+                        target="_blank"
+                        rel="noreferrer"
+                        title={org.homepage.homepageUrl}
+                      >
+                        {org.homepage.homepageUrl}
+                      </a>
+                    ) : (
+                      <span className="text-xs text-text-secondary">Not set</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex justify-end gap-3 text-xs">
+                      <Link
+                        to={ROUTES.MASTER.tenant(org.id)}
+                        className="font-medium text-primary hover:underline"
+                      >
+                        Manage
+                      </Link>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
-      <section className="rounded-[var(--radius-card)] border border-black/10 bg-surface p-5">
-        <h2 className="text-lg font-semibold">{TENANT_TASTE_OF_ANDHRA.name}</h2>
-        <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-          <div>
-            <dt className="text-text-secondary">Slug</dt>
-            <dd className="font-mono">{TENANT_TASTE_OF_ANDHRA.slug}</dd>
-          </div>
-          <div>
-            <dt className="text-text-secondary">Organization id</dt>
-            <dd className="break-all font-mono text-xs">
-              {TENANT_TASTE_OF_ANDHRA.id}
-            </dd>
-          </div>
-        </dl>
-        <div className="mt-4 flex flex-wrap gap-3 text-sm">
-          <Link to={ROUTES.HOME} className="text-primary hover:underline">
-            Storefront
-          </Link>
-          <Link to={ROUTES.MENU} className="text-primary hover:underline">
-            Menu
-          </Link>
-          <Link to={ROUTES.ADMIN.LOGIN} className="text-primary hover:underline">
-            Admin login
-          </Link>
-          <Link
-            to={ROUTES.DELIVERY.LOGIN}
-            className="text-primary hover:underline"
-          >
-            Delivery login
-          </Link>
-          <Link
-            to={ROUTES.MASTER.featuresForOrg(TENANT_TASTE_OF_ANDHRA.id)}
-            className="text-primary hover:underline"
-          >
-            Manage features
-          </Link>
-        </div>
-      </section>
-
       <MasterWhatsAppObservability />
-
-      <section>
-        <h2 className="text-lg font-semibold">DirectApp Master</h2>
-        <p className="mt-2 font-mono text-sm">
-          {MASTER_ACCOUNT.email} / {MASTER_ACCOUNT.password}
-        </p>
-        <Link
-          to={PORTAL_BY_ROLE.platform_master}
-          className="mt-2 inline-block text-sm text-primary hover:underline"
-        >
-          Open Master login
-        </Link>
-      </section>
-
-      <section>
-        <h2 className="text-lg font-semibold">Persona logins per tenant</h2>
-        <p className="mt-1 text-sm text-text-secondary">
-          Each demo user can sign in only on that restaurant’s host.
-        </p>
-        <div className="mt-3 space-y-6">
-          {(orgs.length > 0
-            ? orgs
-            : [
-                {
-                  id: TENANT_TASTE_OF_ANDHRA.id,
-                  name: TENANT_TASTE_OF_ANDHRA.name,
-                  slug: TENANT_TASTE_OF_ANDHRA.slug,
-                },
-              ]
-          ).map((org) => (
-            <div key={org.id}>
-              <h3 className="font-medium">{org.name}</h3>
-              <ul className="mt-2 space-y-3">
-                {tenantPersonaAccounts(org).map((account) => {
-                  const loginHref = productionLoginUrl(
-                    { productionOrigin: productionOriginForOrg(org) },
-                    account.role,
-                  )
-                  return (
-                  <li
-                    key={account.email}
-                    className="rounded-[var(--radius-card)] border border-black/10 bg-surface px-4 py-3 text-sm"
-                  >
-                    <p className="font-medium">
-                      {USER_ROLE[account.role]}
-                    </p>
-                    <p className="mt-1 font-mono text-xs text-text-secondary">
-                      {account.email} / {account.password}
-                    </p>
-                    <a
-                      href={loginHref}
-                      className="mt-2 inline-block text-primary hover:underline"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Open {USER_ROLE[account.role]} login
-                    </a>
-                  </li>
-                  )
-                })}
-              </ul>
-            </div>
-          ))}
-        </div>
-      </section>
     </div>
   )
 }

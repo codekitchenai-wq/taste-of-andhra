@@ -146,6 +146,10 @@ const sharedStaffRoutes = [
             element: <MasterStarterIntakePage />,
           },
           {
+            path: '/master/website-starter',
+            element: <MasterStarterIntakePage />,
+          },
+          {
             path: '/master/tenants/:orgId',
             element: <MasterTenantDetailPage />,
           },

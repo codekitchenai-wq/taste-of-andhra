@@ -31,6 +31,8 @@ export const ROUTES = {
     TENANTS: '/master/tenants',
     ONBOARD: '/master/tenants/new',
     STARTER_INTAKE: '/master/starter-intake',
+    /** Alias — same screen as STARTER_INTAKE */
+    WEBSITE_STARTER: '/master/website-starter',
     FEATURES: '/master/features',
     featuresForOrg: (orgId: string) =>
       `/master/features?org=${encodeURIComponent(orgId)}`,
