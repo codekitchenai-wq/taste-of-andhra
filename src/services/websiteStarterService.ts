@@ -42,9 +42,13 @@ import { supabase } from '@/services/supabaseClient'
 export interface StarterIntakeInput {
   legalName: string
   preferredStoreName?: string
+  /** Optional user-chosen slug; validated for availability when provided */
+  slug?: string
   fssaiLicense?: string
   fssaiValidUntil?: string
+  fssaiIssuedOn?: string
   fssaiCertificateUrl?: string
+  fssaiCertificateHash?: string
   city: string
   ownerName: string
   ownerEmail: string
@@ -53,6 +57,18 @@ export interface StarterIntakeInput {
   googleMapsUrl?: string
   cuisineType?: string
   addressFromFssai?: string
+  state?: string
+  pincode?: string
+  /** Allow create even if licence/hash already exists on another org */
+  allowDuplicateFssai?: boolean
+}
+
+export interface FssaiDuplicateMatch {
+  id: string
+  name: string
+  slug: string
+  fssai_license: string | null
+  match: 'license' | 'hash' | 'both'
 }
 
 export interface StarterIntakeResult {
@@ -125,6 +141,37 @@ async function suggestSlug(name: string, city: string): Promise<string> {
   return `${base}-${Date.now().toString(36)}`
 }
 
+export async function checkOrganizationSlugAvailable(
+  candidate: string,
+): Promise<ServiceResponse<{ slug: string; available: boolean }>> {
+  const slug = generateSlug(candidate.trim())
+  if (!slug || slug.length < 2) {
+    return createErrorResponse('Enter a longer URL slug.')
+  }
+  const { data, error } = await supabase.rpc('is_organization_slug_available', {
+    candidate: slug,
+  })
+  if (error) {
+    // Fallback direct query if RPC missing
+    const { data: existing, error: qError } = await supabase
+      .from('organizations')
+      .select('id')
+      .eq('slug', slug)
+      .maybeSingle()
+    if (qError) return createErrorResponse(qError.message)
+    return createSuccessResponse({ slug, available: !existing })
+  }
+  return createSuccessResponse({ slug, available: Boolean(data) })
+}
+
+export async function proposeAvailableSlug(
+  name: string,
+  city = '',
+): Promise<ServiceResponse<string>> {
+  const slug = await suggestSlug(name || 'restaurant', city || 'India')
+  return createSuccessResponse(slug)
+}
+
 async function disableOrderingEntitlements(organizationId: string) {
   const rows = WEBSITE_STARTER_DISABLED_FEATURES.map((feature_key) => ({
     organization_id: organizationId,
@@ -172,20 +219,56 @@ async function enableStarterEntitlements(organizationId: string) {
 export async function intakeWebsiteStarter(
   input: StarterIntakeInput,
 ): Promise<ServiceResponse<StarterIntakeResult>> {
-  const legalName = input.legalName.trim()
-  const city = input.city.trim()
-  const ownerName = input.ownerName.trim()
-  const ownerEmail = input.ownerEmail.trim().toLowerCase()
+  const legalName =
+    input.legalName.trim() ||
+    input.preferredStoreName?.trim() ||
+    ''
+  const city = input.city.trim() || 'India'
+  const ownerName =
+    input.ownerName.trim() || legalName || 'Restaurant owner'
   const ownerPhone = input.ownerPhone.trim()
+  const displayName = proposeDisplayName(
+    legalName || 'New restaurant',
+    input.preferredStoreName,
+  )
 
-  if (!legalName || !city || !ownerName || !ownerEmail || !ownerPhone) {
+  let slug = generateSlug(input.slug?.trim() || '')
+  if (slug) {
+    const availability = await checkOrganizationSlugAvailable(slug)
+    if (!availability.success) return availability
+    if (!availability.data.available) {
+      return createErrorResponse(
+        `Slug “${slug}” is already taken. Choose another.`,
+      )
+    }
+    slug = availability.data.slug
+  } else {
+    slug = await suggestSlug(displayName, city)
+  }
+
+  const ownerEmail = (
+    input.ownerEmail.trim() || `starter-${slug}@noreply.directapp.in`
+  ).toLowerCase()
+
+  if (!legalName && !input.preferredStoreName?.trim()) {
     return createErrorResponse(
-      'Legal name, city, and owner name/email/WhatsApp are required.',
+      'Add a legal name or store name (or run AI Extract on the FSSAI certificate).',
     )
   }
 
-  const displayName = proposeDisplayName(legalName, input.preferredStoreName)
-  const slug = await suggestSlug(displayName, city)
+  const license = input.fssaiLicense?.trim() || ''
+  const hash = input.fssaiCertificateHash?.trim() || ''
+  if ((license || hash) && !input.allowDuplicateFssai) {
+    const dupes = await findFssaiDuplicates({ license, hash })
+    if (!dupes.success) return dupes
+    if (dupes.data.length > 0) {
+      const first = dupes.data[0]
+      return createErrorResponse(
+        `Possible duplicate FSSAI (${first.match}) with ${first.name} (${first.slug}). Review or enable “Create anyway”.`,
+      )
+    }
+  }
+
   const homepage = resolveTenantHomepage(slug, {
     mode: 'platform_subdomain',
     customDomain: '',
@@ -201,10 +284,10 @@ export async function intakeWebsiteStarter(
     [MAX_MENU_ITEMS_SETTING_KEY]: WEBSITE_STARTER_MAX_MENU_ITEMS,
     [GALLERY_SETTING_KEY]: { front: null, interior: null, food: null },
     owner_name: ownerName,
-    owner_phone: ownerPhone,
+    owner_phone: ownerPhone || null,
     city,
     storefront_whatsapp_enabled: Boolean(ownerPhone),
-    restaurant_whatsapp_phone: ownerPhone,
+    restaurant_whatsapp_phone: ownerPhone || null,
     whatsapp_otp_login_enabled: false,
   }
   if (input.googleMapsUrl?.trim()) {
@@ -213,12 +296,17 @@ export async function intakeWebsiteStarter(
   if (input.cuisineType?.trim()) {
     settings[CUISINE_SETTING_KEY] = input.cuisineType.trim()
   }
+  if (input.state?.trim()) settings.state = input.state.trim()
+  if (input.pincode?.trim()) settings.pincode = input.pincode.trim()
+  if (input.fssaiIssuedOn?.trim()) {
+    settings.fssai_issued_on = input.fssaiIssuedOn.trim()
+  }
 
   const baseInsert: Record<string, unknown> = {
     name: displayName,
     slug,
     status: 'trialing',
-    phone: (input.publicPhone || ownerPhone).trim(),
+    phone: (input.publicPhone || ownerPhone || '').trim() || null,
     email: ownerEmail,
     address: input.addressFromFssai?.trim() || city,
     branding: {},
@@ -231,19 +319,33 @@ export async function intakeWebsiteStarter(
 
   const withCompliance: Record<string, unknown> = {
     ...baseInsert,
-    legal_name: legalName,
-    fssai_license: input.fssaiLicense?.trim() || null,
+    legal_name: legalName || displayName,
+    fssai_license: license || null,
     fssai_valid_until: input.fssaiValidUntil?.trim() || null,
     fssai_certificate_url: input.fssaiCertificateUrl?.trim() || null,
+    fssai_certificate_hash: hash || null,
     onboarding_status: 'pending_setup',
   }
 
   let orgRow: { id: string; name: string; slug: string } | null = null
-  const fullInsert = await supabase
+  let fullInsert = await supabase
     .from('organizations')
     .insert(withCompliance)
     .select('id, name, slug')
     .single()
+
+  if (
+    fullInsert.error &&
+    isMissingColumnError(fullInsert.error.message) &&
+    'fssai_certificate_hash' in withCompliance
+  ) {
+    const { fssai_certificate_hash: _drop, ...withoutHash } = withCompliance
+    fullInsert = await supabase
+      .from('organizations')
+      .insert(withoutHash)
+      .select('id, name, slug')
+      .single()
+  }
 
   if (fullInsert.error && isMissingColumnError(fullInsert.error.message)) {
     const fallback = await supabase
@@ -471,6 +573,7 @@ export async function updateStarterProfile(
     fssaiLicense?: string
     fssaiValidUntil?: string
     fssaiCertificateUrl?: string
+    fssaiCertificateHash?: string
   },
 ): Promise<ServiceResponse<true>> {
   const { data: current, error: loadError } = await supabase
@@ -540,6 +643,9 @@ export async function updateStarterProfile(
   }
   if (patch.fssaiCertificateUrl !== undefined) {
     update.fssai_certificate_url = patch.fssaiCertificateUrl || null
+  }
+  if (patch.fssaiCertificateHash !== undefined) {
+    update.fssai_certificate_hash = patch.fssaiCertificateHash || null
   }
 
   const { error } = await supabase
@@ -692,23 +798,251 @@ function readFileAsDataUrl(file: File): Promise<string> {
   })
 }
 
+function bytesToHex(bytes: ArrayBuffer): string {
+  return Array.from(new Uint8Array(bytes), (b) =>
+    b.toString(16).padStart(2, '0'),
+  ).join('')
+}
+
+/** SHA-256 hex fingerprint of a certificate file (for duplicate detection). */
+export async function hashCertificateFile(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer()
+  const digest = await crypto.subtle.digest('SHA-256', buffer)
+  return bytesToHex(digest)
+}
+
+export async function findFssaiDuplicates(input: {
+  license?: string
+  hash?: string
+  excludeOrganizationId?: string
+}): Promise<ServiceResponse<FssaiDuplicateMatch[]>> {
+  const license = input.license?.trim() || ''
+  const hash = input.hash?.trim() || ''
+  if (!license && !hash) return createSuccessResponse([])
+
+  const matches = new Map<string, FssaiDuplicateMatch>()
+
+  if (license) {
+    let query = supabase
+      .from('organizations')
+      .select('id, name, slug, fssai_license, fssai_certificate_hash')
+      .eq('fssai_license', license)
+      .limit(10)
+    if (input.excludeOrganizationId) {
+      query = query.neq('id', input.excludeOrganizationId)
+    }
+    const { data, error } = await query
+    if (error && !isMissingColumnError(error.message)) {
+      return createErrorResponse(error.message)
+    }
+    for (const row of data ?? []) {
+      matches.set(row.id, {
+        id: row.id,
+        name: row.name,
+        slug: row.slug,
+        fssai_license: row.fssai_license,
+        match: 'license',
+      })
+    }
+  }
+
+  if (hash) {
+    let query = supabase
+      .from('organizations')
+      .select('id, name, slug, fssai_license, fssai_certificate_hash')
+      .eq('fssai_certificate_hash', hash)
+      .limit(10)
+    if (input.excludeOrganizationId) {
+      query = query.neq('id', input.excludeOrganizationId)
+    }
+    const { data, error } = await query
+    if (error && !isMissingColumnError(error.message)) {
+      return createErrorResponse(error.message)
+    }
+    for (const row of data ?? []) {
+      const existing = matches.get(row.id)
+      if (existing) {
+        existing.match = 'both'
+      } else {
+        matches.set(row.id, {
+          id: row.id,
+          name: row.name,
+          slug: row.slug,
+          fssai_license: row.fssai_license,
+          match: 'hash',
+        })
+      }
+    }
+  }
+
+  return createSuccessResponse([...matches.values()])
+}
+
+export type FssaiAiExtract = {
+  legalName: string | null
+  fssaiLicense: string | null
+  fssaiValidUntil: string | null
+  address: string | null
+  city: string | null
+  state: string | null
+  pincode: string | null
+  proprietorName: string | null
+  phone: string | null
+  email: string | null
+  kindOfBusiness: string | null
+  issuedOn: string | null
+  certificateUrl?: string | null
+  note?: string | null
+}
+
 export async function parseFssaiWithAi(input: {
   certificateUrl?: string
   rawText?: string
   file?: File | null
-}): Promise<
-  ServiceResponse<{
-    legalName: string | null
-    fssaiLicense: string | null
-    fssaiValidUntil: string | null
-    address: string | null
-    certificateUrl?: string | null
-    note?: string | null
-  }>
-> {
+}): Promise<ServiceResponse<FssaiAiExtract>> {
   let certificateUrl = input.certificateUrl?.trim() || undefined
   let certificateDataUrl: string | undefined
 
+  const empty: FssaiAiExtract = {
+    legalName: null,
+    fssaiLicense: null,
+    fssaiValidUntil: null,
+    address: null,
+    city: null,
+    state: null,
+    pincode: null,
+    proprietorName: null,
+    phone: null,
+    email: null,
+    kindOfBusiness: null,
+    issuedOn: null,
+  }
+
+  // 1) Free path: pasted text
+  if (input.rawText?.trim()) {
+    const { parseFssaiCertificateText, countParsedFields } = await import(
+      '@/utils/parseFssaiCertificateText'
+    )
+    const fields = parseFssaiCertificateText(input.rawText)
+    if (countParsedFields(fields) >= 2) {
+      return createSuccessResponse({
+        ...empty,
+        ...fields,
+        note: `Filled ${countParsedFields(fields)} field(s) from text (free) — review before creating.`,
+      })
+    }
+  }
+
+  // 2) Official FoSCoS PDF (text layer) — most effective free path
+  if (input.file?.type === 'application/pdf') {
+    try {
+      const { extractFssaiFromPdf } = await import('@/utils/extractFssaiFromPdf')
+      const { countParsedFields } = await import(
+        '@/utils/parseFssaiCertificateText'
+      )
+      const pdf = await extractFssaiFromPdf(input.file)
+      if (countParsedFields(pdf.fields) >= 1) {
+        // Also stage URL for persistence when caller uploaded a PDF
+        const uploaded = await uploadIntakeCertificate(input.file)
+        return createSuccessResponse({
+          ...empty,
+          ...pdf.fields,
+          certificateUrl: uploaded.success ? uploaded.data : certificateUrl ?? null,
+          note: pdf.note,
+        })
+      }
+    } catch (error) {
+      // Fall through to cloud / manual
+      if (!certificateUrl && input.file) {
+        const uploaded = await uploadIntakeCertificate(input.file)
+        if (uploaded.success) certificateUrl = uploaded.data
+      }
+      const message =
+        error instanceof Error ? error.message : 'PDF text extract failed.'
+      // Continue to cloud below with uploaded PDF URL if possible
+      void message
+    }
+  }
+
+  // 3) Phone / gallery photos — free OCR (best-effort), then optional cloud
+  if (input.file?.type.startsWith('image/')) {
+    let localNote: string | null = null
+    try {
+      const { extractFssaiLocalFromFile } = await import(
+        '@/utils/extractFssaiLocal'
+      )
+      const { countParsedFields } = await import(
+        '@/utils/parseFssaiCertificateText'
+      )
+      const local = await extractFssaiLocalFromFile(input.file)
+      if (countParsedFields(local.fields) >= 1) {
+        return createSuccessResponse({
+          ...empty,
+          ...local.fields,
+          note: local.note,
+        })
+      }
+      localNote = local.note
+    } catch (error) {
+      localNote =
+        error instanceof Error
+          ? `On-device OCR error: ${error.message}`
+          : 'On-device OCR failed to start.'
+    }
+
+    // Fall through to cloud AI only as optional upgrade; if unavailable,
+    // return a clear local-OCR message (not "upload a JPG" after they did).
+    certificateDataUrl = await readFileAsDataUrl(input.file)
+    const invoke = await supabase.functions.invoke('fssai-ai-parse', {
+      body: { certificateDataUrl },
+    })
+    const payload = (invoke.data ?? {}) as {
+      legalName?: string | null
+      fssaiLicense?: string | null
+      fssaiValidUntil?: string | null
+      address?: string | null
+      city?: string | null
+      state?: string | null
+      pincode?: string | null
+      proprietorName?: string | null
+      phone?: string | null
+      email?: string | null
+      kindOfBusiness?: string | null
+      issuedOn?: string | null
+      error?: string
+      note?: string
+    }
+    const cloudBlocked =
+      Boolean(invoke.error) ||
+      Boolean(payload.error) ||
+      /OPENAI_API_KEY not configured/i.test(String(payload.note ?? ''))
+    if (cloudBlocked) {
+      return createSuccessResponse({
+        ...empty,
+        note:
+          localNote ||
+          'Could not read the certificate on-device. Retake a sharper full-page photo, or fill fields manually.',
+      })
+    }
+    return createSuccessResponse({
+      ...empty,
+      legalName: payload.legalName ?? null,
+      fssaiLicense: payload.fssaiLicense ?? null,
+      fssaiValidUntil: payload.fssaiValidUntil ?? null,
+      address: payload.address ?? null,
+      city: payload.city ?? null,
+      state: payload.state ?? null,
+      pincode: payload.pincode ?? null,
+      proprietorName: payload.proprietorName ?? null,
+      phone: payload.phone ?? null,
+      email: payload.email ?? null,
+      kindOfBusiness: payload.kindOfBusiness ?? null,
+      issuedOn: payload.issuedOn ?? null,
+      note: payload.note ?? 'Filled from cloud AI — review before creating.',
+    })
+  }
+
+  // 2) Optional cloud AI (needs OPENAI_API_KEY on Supabase secrets)
   if (input.file) {
     const isImage = input.file.type.startsWith('image/')
     if (isImage) {
@@ -737,7 +1071,7 @@ export async function parseFssaiWithAi(input: {
   if (invoke.error) {
     return createErrorResponse(
       invoke.error.message ||
-        'FSSAI AI parse unavailable. Deploy fssai-ai-parse or enter details manually.',
+        'FSSAI parse unavailable. Use a clearer JPG/PNG, or enter details manually.',
     )
   }
 
@@ -746,6 +1080,14 @@ export async function parseFssaiWithAi(input: {
     fssaiLicense?: string | null
     fssaiValidUntil?: string | null
     address?: string | null
+    city?: string | null
+    state?: string | null
+    pincode?: string | null
+    proprietorName?: string | null
+    phone?: string | null
+    email?: string | null
+    kindOfBusiness?: string | null
+    issuedOn?: string | null
     error?: string
     note?: string
   }
@@ -754,14 +1096,38 @@ export async function parseFssaiWithAi(input: {
     return createErrorResponse(payload.error)
   }
 
-  return createSuccessResponse({
+  const cloud: FssaiAiExtract = {
     legalName: payload.legalName ?? null,
     fssaiLicense: payload.fssaiLicense ?? null,
     fssaiValidUntil: payload.fssaiValidUntil ?? null,
     address: payload.address ?? null,
+    city: payload.city ?? null,
+    state: payload.state ?? null,
+    pincode: payload.pincode ?? null,
+    proprietorName: payload.proprietorName ?? null,
+    phone: payload.phone ?? null,
+    email: payload.email ?? null,
+    kindOfBusiness: payload.kindOfBusiness ?? null,
+    issuedOn: payload.issuedOn ?? null,
     certificateUrl: certificateUrl ?? null,
     note: payload.note ?? null,
-  })
+  }
+
+  // If cloud has no key, surface a clearer free-path message (not a hard error)
+  if (
+    payload.note &&
+    /OPENAI_API_KEY not configured/i.test(payload.note) &&
+    !cloud.legalName &&
+    !cloud.fssaiLicense
+  ) {
+    return createSuccessResponse({
+      ...cloud,
+      note:
+        'Cloud AI is not configured. Upload a clear JPG/PNG so free on-device OCR can run, or enter fields manually.',
+    })
+  }
+
+  return createSuccessResponse(cloud)
 }
 
 export function menuRowsToCsv(rows: MenuCsvRow[]): string {

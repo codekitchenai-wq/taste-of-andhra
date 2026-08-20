@@ -33,6 +33,8 @@ export const ROUTES = {
     STARTER_INTAKE: '/master/starter-intake',
     /** Alias — same screen as STARTER_INTAKE */
     WEBSITE_STARTER: '/master/website-starter',
+    starterSetup: (orgId: string) =>
+      `/master/starter-setup/${encodeURIComponent(orgId)}`,
     FEATURES: '/master/features',
     featuresForOrg: (orgId: string) =>
       `/master/features?org=${encodeURIComponent(orgId)}`,

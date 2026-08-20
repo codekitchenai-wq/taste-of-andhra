@@ -48,7 +48,10 @@ function emptyDraft(): DraftRow {
 }
 
 export default function StarterSetupWizardPage() {
-  const { token } = useParams<{ token?: string }>()
+  const { token, orgId: orgIdParam } = useParams<{
+    token?: string
+    orgId?: string
+  }>()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const { user, isAuthenticated, login } = useAuth()
@@ -56,7 +59,7 @@ export default function StarterSetupWizardPage() {
 
   const orgFromQuery = searchParams.get('org')
   const [organizationId, setOrganizationId] = useState<string | null>(
-    orgFromQuery,
+    orgIdParam || orgFromQuery,
   )
   const [legalName, setLegalName] = useState('')
   const [displayName, setDisplayName] = useState('')
@@ -112,7 +115,7 @@ export default function StarterSetupWizardPage() {
         return
       }
 
-      const id = orgFromQuery || orgCtx.organizationId
+      const id = orgIdParam || orgFromQuery || orgCtx.organizationId
       if (!id) return
       setOrganizationId(id)
       const loaded = await loadStarterOrg(id)
@@ -120,7 +123,7 @@ export default function StarterSetupWizardPage() {
     }
 
     void boot()
-  }, [token, orgFromQuery, orgCtx.organizationId])
+  }, [token, orgIdParam, orgFromQuery, orgCtx.organizationId])
 
   function hydrateFromOrg(org: Record<string, unknown> | Partial<typeof orgCtx>) {
     const row = org as Record<string, unknown>
