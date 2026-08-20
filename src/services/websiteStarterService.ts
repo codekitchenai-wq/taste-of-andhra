@@ -665,13 +665,102 @@ export async function uploadOrgMedia(input: {
   return createSuccessResponse(data.publicUrl)
 }
 
-export async function setGallerySlot(
-  organizationId: string,
-  kind: GallerySlotKind,
-  url: string,
-): Promise<ServiceResponse<true>> {
-  return updateStarterProfile(organizationId, {
-    gallery: { [kind]: url },
+/** Staging uploads before an organization exists (Master intake). */
+export const FSSAI_INTAKE_STAGING_ORG_ID =
+  'b0000000-0000-4000-8000-000000000099'
+
+export async function uploadIntakeCertificate(
+  file: File,
+): Promise<ServiceResponse<string>> {
+  return uploadOrgMedia({
+    organizationId: FSSAI_INTAKE_STAGING_ORG_ID,
+    file,
+    folder: 'fssai',
+    slot: 'cert',
+  })
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === 'string') resolve(reader.result)
+      else reject(new Error('Could not read file.'))
+    }
+    reader.onerror = () => reject(new Error('Could not read file.'))
+    reader.readAsDataURL(file)
+  })
+}
+
+export async function parseFssaiWithAi(input: {
+  certificateUrl?: string
+  rawText?: string
+  file?: File | null
+}): Promise<
+  ServiceResponse<{
+    legalName: string | null
+    fssaiLicense: string | null
+    fssaiValidUntil: string | null
+    address: string | null
+    certificateUrl?: string | null
+    note?: string | null
+  }>
+> {
+  let certificateUrl = input.certificateUrl?.trim() || undefined
+  let certificateDataUrl: string | undefined
+
+  if (input.file) {
+    const isImage = input.file.type.startsWith('image/')
+    if (isImage) {
+      certificateDataUrl = await readFileAsDataUrl(input.file)
+    } else {
+      const uploaded = await uploadIntakeCertificate(input.file)
+      if (!uploaded.success) return uploaded
+      certificateUrl = uploaded.data
+    }
+  }
+
+  if (!certificateUrl && !certificateDataUrl && !input.rawText?.trim()) {
+    return createErrorResponse(
+      'Upload an FSSAI image/PDF or paste a public certificate URL first.',
+    )
+  }
+
+  const invoke = await supabase.functions.invoke('fssai-ai-parse', {
+    body: {
+      certificateUrl,
+      certificateDataUrl,
+      rawText: input.rawText,
+    },
+  })
+
+  if (invoke.error) {
+    return createErrorResponse(
+      invoke.error.message ||
+        'FSSAI AI parse unavailable. Deploy fssai-ai-parse or enter details manually.',
+    )
+  }
+
+  const payload = (invoke.data ?? {}) as {
+    legalName?: string | null
+    fssaiLicense?: string | null
+    fssaiValidUntil?: string | null
+    address?: string | null
+    error?: string
+    note?: string
+  }
+
+  if (payload.error) {
+    return createErrorResponse(payload.error)
+  }
+
+  return createSuccessResponse({
+    legalName: payload.legalName ?? null,
+    fssaiLicense: payload.fssaiLicense ?? null,
+    fssaiValidUntil: payload.fssaiValidUntil ?? null,
+    address: payload.address ?? null,
+    certificateUrl: certificateUrl ?? null,
+    note: payload.note ?? null,
   })
 }
 
@@ -837,45 +926,13 @@ export async function parseMenuWithAi(input: {
   return createSuccessResponse({ jobId, rows })
 }
 
-export async function parseFssaiWithAi(input: {
-  certificateUrl?: string
-  rawText?: string
-}): Promise<
-  ServiceResponse<{
-    legalName: string | null
-    fssaiLicense: string | null
-    fssaiValidUntil: string | null
-    address: string | null
-  }>
-> {
-  const invoke = await supabase.functions.invoke('fssai-ai-parse', {
-    body: input,
-  })
-
-  if (invoke.error) {
-    return createErrorResponse(
-      invoke.error.message ||
-        'FSSAI AI parse unavailable. Enter details manually.',
-    )
-  }
-
-  const payload = (invoke.data ?? {}) as {
-    legalName?: string | null
-    fssaiLicense?: string | null
-    fssaiValidUntil?: string | null
-    address?: string | null
-    error?: string
-  }
-
-  if (payload.error) {
-    return createErrorResponse(payload.error)
-  }
-
-  return createSuccessResponse({
-    legalName: payload.legalName ?? null,
-    fssaiLicense: payload.fssaiLicense ?? null,
-    fssaiValidUntil: payload.fssaiValidUntil ?? null,
-    address: payload.address ?? null,
+export async function setGallerySlot(
+  organizationId: string,
+  kind: GallerySlotKind,
+  url: string,
+): Promise<ServiceResponse<true>> {
+  return updateStarterProfile(organizationId, {
+    gallery: { [kind]: url },
   })
 }
 

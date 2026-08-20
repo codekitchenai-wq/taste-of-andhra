@@ -2,10 +2,10 @@ import { corsHeaders, errorResponse, jsonResponse } from '../_shared/cors.ts'
 
 /**
  * Parse FSSAI certificate fields via OpenAI when OPENAI_API_KEY is set.
- * Falls back to empty extraction so Master can fill manually.
+ * Accepts public certificateUrl and/or certificateDataUrl (data:image/...;base64,...).
  *
  * Deploy: supabase functions deploy fssai-ai-parse
- * Body: { certificateUrl?: string, rawText?: string }
+ * Secrets: OPENAI_API_KEY
  */
 
 Deno.serve(async (request) => {
@@ -24,6 +24,7 @@ Deno.serve(async (request) => {
   }
 
   const certificateUrl = String(body.certificateUrl ?? '').trim()
+  const certificateDataUrl = String(body.certificateDataUrl ?? '').trim()
   const rawText = String(body.rawText ?? '').trim()
   const apiKey = Deno.env.get('OPENAI_API_KEY') ?? ''
 
@@ -37,25 +38,36 @@ Deno.serve(async (request) => {
     })
   }
 
+  const imageUrl =
+    certificateDataUrl.startsWith('data:image/')
+      ? certificateDataUrl
+      : certificateUrl.startsWith('http')
+        ? certificateUrl
+        : certificateUrl.startsWith('data:image/')
+          ? certificateUrl
+          : ''
+
+  if (!rawText && !imageUrl) {
+    return errorResponse(
+      'Provide an image (upload) or https certificate URL. Local file paths are not supported.',
+    )
+  }
+
   const userContent: Array<Record<string, unknown>> = [
     {
       type: 'text',
       text:
-        'Extract FSSAI licence fields as JSON with keys legalName, fssaiLicense, fssaiValidUntil (YYYY-MM-DD), address. Use null when unknown. Do not invent values.',
+        'Extract Indian FSSAI licence fields as JSON with keys: legalName (business/firm name exactly as printed), fssaiLicense (licence number), fssaiValidUntil (YYYY-MM-DD if present), address. Use null when unknown. Do not invent values.',
     },
   ]
   if (rawText) {
     userContent.push({ type: 'text', text: rawText.slice(0, 8000) })
   }
-  if (certificateUrl) {
+  if (imageUrl) {
     userContent.push({
       type: 'image_url',
-      image_url: { url: certificateUrl },
+      image_url: { url: imageUrl },
     })
-  }
-
-  if (!rawText && !certificateUrl) {
-    return errorResponse('Provide certificateUrl or rawText.')
   }
 
   try {
@@ -72,7 +84,7 @@ Deno.serve(async (request) => {
           {
             role: 'system',
             content:
-              'You extract Indian FSSAI licence data. Return only JSON.',
+              'You extract Indian FSSAI licence data from certificates. Return only JSON.',
           },
           { role: 'user', content: userContent },
         ],

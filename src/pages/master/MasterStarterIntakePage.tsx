@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ENABLE_STARTER_ONBOARDING } from '@/constants/ARCHITECTURE_GATES'
 import { ROUTES } from '@/constants/ROUTES'
@@ -13,7 +13,6 @@ import {
   type StarterOrgSummary,
 } from '@/services/websiteStarterService'
 import { proposeDisplayName, proposeSlugBase } from '@/utils/websiteStarter'
-import { useEffect } from 'react'
 
 export default function MasterStarterIntakePage() {
   const [legalName, setLegalName] = useState('')
@@ -33,11 +32,21 @@ export default function MasterStarterIntakePage() {
   const [created, setCreated] = useState<StarterIntakeResult | null>(null)
   const [pending, setPending] = useState<StarterOrgSummary[]>([])
   const [certFile, setCertFile] = useState<File | null>(null)
+  const [certPreviewUrl, setCertPreviewUrl] = useState<string | null>(null)
+  const [extractNote, setExtractNote] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const previewSlug = useMemo(() => {
     const name = proposeDisplayName(legalName, preferredStoreName)
     return proposeSlugBase(name) || 'restaurant'
   }, [legalName, preferredStoreName])
+
+  const canAiExtract = Boolean(
+    certFile ||
+      (fssaiCertificateUrl.trim().startsWith('http') &&
+        !fssaiCertificateUrl.includes(':\\') &&
+        !fssaiCertificateUrl.startsWith('/')),
+  )
 
   async function refreshPending() {
     const result = await listPendingStarterOrgs()
@@ -47,6 +56,16 @@ export default function MasterStarterIntakePage() {
   useEffect(() => {
     void refreshPending()
   }, [])
+
+  useEffect(() => {
+    if (!certFile || !certFile.type.startsWith('image/')) {
+      setCertPreviewUrl(null)
+      return
+    }
+    const url = URL.createObjectURL(certFile)
+    setCertPreviewUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [certFile])
 
   if (!ENABLE_STARTER_ONBOARDING) {
     return (
@@ -59,34 +78,75 @@ export default function MasterStarterIntakePage() {
     )
   }
 
-  async function onUploadCert(file: File) {
-    setCertFile(file)
-    setBusy(true)
-    setError(null)
-    // Temporary org-less path: upload under a staging prefix via a placeholder id
-    // after create we re-upload if needed. For intake, parse from object URL via AI
-    // by first creating a data URL is not ideal; upload after we have org.
-    // Here we only keep the file for post-create upload + optional local OCR text.
-    setBusy(false)
+  function clearCertificate() {
+    setCertFile(null)
+    setCertPreviewUrl(null)
+    setFssaiCertificateUrl('')
+    setExtractNote(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  async function onParseFssai() {
+  function onSelectCert(file: File) {
+    setError(null)
+    setExtractNote(null)
+    setCertFile(file)
+    // Keep URL field for https only — never put local Windows paths here
+    if (fssaiCertificateUrl.includes(':\\') || fssaiCertificateUrl.startsWith('/Users')) {
+      setFssaiCertificateUrl('')
+    }
+  }
+
+  async function onAiExtract() {
     setBusy(true)
     setError(null)
+    setExtractNote(null)
+
+    const httpsUrl =
+      fssaiCertificateUrl.trim().startsWith('http') &&
+      !fssaiCertificateUrl.includes(':\\')
+        ? fssaiCertificateUrl.trim()
+        : undefined
+
     const result = await parseFssaiWithAi({
-      certificateUrl: fssaiCertificateUrl || undefined,
+      file: certFile,
+      certificateUrl: httpsUrl,
     })
     setBusy(false)
+
     if (!result.success) {
       setError(result.message)
       return
     }
+
     if (result.data.legalName) setLegalName(result.data.legalName)
     if (result.data.fssaiLicense) setFssaiLicense(result.data.fssaiLicense)
     if (result.data.fssaiValidUntil) {
-      setFssaiValidUntil(result.data.fssaiValidUntil)
+      setFssaiValidUntil(String(result.data.fssaiValidUntil).slice(0, 10))
     }
-    if (result.data.address) setAddressFromFssai(result.data.address)
+    if (result.data.address) {
+      setAddressFromFssai(result.data.address)
+      // Best-effort city from trailing address token
+      if (!city.trim()) {
+        const parts = result.data.address.split(',').map((p) => p.trim())
+        const maybeCity = parts[parts.length - 2] || parts[parts.length - 1]
+        if (maybeCity) setCity(maybeCity.replace(/\d{6}/g, '').trim())
+      }
+    }
+    if (result.data.certificateUrl) {
+      setFssaiCertificateUrl(result.data.certificateUrl)
+    }
+    if (result.data.note) setExtractNote(result.data.note)
+    else if (
+      !result.data.legalName &&
+      !result.data.fssaiLicense &&
+      !result.data.fssaiValidUntil
+    ) {
+      setExtractNote(
+        'No fields detected. Check the image is clear, or enter details manually.',
+      )
+    } else {
+      setExtractNote('Fields filled from certificate — review before creating.')
+    }
   }
 
   async function onSubmit(event: React.FormEvent) {
@@ -240,36 +300,80 @@ export default function MasterStarterIntakePage() {
         <h2 className="font-heading text-lg font-semibold">New intake</h2>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block text-sm sm:col-span-2">
-            FSSAI certificate (image/PDF)
+          <div className="space-y-2 rounded border border-black/10 bg-black/[0.02] p-3 sm:col-span-2">
+            <p className="text-sm font-medium">FSSAI certificate</p>
+            <p className="text-xs text-text-secondary">
+              Upload a clear JPG/PNG photo of the certificate (preferred), or a
+              PDF. Then click <strong>AI Extract</strong>. Do not paste Windows
+              file paths into the URL box.
+            </p>
             <input
+              ref={fileInputRef}
               type="file"
-              accept="image/*,application/pdf"
-              className="mt-1 block w-full text-sm"
+              accept="image/jpeg,image/png,image/webp,application/pdf"
+              className="block w-full text-sm"
               onChange={(e) => {
                 const file = e.target.files?.[0]
-                if (file) void onUploadCert(file)
+                if (file) onSelectCert(file)
               }}
             />
-          </label>
-          <label className="block text-sm sm:col-span-2">
-            Or certificate URL (for AI parse)
-            <input
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-              value={fssaiCertificateUrl}
-              onChange={(e) => setFssaiCertificateUrl(e.target.value)}
-              placeholder="https://..."
-            />
-          </label>
-          <div className="sm:col-span-2">
-            <button
-              type="button"
-              disabled={busy || !fssaiCertificateUrl}
-              onClick={() => void onParseFssai()}
-              className="rounded border border-black/15 px-3 py-1.5 text-sm disabled:opacity-50"
-            >
-              AI extract from certificate URL
-            </button>
+            {certFile && (
+              <div className="flex flex-wrap items-center gap-3 rounded border border-black/10 bg-white p-2 text-sm">
+                {certPreviewUrl ? (
+                  <img
+                    src={certPreviewUrl}
+                    alt="FSSAI preview"
+                    className="h-20 w-20 rounded object-cover"
+                  />
+                ) : (
+                  <span className="rounded bg-black/5 px-2 py-1 text-xs">PDF</span>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{certFile.name}</p>
+                  <p className="text-xs text-text-secondary">
+                    {(certFile.size / 1024).toFixed(0)} KB
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="rounded border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50"
+                  onClick={clearCertificate}
+                >
+                  Remove file
+                </button>
+              </div>
+            )}
+            <label className="block text-sm">
+              Or public https URL
+              <input
+                className="mt-1 w-full rounded border border-black/15 px-3 py-2"
+                value={
+                  fssaiCertificateUrl.includes(':\\')
+                    ? ''
+                    : fssaiCertificateUrl
+                }
+                onChange={(e) => setFssaiCertificateUrl(e.target.value)}
+                placeholder="https://…"
+              />
+            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                disabled={busy || !canAiExtract}
+                onClick={() => void onAiExtract()}
+                className="rounded bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {busy ? 'Extracting…' : 'AI Extract'}
+              </button>
+              {!canAiExtract && (
+                <span className="text-xs text-text-secondary">
+                  Choose a file or paste an https URL first
+                </span>
+              )}
+            </div>
+            {extractNote && (
+              <p className="text-xs text-emerald-800">{extractNote}</p>
+            )}
           </div>
 
           <label className="block text-sm sm:col-span-2">
