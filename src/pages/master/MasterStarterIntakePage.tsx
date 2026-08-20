@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ENABLE_STARTER_ONBOARDING } from '@/constants/ARCHITECTURE_GATES'
+import {
+  ENABLE_STARTER_ONBOARDING,
+  SHOW_FSSAI_EXTRACT_PATH,
+} from '@/constants/ARCHITECTURE_GATES'
 import { ROUTES } from '@/constants/ROUTES'
 import {
   approveStarterGoLive,
   checkOrganizationSlugAvailable,
   findFssaiDuplicates,
+  FSSAI_EXTRACT_PATH_LABELS,
   hashCertificateFile,
   intakeWebsiteStarter,
   listPendingStarterOrgs,
@@ -15,6 +19,7 @@ import {
   uploadIntakeCertificate,
   uploadOrgMedia,
   type FssaiDuplicateMatch,
+  type FssaiExtractPath,
   type StarterIntakeResult,
   type StarterOrgSummary,
 } from '@/services/websiteStarterService'
@@ -51,6 +56,8 @@ export default function MasterStarterIntakePage() {
   const [certFile, setCertFile] = useState<File | null>(null)
   const [certPreviewUrl, setCertPreviewUrl] = useState<string | null>(null)
   const [extractNote, setExtractNote] = useState<string | null>(null)
+  const [extractPath, setExtractPath] = useState<FssaiExtractPath | null>(null)
+  const [extractAttempts, setExtractAttempts] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const cameraInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -177,6 +184,8 @@ export default function MasterStarterIntakePage() {
     setFssaiCertificateUrl('')
     setFssaiCertificateHash('')
     setExtractNote(null)
+    setExtractPath(null)
+    setExtractAttempts([])
     setAllowDuplicateFssai(false)
     if (fileInputRef.current) fileInputRef.current.value = ''
     if (cameraInputRef.current) cameraInputRef.current.value = ''
@@ -188,6 +197,8 @@ export default function MasterStarterIntakePage() {
   ) {
     setError(null)
     setExtractNote(null)
+    setExtractPath(null)
+    setExtractAttempts([])
     setCertFile(file)
     setAllowDuplicateFssai(false)
     if (fssaiCertificateUrl.includes(':\\') || fssaiCertificateUrl.startsWith('/Users')) {
@@ -213,6 +224,8 @@ export default function MasterStarterIntakePage() {
     setBusy(true)
     setError(null)
     setExtractNote(null)
+    setExtractPath(null)
+    setExtractAttempts([])
 
     const file = fileOverride ?? certFile
     const httpsUrl =
@@ -261,6 +274,9 @@ export default function MasterStarterIntakePage() {
     }
     if (d.certificateUrl) setFssaiCertificateUrl(d.certificateUrl)
 
+    setExtractPath(d.extractPath ?? null)
+    setExtractAttempts(d.extractAttempts ?? [])
+
     const filled = [
       d.legalName,
       d.fssaiLicense,
@@ -282,18 +298,19 @@ export default function MasterStarterIntakePage() {
       !d.fssaiValidUntil && 'valid until',
     ].filter(Boolean) as string[]
 
-    if (d.note && !/Filled \d+ field/i.test(d.note)) setExtractNote(d.note)
-    else if (filled === 0) {
+    if (d.note) {
+      setExtractNote(d.note)
+    } else if (filled === 0) {
       setExtractNote(
-        'No fields detected. Use a sharper full-page photo, or enter details manually.',
+        'No fields detected. Use a sharper full-page photo, FoSCoS PDF, or enter details manually.',
       )
     } else if (missingCore.length) {
       setExtractNote(
-        `Filled ${filled} field(s). Could not read ${missingCore.join(', ')} clearly from this photo — check those manually (low-res images often miss them). Phone/email/Maps are rarely on FSSAI certificates.`,
+        `Filled ${filled} field(s). Still missing ${missingCore.join(', ')} — check those manually.`,
       )
     } else {
       setExtractNote(
-        `Filled ${filled} field(s) from certificate — review before creating. Phone/email/Maps usually need manual entry.`,
+        `Filled ${filled} field(s) from certificate — review before creating.`,
       )
     }
   }
@@ -632,7 +649,7 @@ export default function MasterStarterIntakePage() {
             {extractNote && (
               <p
                 className={
-                  /could not|error|found no|little text|manually/i.test(
+                  /could not|error|failed|found no|little text|manually/i.test(
                     extractNote,
                   )
                     ? 'text-xs text-amber-800'
@@ -642,6 +659,37 @@ export default function MasterStarterIntakePage() {
                 {extractNote}
               </p>
             )}
+            {SHOW_FSSAI_EXTRACT_PATH &&
+              (extractPath || extractAttempts.length > 0) && (
+                <div className="rounded border border-dashed border-black/20 bg-black/[0.03] p-3 text-xs text-text-secondary">
+                  <p className="font-semibold text-text-primary">
+                    Extract path (debug)
+                  </p>
+                  <p className="mt-1">
+                    Used:{' '}
+                    <span className="font-medium text-text-primary">
+                      {extractPath
+                        ? FSSAI_EXTRACT_PATH_LABELS[extractPath]
+                        : '—'}
+                    </span>
+                    {extractPath ? (
+                      <code className="ml-1 text-[10px] opacity-70">
+                        ({extractPath})
+                      </code>
+                    ) : null}
+                  </p>
+                  {extractAttempts.length > 0 && (
+                    <ol className="mt-2 list-inside list-decimal space-y-0.5 font-mono text-[11px]">
+                      {extractAttempts.map((step, index) => (
+                        <li key={`${index}-${step}`}>{step}</li>
+                      ))}
+                    </ol>
+                  )}
+                  <p className="mt-2 text-[10px] opacity-70">
+                    Hide later with VITE_SHOW_FSSAI_EXTRACT_PATH=false
+                  </p>
+                </div>
+              )}
             {duplicates.length > 0 && (
               <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
                 <p className="font-medium">Possible duplicate FSSAI</p>

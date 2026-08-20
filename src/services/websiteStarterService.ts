@@ -5,6 +5,7 @@ import {
 } from '@/types/api'
 import {
   WEBSITE_STARTER_DISABLED_FEATURES,
+  WEBSITE_STARTER_MAX_CATEGORIES,
   WEBSITE_STARTER_MAX_MENU_ITEMS,
   WEBSITE_STARTER_PLAN_CODE,
   WEBSITE_STARTER_PLAN_ID,
@@ -878,6 +879,27 @@ export async function findFssaiDuplicates(input: {
   return createSuccessResponse([...matches.values()])
 }
 
+export type FssaiExtractPath =
+  | 'pasted_text'
+  | 'foscos_pdf_text'
+  | 'gemini_https_url'
+  | 'gemini_data_url'
+  | 'local_ocr'
+  | 'gemini_partial'
+  | 'gemini_failed'
+  | 'none'
+
+export const FSSAI_EXTRACT_PATH_LABELS: Record<FssaiExtractPath, string> = {
+  pasted_text: 'Pasted text (local parse)',
+  foscos_pdf_text: 'FoSCoS PDF text layer (local)',
+  gemini_https_url: 'Gemini Flash (public HTTPS URL)',
+  gemini_data_url: 'Gemini Flash (uploaded image bytes)',
+  local_ocr: 'On-device OCR fallback',
+  gemini_partial: 'Gemini Flash (partial — no core fields)',
+  gemini_failed: 'Gemini Flash failed',
+  none: 'No extract path succeeded',
+}
+
 export type FssaiAiExtract = {
   legalName: string | null
   fssaiLicense: string | null
@@ -893,6 +915,10 @@ export type FssaiAiExtract = {
   issuedOn: string | null
   certificateUrl?: string | null
   note?: string | null
+  /** Which extractor produced this result (for on-screen debug). */
+  extractPath?: FssaiExtractPath
+  /** Ordered list of attempts tried during this extract call. */
+  extractAttempts?: string[]
 }
 
 export async function parseFssaiWithAi(input: {
@@ -902,6 +928,7 @@ export async function parseFssaiWithAi(input: {
 }): Promise<ServiceResponse<FssaiAiExtract>> {
   let certificateUrl = input.certificateUrl?.trim() || undefined
   let certificateDataUrl: string | undefined
+  const attempts: string[] = []
 
   const empty: FssaiAiExtract = {
     legalName: null,
@@ -918,23 +945,41 @@ export async function parseFssaiWithAi(input: {
     issuedOn: null,
   }
 
+  const withPath = (
+    data: FssaiAiExtract,
+    extractPath: FssaiExtractPath,
+  ): FssaiAiExtract => ({
+    ...data,
+    extractPath,
+    extractAttempts: [...attempts],
+  })
+
   // 1) Free path: pasted text
   if (input.rawText?.trim()) {
+    attempts.push('try: pasted_text')
     const { parseFssaiCertificateText, countParsedFields } = await import(
       '@/utils/parseFssaiCertificateText'
     )
     const fields = parseFssaiCertificateText(input.rawText)
     if (countParsedFields(fields) >= 2) {
-      return createSuccessResponse({
-        ...empty,
-        ...fields,
-        note: `Filled ${countParsedFields(fields)} field(s) from text (free) — review before creating.`,
-      })
+      attempts.push('ok: pasted_text')
+      return createSuccessResponse(
+        withPath(
+          {
+            ...empty,
+            ...fields,
+            note: `Filled ${countParsedFields(fields)} field(s) from text (free) — review before creating.`,
+          },
+          'pasted_text',
+        ),
+      )
     }
+    attempts.push('skip: pasted_text (too few fields)')
   }
 
   // 2) Official FoSCoS PDF (text layer) — most effective free path
   if (input.file?.type === 'application/pdf') {
+    attempts.push('try: foscos_pdf_text')
     try {
       const { extractFssaiFromPdf } = await import('@/utils/extractFssaiFromPdf')
       const { countParsedFields } = await import(
@@ -942,140 +987,40 @@ export async function parseFssaiWithAi(input: {
       )
       const pdf = await extractFssaiFromPdf(input.file)
       if (countParsedFields(pdf.fields) >= 1) {
-        // Also stage URL for persistence when caller uploaded a PDF
         const uploaded = await uploadIntakeCertificate(input.file)
-        return createSuccessResponse({
-          ...empty,
-          ...pdf.fields,
-          certificateUrl: uploaded.success ? uploaded.data : certificateUrl ?? null,
-          note: pdf.note,
-        })
+        attempts.push('ok: foscos_pdf_text')
+        return createSuccessResponse(
+          withPath(
+            {
+              ...empty,
+              ...pdf.fields,
+              certificateUrl: uploaded.success
+                ? uploaded.data
+                : certificateUrl ?? null,
+              note: pdf.note,
+            },
+            'foscos_pdf_text',
+          ),
+        )
       }
+      attempts.push('skip: foscos_pdf_text (no fields)')
     } catch (error) {
-      // Fall through to cloud / manual
+      attempts.push(
+        `fail: foscos_pdf_text (${error instanceof Error ? error.message : 'error'})`,
+      )
       if (!certificateUrl && input.file) {
         const uploaded = await uploadIntakeCertificate(input.file)
         if (uploaded.success) certificateUrl = uploaded.data
       }
-      const message =
-        error instanceof Error ? error.message : 'PDF text extract failed.'
-      // Continue to cloud below with uploaded PDF URL if possible
-      void message
     }
   }
 
-  // 3) Phone / gallery photos — free OCR (best-effort), then optional cloud
-  if (input.file?.type.startsWith('image/')) {
-    let localNote: string | null = null
-    try {
-      const { extractFssaiLocalFromFile } = await import(
-        '@/utils/extractFssaiLocal'
-      )
-      const { countParsedFields } = await import(
-        '@/utils/parseFssaiCertificateText'
-      )
-      const local = await extractFssaiLocalFromFile(input.file)
-      if (countParsedFields(local.fields) >= 1) {
-        return createSuccessResponse({
-          ...empty,
-          ...local.fields,
-          note: local.note,
-        })
-      }
-      localNote = local.note
-    } catch (error) {
-      localNote =
-        error instanceof Error
-          ? `On-device OCR error: ${error.message}`
-          : 'On-device OCR failed to start.'
-    }
+  // 3) Photos / public URL — Gemini Flash first (core fields required to accept)
+  const { countParsedFields } = await import(
+    '@/utils/parseFssaiCertificateText'
+  )
 
-    // Fall through to cloud AI only as optional upgrade; if unavailable,
-    // return a clear local-OCR message (not "upload a JPG" after they did).
-    certificateDataUrl = await readFileAsDataUrl(input.file)
-    const invoke = await supabase.functions.invoke('fssai-ai-parse', {
-      body: { certificateDataUrl },
-    })
-    const payload = (invoke.data ?? {}) as {
-      legalName?: string | null
-      fssaiLicense?: string | null
-      fssaiValidUntil?: string | null
-      address?: string | null
-      city?: string | null
-      state?: string | null
-      pincode?: string | null
-      proprietorName?: string | null
-      phone?: string | null
-      email?: string | null
-      kindOfBusiness?: string | null
-      issuedOn?: string | null
-      error?: string
-      note?: string
-    }
-    const cloudBlocked =
-      Boolean(invoke.error) ||
-      Boolean(payload.error) ||
-      /OPENAI_API_KEY not configured/i.test(String(payload.note ?? ''))
-    if (cloudBlocked) {
-      return createSuccessResponse({
-        ...empty,
-        note:
-          localNote ||
-          'Could not read the certificate on-device. Retake a sharper full-page photo, or fill fields manually.',
-      })
-    }
-    return createSuccessResponse({
-      ...empty,
-      legalName: payload.legalName ?? null,
-      fssaiLicense: payload.fssaiLicense ?? null,
-      fssaiValidUntil: payload.fssaiValidUntil ?? null,
-      address: payload.address ?? null,
-      city: payload.city ?? null,
-      state: payload.state ?? null,
-      pincode: payload.pincode ?? null,
-      proprietorName: payload.proprietorName ?? null,
-      phone: payload.phone ?? null,
-      email: payload.email ?? null,
-      kindOfBusiness: payload.kindOfBusiness ?? null,
-      issuedOn: payload.issuedOn ?? null,
-      note: payload.note ?? 'Filled from cloud AI — review before creating.',
-    })
-  }
-
-  // 2) Optional cloud AI (needs OPENAI_API_KEY on Supabase secrets)
-  if (input.file) {
-    const isImage = input.file.type.startsWith('image/')
-    if (isImage) {
-      certificateDataUrl = await readFileAsDataUrl(input.file)
-    } else {
-      const uploaded = await uploadIntakeCertificate(input.file)
-      if (!uploaded.success) return uploaded
-      certificateUrl = uploaded.data
-    }
-  }
-
-  if (!certificateUrl && !certificateDataUrl && !input.rawText?.trim()) {
-    return createErrorResponse(
-      'Upload an FSSAI image/PDF or paste a public certificate URL first.',
-    )
-  }
-
-  const invoke = await supabase.functions.invoke('fssai-ai-parse', {
-    body: {
-      certificateUrl,
-      certificateDataUrl,
-      rawText: input.rawText,
-    },
-  })
-
-  if (invoke.error) {
-    return createErrorResponse(
-      invoke.error.message ||
-        'FSSAI parse unavailable. Use a clearer JPG/PNG, or enter details manually.',
-    )
-  }
-
-  const payload = (invoke.data ?? {}) as {
+  type CloudPayload = {
     legalName?: string | null
     fssaiLicense?: string | null
     fssaiValidUntil?: string | null
@@ -1092,11 +1037,17 @@ export async function parseFssaiWithAi(input: {
     note?: string
   }
 
-  if (payload.error) {
-    return createErrorResponse(payload.error)
-  }
+  const hasCore = (fields: {
+    legalName?: string | null
+    fssaiLicense?: string | null
+  }) =>
+    Boolean(
+      (fields.legalName && String(fields.legalName).trim()) ||
+        (fields.fssaiLicense && String(fields.fssaiLicense).trim()),
+    )
 
-  const cloud: FssaiAiExtract = {
+  const mapCloud = (payload: CloudPayload): FssaiAiExtract => ({
+    ...empty,
     legalName: payload.legalName ?? null,
     fssaiLicense: payload.fssaiLicense ?? null,
     fssaiValidUntil: payload.fssaiValidUntil ?? null,
@@ -1110,24 +1061,194 @@ export async function parseFssaiWithAi(input: {
     kindOfBusiness: payload.kindOfBusiness ?? null,
     issuedOn: payload.issuedOn ?? null,
     certificateUrl: certificateUrl ?? null,
-    note: payload.note ?? null,
+  })
+
+  async function invokeGemini(body: {
+    certificateUrl?: string
+    certificateDataUrl?: string
+    rawText?: string
+  }): Promise<{
+    fields: FssaiAiExtract
+    blocked: boolean
+    error: string | null
+  }> {
+    const invoke = await supabase.functions.invoke('fssai-ai-parse', { body })
+    const payload = (invoke.data ?? {}) as CloudPayload
+    const errorText =
+      payload.error ||
+      (invoke.error ? invoke.error.message : null) ||
+      (/GEMINI_API_KEY not configured|OPENAI_API_KEY not configured/i.test(
+        String(payload.note ?? ''),
+      )
+        ? String(payload.note)
+        : null)
+
+    if (errorText) {
+      return {
+        fields: mapCloud(payload),
+        blocked: /GEMINI_API_KEY not configured|OPENAI_API_KEY not configured|not configured/i.test(
+          errorText,
+        ),
+        error: errorText,
+      }
+    }
+
+    const fields = mapCloud(payload)
+    return {
+      fields: {
+        ...fields,
+        note:
+          payload.note ??
+          (hasCore(fields)
+            ? `Filled ${countParsedFields(fields)} field(s) with Gemini Flash — review before creating.`
+            : 'Gemini Flash ran but could not read core FSSAI fields from this image.'),
+      },
+      blocked: false,
+      error: null,
+    }
   }
 
-  // If cloud has no key, surface a clearer free-path message (not a hard error)
-  if (
-    payload.note &&
-    /OPENAI_API_KEY not configured/i.test(payload.note) &&
-    !cloud.legalName &&
-    !cloud.fssaiLicense
-  ) {
-    return createSuccessResponse({
-      ...cloud,
-      note:
-        'Cloud AI is not configured. Upload a clear JPG/PNG so free on-device OCR can run, or enter fields manually.',
-    })
+  let lastGeminiError: string | null = null
+  let lastGeminiFields: FssaiAiExtract | null = null
+
+  // Prefer already-uploaded HTTPS URL (reliable; avoids huge data-URL payloads)
+  if (certificateUrl?.startsWith('http')) {
+    attempts.push('try: gemini_https_url → fssai-ai-parse')
+    const gemini = await invokeGemini({ certificateUrl })
+    lastGeminiError = gemini.error
+    lastGeminiFields = gemini.fields
+    if (gemini.error) {
+      attempts.push(`fail: gemini_https_url (${gemini.error.slice(0, 100)})`)
+    } else if (hasCore(gemini.fields)) {
+      attempts.push('ok: gemini_https_url (core fields)')
+      return createSuccessResponse(
+        withPath(gemini.fields, 'gemini_https_url'),
+      )
+    } else {
+      attempts.push(
+        `partial: gemini_https_url (${countParsedFields(gemini.fields)} fields, no core)`,
+      )
+    }
   }
 
-  return createSuccessResponse(cloud)
+  if (input.file?.type.startsWith('image/')) {
+    attempts.push('try: gemini_data_url → fssai-ai-parse')
+    certificateDataUrl = await readFileAsDataUrl(input.file)
+    const gemini = await invokeGemini({ certificateDataUrl })
+    lastGeminiError = gemini.error ?? lastGeminiError
+    if (
+      countParsedFields(gemini.fields) >
+      countParsedFields(lastGeminiFields ?? empty)
+    ) {
+      lastGeminiFields = gemini.fields
+    }
+    if (gemini.error) {
+      attempts.push(`fail: gemini_data_url (${gemini.error.slice(0, 100)})`)
+    } else if (hasCore(gemini.fields)) {
+      attempts.push('ok: gemini_data_url (core fields)')
+      return createSuccessResponse(withPath(gemini.fields, 'gemini_data_url'))
+    } else {
+      attempts.push(
+        `partial: gemini_data_url (${countParsedFields(gemini.fields)} fields, no core)`,
+      )
+    }
+
+    // Local OCR only when it finds licence or legal name (avoid junk partials)
+    attempts.push('try: local_ocr')
+    try {
+      const { extractFssaiLocalFromFile } = await import(
+        '@/utils/extractFssaiLocal'
+      )
+      const local = await extractFssaiLocalFromFile(input.file)
+      if (hasCore(local.fields)) {
+        attempts.push('ok: local_ocr (core fields)')
+        return createSuccessResponse(
+          withPath(
+            {
+              ...empty,
+              ...local.fields,
+              certificateUrl: certificateUrl ?? null,
+              note: `${local.note} (Gemini did not return core fields${lastGeminiError ? `: ${lastGeminiError.slice(0, 120)}` : ''}).`,
+            },
+            'local_ocr',
+          ),
+        )
+      }
+      attempts.push(
+        `skip: local_ocr (${countParsedFields(local.fields)} fields, no core)`,
+      )
+    } catch (error) {
+      attempts.push(
+        `fail: local_ocr (${error instanceof Error ? error.message : 'error'})`,
+      )
+    }
+  } else if (input.file && input.file.type !== 'application/pdf') {
+    const uploaded = await uploadIntakeCertificate(input.file)
+    if (!uploaded.success) return uploaded
+    certificateUrl = uploaded.data
+    attempts.push('try: gemini_https_url (after upload) → fssai-ai-parse')
+    const gemini = await invokeGemini({ certificateUrl })
+    lastGeminiError = gemini.error
+    lastGeminiFields = gemini.fields
+    if (gemini.error) {
+      attempts.push(`fail: gemini_https_url (${gemini.error.slice(0, 100)})`)
+    } else if (hasCore(gemini.fields)) {
+      attempts.push('ok: gemini_https_url (core fields)')
+      return createSuccessResponse(
+        withPath(gemini.fields, 'gemini_https_url'),
+      )
+    } else {
+      attempts.push('partial: gemini_https_url (no core)')
+    }
+  }
+
+  if (lastGeminiFields && countParsedFields(lastGeminiFields) >= 1) {
+    attempts.push('result: gemini_partial')
+    return createSuccessResponse(
+      withPath(
+        {
+          ...lastGeminiFields,
+          note:
+            lastGeminiFields.note ||
+            'Gemini returned partial fields — enter legal name / licence manually if blank.',
+        },
+        'gemini_partial',
+      ),
+    )
+  }
+
+  if (lastGeminiError) {
+    attempts.push('result: gemini_failed')
+    return createSuccessResponse(
+      withPath(
+        {
+          ...empty,
+          certificateUrl: certificateUrl ?? null,
+          note: `Gemini extract failed: ${lastGeminiError.slice(0, 220)}. Use a clearer photo, FoSCoS PDF, or enter fields manually.`,
+        },
+        'gemini_failed',
+      ),
+    )
+  }
+
+  if (!certificateUrl && !certificateDataUrl && !input.rawText?.trim()) {
+    return createErrorResponse(
+      'Upload an FSSAI image/PDF or paste a public certificate URL first.',
+    )
+  }
+
+  attempts.push('result: none')
+  return createSuccessResponse(
+    withPath(
+      {
+        ...empty,
+        certificateUrl: certificateUrl ?? null,
+        note:
+          'Could not read FSSAI core fields (legal name / licence). Retake a sharper full-page photo, upload the FoSCoS PDF, or enter details manually.',
+      },
+      'none',
+    ),
+  )
 }
 
 export function menuRowsToCsv(rows: MenuCsvRow[]): string {
@@ -1160,14 +1281,32 @@ function csvEscape(value: string): string {
 export async function applyMenuDraftRows(
   organizationId: string,
   rows: MenuCsvRow[],
-  options?: { maxItems?: number; publishImmediately?: boolean },
+  options?: {
+    maxItems?: number
+    maxCategories?: number
+    publishImmediately?: boolean
+  },
 ): Promise<ServiceResponse<{ categoriesCreated: number; dishesCreated: number }>> {
-  const max = options?.maxItems ?? WEBSITE_STARTER_MAX_MENU_ITEMS
-  const limited = rows.slice(0, max)
-  if (limited.length === 0) {
+  const maxItems = options?.maxItems ?? WEBSITE_STARTER_MAX_MENU_ITEMS
+  const maxCategories =
+    options?.maxCategories ?? WEBSITE_STARTER_MAX_CATEGORIES
+  if (rows.length === 0) {
     return createErrorResponse('No menu rows to import.')
   }
-  const csv = menuRowsToCsv(limited)
+  if (rows.length > maxItems) {
+    return createErrorResponse(
+      `Website Starter allows at most ${maxItems} menu items. You have ${rows.length} — remove ${rows.length - maxItems} before saving.`,
+    )
+  }
+  const categoryKeys = new Set(
+    rows.map((row) => (row.category.trim() || 'Menu').toLowerCase()),
+  )
+  if (categoryKeys.size > maxCategories) {
+    return createErrorResponse(
+      `Website Starter allows at most ${maxCategories} categories. You have ${categoryKeys.size} — merge or rename categories before saving.`,
+    )
+  }
+  const csv = menuRowsToCsv(rows)
   const result = await importMenuCsv(
     organizationId,
     csv,
@@ -1287,7 +1426,8 @@ export async function parseMenuWithAi(input: {
     return createErrorResponse(message)
   }
 
-  const rows = payload.rows.slice(0, WEBSITE_STARTER_MAX_MENU_ITEMS)
+  // Keep full extract for review; save is gated at ≤15 items / ≤15 categories in the wizard.
+  const rows = payload.rows
   await saveMenuImportDraft(jobId, rows, 'ready')
   return createSuccessResponse({ jobId, rows })
 }

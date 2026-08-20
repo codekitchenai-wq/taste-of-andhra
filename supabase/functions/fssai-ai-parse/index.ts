@@ -1,14 +1,17 @@
 import { corsHeaders, errorResponse, jsonResponse } from '../_shared/cors.ts'
+import {
+  fetchUrlAsInlineData,
+  geminiApiKey,
+  geminiGenerateJson,
+  parseDataUrl,
+  type GeminiPart,
+} from '../_shared/gemini.ts'
 
 /**
- * Parse FSSAI certificate fields via OpenAI when OPENAI_API_KEY is set.
- * Accepts public certificateUrl and/or certificateDataUrl (data:image/...;base64,...).
- *
- * Tuned for Registration Certificate layouts (e.g. state FoSCoS forms):
- * Registration Number, FBO name + address, premises, Kind of Business, Valid Upto.
+ * Parse FSSAI certificate fields via Gemini Flash (preferred) or OpenAI.
  *
  * Deploy: supabase functions deploy fssai-ai-parse
- * Secrets: OPENAI_API_KEY
+ * Secrets: GEMINI_API_KEY (preferred) or OPENAI_API_KEY
  */
 
 function emptyExtract(note?: string) {
@@ -51,53 +54,45 @@ function asNullableString(value: unknown): string | null {
   return s ? s : null
 }
 
-Deno.serve(async (request) => {
-  if (request.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+function mapExtract(parsed: Record<string, unknown>) {
+  return {
+    legalName: asNullableString(
+      parsed.legalName ?? parsed.legal_name ?? parsed.firmName,
+    ),
+    fssaiLicense: asNullableString(
+      parsed.fssaiLicense ??
+        parsed.fssai_license ??
+        parsed.registrationNumber ??
+        parsed.registration_number,
+    ),
+    fssaiValidUntil: normalizeDate(
+      parsed.fssaiValidUntil ??
+        parsed.fssai_valid_until ??
+        parsed.validUpto ??
+        parsed.valid_upto,
+    ),
+    issuedOn: normalizeDate(parsed.issuedOn ?? parsed.issued_on),
+    address: asNullableString(parsed.address ?? parsed.premisesAddress),
+    city: asNullableString(parsed.city ?? parsed.place),
+    state: asNullableString(parsed.state),
+    pincode: asNullableString(parsed.pincode ?? parsed.pin),
+    proprietorName: asNullableString(
+      parsed.proprietorName ??
+        parsed.proprietor_name ??
+        parsed.ownerName ??
+        parsed.fboPersonName,
+    ),
+    phone: asNullableString(parsed.phone ?? parsed.mobile),
+    email: asNullableString(parsed.email),
+    kindOfBusiness: asNullableString(
+      parsed.kindOfBusiness ??
+        parsed.kind_of_business ??
+        parsed.businessType,
+    ),
   }
-  if (request.method !== 'POST') {
-    return errorResponse('Method not allowed.', 405)
-  }
+}
 
-  let body: Record<string, unknown>
-  try {
-    body = await request.json()
-  } catch {
-    return errorResponse('Invalid request body.')
-  }
-
-  const certificateUrl = String(body.certificateUrl ?? '').trim()
-  const certificateDataUrl = String(body.certificateDataUrl ?? '').trim()
-  const rawText = String(body.rawText ?? '').trim()
-  const apiKey = Deno.env.get('OPENAI_API_KEY') ?? ''
-
-  if (!apiKey) {
-    return jsonResponse(
-      emptyExtract(
-        'OPENAI_API_KEY not configured — enter FSSAI fields manually.',
-      ),
-    )
-  }
-
-  const imageUrl =
-    certificateDataUrl.startsWith('data:image/')
-      ? certificateDataUrl
-      : certificateUrl.startsWith('http')
-        ? certificateUrl
-        : certificateUrl.startsWith('data:image/')
-          ? certificateUrl
-          : ''
-
-  if (!rawText && !imageUrl) {
-    return errorResponse(
-      'Provide an image (upload) or https certificate URL. Local file paths are not supported.',
-    )
-  }
-
-  const userContent: Array<Record<string, unknown>> = [
-    {
-      type: 'text',
-      text: `Extract Indian FSSAI Registration / Licence certificate fields as JSON.
+const FSSAI_PROMPT = `Extract Indian FSSAI Registration / Licence certificate fields as JSON.
 Use null when not visible — never invent.
 
 Typical FoSCoS / state Registration Certificate layout:
@@ -125,84 +120,147 @@ Keys:
 - phone: phone if printed
 - email: email if printed
 - kindOfBusiness: Kind of Business text if printed
-Return only JSON.`,
-    },
-  ]
-  if (rawText) {
-    userContent.push({ type: 'text', text: rawText.slice(0, 8000) })
+Return only JSON.`
+
+async function parseWithGemini(input: {
+  imageUrl?: string
+  rawText?: string
+}): Promise<Record<string, unknown>> {
+  const parts: GeminiPart[] = [{ text: FSSAI_PROMPT }]
+  if (input.rawText) {
+    parts.push({ text: input.rawText.slice(0, 8000) })
   }
-  if (imageUrl) {
+  if (input.imageUrl) {
+    if (input.imageUrl.startsWith('data:')) {
+      const inline = parseDataUrl(input.imageUrl)
+      if (inline) {
+        parts.push({
+          inline_data: {
+            mime_type: inline.mime_type,
+            data: inline.data,
+          },
+        })
+      }
+    } else if (input.imageUrl.startsWith('http')) {
+      const inline = await fetchUrlAsInlineData(input.imageUrl)
+      if (inline) {
+        parts.push({
+          inline_data: {
+            mime_type: inline.mime_type,
+            data: inline.data,
+          },
+        })
+      }
+    }
+  }
+
+  const result = await geminiGenerateJson(parts)
+  if (!result.ok) throw new Error(result.error)
+  return (result.json ?? {}) as Record<string, unknown>
+}
+
+async function parseWithOpenAi(input: {
+  apiKey: string
+  imageUrl?: string
+  rawText?: string
+}): Promise<Record<string, unknown>> {
+  const userContent: Array<Record<string, unknown>> = [
+    { type: 'text', text: FSSAI_PROMPT },
+  ]
+  if (input.rawText) {
+    userContent.push({ type: 'text', text: input.rawText.slice(0, 8000) })
+  }
+  if (input.imageUrl) {
     userContent.push({
       type: 'image_url',
-      image_url: { url: imageUrl, detail: 'low' },
+      image_url: { url: input.imageUrl, detail: 'low' },
     })
+  }
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${input.apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: Deno.env.get('OPENAI_VISION_MODEL') || 'gpt-4o',
+      response_format: { type: 'json_object' },
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You extract Indian FSSAI registration/licence certificate data. Prefer FoSCoS field labels. Return only JSON. Never invent values.',
+        },
+        { role: 'user', content: userContent },
+      ],
+    }),
+  })
+
+  if (!response.ok) {
+    const detail = await response.text()
+    throw new Error(`OpenAI error: ${detail.slice(0, 300)}`)
+  }
+
+  const payload = await response.json()
+  const content = payload?.choices?.[0]?.message?.content
+  return typeof content === 'string' ? JSON.parse(content) : {}
+}
+
+Deno.serve(async (request) => {
+  if (request.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+  if (request.method !== 'POST') {
+    return errorResponse('Method not allowed.', 405)
+  }
+
+  let body: Record<string, unknown>
+  try {
+    body = await request.json()
+  } catch {
+    return errorResponse('Invalid request body.')
+  }
+
+  const certificateUrl = String(body.certificateUrl ?? '').trim()
+  const certificateDataUrl = String(body.certificateDataUrl ?? '').trim()
+  const rawText = String(body.rawText ?? '').trim()
+  const openaiKey = Deno.env.get('OPENAI_API_KEY') ?? ''
+  const hasGemini = Boolean(geminiApiKey())
+
+  if (!hasGemini && !openaiKey) {
+    return jsonResponse(
+      emptyExtract(
+        'GEMINI_API_KEY not configured — enter FSSAI fields manually.',
+      ),
+    )
+  }
+
+  const imageUrl =
+    certificateDataUrl.startsWith('data:image/')
+      ? certificateDataUrl
+      : certificateUrl.startsWith('http')
+        ? certificateUrl
+        : certificateUrl.startsWith('data:image/')
+          ? certificateUrl
+          : ''
+
+  if (!rawText && !imageUrl) {
+    return errorResponse(
+      'Provide an image (upload) or https certificate URL. Local file paths are not supported.',
+    )
   }
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: Deno.env.get('OPENAI_VISION_MODEL') || 'gpt-4o',
-        response_format: { type: 'json_object' },
-        messages: [
-          {
-            role: 'system',
-            content:
-              'You extract Indian FSSAI registration/licence certificate data. Prefer FoSCoS field labels. Return only JSON. Never invent values.',
-          },
-          { role: 'user', content: userContent },
-        ],
-      }),
-    })
+    const parsed = hasGemini
+      ? await parseWithGemini({ imageUrl: imageUrl || undefined, rawText })
+      : await parseWithOpenAi({
+          apiKey: openaiKey,
+          imageUrl: imageUrl || undefined,
+          rawText,
+        })
 
-    if (!response.ok) {
-      const detail = await response.text()
-      return errorResponse(`OpenAI error: ${detail.slice(0, 300)}`, 502)
-    }
-
-    const payload = await response.json()
-    const content = payload?.choices?.[0]?.message?.content
-    const parsed = typeof content === 'string' ? JSON.parse(content) : {}
-
-    return jsonResponse({
-      legalName: asNullableString(
-        parsed.legalName ?? parsed.legal_name ?? parsed.firmName,
-      ),
-      fssaiLicense: asNullableString(
-        parsed.fssaiLicense ??
-          parsed.fssai_license ??
-          parsed.registrationNumber ??
-          parsed.registration_number,
-      ),
-      fssaiValidUntil: normalizeDate(
-        parsed.fssaiValidUntil ??
-          parsed.fssai_valid_until ??
-          parsed.validUpto ??
-          parsed.valid_upto,
-      ),
-      issuedOn: normalizeDate(parsed.issuedOn ?? parsed.issued_on),
-      address: asNullableString(parsed.address ?? parsed.premisesAddress),
-      city: asNullableString(parsed.city ?? parsed.place),
-      state: asNullableString(parsed.state),
-      pincode: asNullableString(parsed.pincode ?? parsed.pin),
-      proprietorName: asNullableString(
-        parsed.proprietorName ??
-          parsed.proprietor_name ??
-          parsed.ownerName ??
-          parsed.fboPersonName,
-      ),
-      phone: asNullableString(parsed.phone ?? parsed.mobile),
-      email: asNullableString(parsed.email),
-      kindOfBusiness: asNullableString(
-        parsed.kindOfBusiness ??
-          parsed.kind_of_business ??
-          parsed.businessType,
-      ),
-    })
+    return jsonResponse(mapExtract(parsed))
   } catch (error) {
     return errorResponse(
       error instanceof Error ? error.message : 'FSSAI parse failed.',
