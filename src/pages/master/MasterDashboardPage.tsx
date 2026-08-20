@@ -49,7 +49,7 @@ export default function MasterDashboardPage() {
       </div>
 
       <section className="rounded-[var(--radius-card)] border border-primary/30 bg-primary/5 p-5">
-        <h2 className="text-lg font-semibold">Website Starter intake</h2>
+        <h2 className="text-lg font-semibold">Starter intake</h2>
         <p className="mt-1 text-sm text-text-secondary">
           Free website + menu for new restaurants (FSSAI lock, invite link,
           photos, AI/CSV menu). Does not change Taste of Andhra or Chopsticks.
@@ -58,7 +58,7 @@ export default function MasterDashboardPage() {
           to={ROUTES.MASTER.STARTER_INTAKE}
           className="mt-4 inline-flex h-10 items-center rounded-[var(--radius-button)] bg-primary px-5 text-sm font-medium text-white hover:bg-primary-dark"
         >
-          Open Website Starter intake
+          Open Starter intake
         </Link>
       </section>
 
@@ -72,7 +72,7 @@ export default function MasterDashboardPage() {
             to={ROUTES.MASTER.STARTER_INTAKE}
             className="font-medium text-primary hover:underline"
           >
-            Website Starter intake
+            Starter intake
           </Link>
           <Link to={ROUTES.MASTER.FEATURES} className="text-primary hover:underline">
             Feature catalog
@@ -81,7 +81,7 @@ export default function MasterDashboardPage() {
             Tenant & logins
           </Link>
           <Link to={ROUTES.MASTER.ONBOARD} className="text-primary hover:underline">
-            Onboard Growth restaurant
+            Onboard new
           </Link>
         </div>
       </section>

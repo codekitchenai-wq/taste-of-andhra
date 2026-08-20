@@ -63,13 +63,13 @@ export default function MasterTenantsPage() {
             to={ROUTES.MASTER.STARTER_INTAKE}
             className="inline-flex h-10 items-center rounded-[var(--radius-button)] border border-primary px-5 text-sm font-medium text-primary hover:bg-primary/5"
           >
-            Website Starter intake
+            Starter intake
           </Link>
           <Link
             to={ROUTES.MASTER.ONBOARD}
             className="inline-flex h-10 items-center rounded-[var(--radius-button)] bg-primary px-5 text-sm font-medium text-white hover:bg-primary-dark"
           >
-            + Onboard Growth restaurant
+            + Onboard new
           </Link>
         </div>
       </div>
