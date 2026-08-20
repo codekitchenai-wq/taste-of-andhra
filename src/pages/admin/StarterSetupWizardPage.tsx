@@ -150,7 +150,12 @@ export default function StarterSetupWizardPage() {
         ? String(settings[CUISINE_SETTING_KEY])
         : '',
     )
-    setGallery(galleryFromSettings(settings))
+    const gallery = galleryFromSettings(settings)
+    setGallery({
+      front: gallery.front ?? null,
+      interior: gallery.interior ?? null,
+      food: gallery.food ?? null,
+    })
     const hours =
       row.opening_hours && typeof row.opening_hours === 'object'
         ? (row.opening_hours as Record<string, unknown>)

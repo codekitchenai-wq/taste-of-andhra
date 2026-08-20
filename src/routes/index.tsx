@@ -118,6 +118,9 @@ const MasterOnboardTenantPage = lazy(
 const MasterTenantDetailPage = lazy(
   () => import('@/pages/master/MasterTenantDetailPage'),
 )
+const MasterFeaturesPage = lazy(
+  () => import('@/pages/master/MasterFeaturesPage'),
+)
 const MasterStarterIntakePage = lazy(
   () => import('@/pages/master/MasterStarterIntakePage'),
 )
