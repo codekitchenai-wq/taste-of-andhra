@@ -5,7 +5,7 @@ import { Container } from '@/components/ui/Container'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { ROUTES } from '@/constants/ROUTES'
 import { useOrganization } from '@/contexts/OrganizationContext'
-import { storefrontContact, storefrontWhyChooseUs, isSpiceMalabarStorefront } from '@/utils/storefrontCopy'
+import { storefrontContact, storefrontWhyChooseUs, isSpiceMalabarStorefront, storefrontPublicMenuEnabled } from '@/utils/storefrontCopy'
 
 const ANDHRA_MILESTONES = [
   {
@@ -53,6 +53,7 @@ export default function AboutPage() {
   const org = useOrganization()
   const contact = storefrontContact(org)
   const highlights = storefrontWhyChooseUs(org)
+  const showMenuLink = storefrontPublicMenuEnabled(org)
   const milestones = isSpiceMalabarStorefront(org)
     ? SPICE_MILESTONES
     : org.resolvedFromHost
@@ -187,12 +188,14 @@ export default function AboutPage() {
               <dd className="text-text-secondary">{contact.weekendHours}</dd>
             </div>
           </dl>
-          <Link
-            to={ROUTES.MENU}
-            className="mt-6 inline-flex text-sm font-medium text-primary hover:text-primary-dark"
-          >
-            Explore our menu →
-          </Link>
+          {showMenuLink ? (
+            <Link
+              to={ROUTES.MENU}
+              className="mt-6 inline-flex text-sm font-medium text-primary hover:text-primary-dark"
+            >
+              Explore our menu →
+            </Link>
+          ) : null}
         </section>
       </Container>
 

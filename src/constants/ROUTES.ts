@@ -33,6 +33,10 @@ export const ROUTES = {
     STARTER_INTAKE: '/master/starter-intake',
     /** Alias — same screen as STARTER_INTAKE */
     WEBSITE_STARTER: '/master/website-starter',
+    /** Unified queue: go-live + FSSAI compliance review */
+    APPROVALS: '/master/approvals',
+    approval: (orgId: string) =>
+      `/master/approvals?org=${encodeURIComponent(orgId)}`,
     starterSetup: (orgId: string) =>
       `/master/starter-setup/${encodeURIComponent(orgId)}`,
     FEATURES: '/master/features',
@@ -72,5 +76,6 @@ export const ROUTES = {
   PLATFORM: {
     HOME: '/',
     DEMO: '/demo',
+    STARTER_REQUEST: '/starter',
   },
 } as const

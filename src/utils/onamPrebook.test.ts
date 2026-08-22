@@ -25,15 +25,27 @@ describe('parseOnamPrebook', () => {
         date: '2026-08-25',
         slot: '13:00',
         plates: 4,
-        customerName: 'Anu',
+        comments: 'Gate 2',
       }),
     ).toEqual({
       service: 'parcel',
       date: '2026-08-25',
       slot: '13:00',
       plates: 4,
-      customerName: 'Anu',
+      comments: 'Gate 2',
     })
+  })
+
+  it('maps legacy customerName into comments', () => {
+    expect(
+      parseOnamPrebook({
+        service: 'parcel',
+        date: '2026-08-25',
+        slot: '13:00',
+        plates: 2,
+        customerName: 'Anu',
+      }),
+    ).toMatchObject({ comments: 'Anu' })
   })
 
   it('treats a saved dine-in booking as parcel', () => {
@@ -60,15 +72,15 @@ describe('parseOnamPrebook', () => {
 })
 
 describe('onamWhatsAppMessage', () => {
-  it('includes plates, slot, and parcel price', () => {
+  it('includes plates, slot, parcel price, and comments', () => {
     const message = onamWhatsAppMessage({
       service: 'parcel',
       date: '2026-08-26',
       slot: '18:00',
       plates: 3,
-      customerName: 'Ravi',
+      comments: 'Less spicy',
     })
-    expect(message).toContain('Ravi')
+    expect(message).toContain('Less spicy')
     expect(message).toContain('3 plate')
     expect(message).toContain('6:00 PM – 7:00 PM')
     expect(message).toContain(`₹${ONAM_SADHYA.services.parcel.price}`)

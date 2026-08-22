@@ -43,6 +43,26 @@
   font-family: var(--platform-display);
 }
 
+@keyframes onam-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(1.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes onam-hero-zoom {
+  from {
+    transform: scale(1.08);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
 @layer base {
   html {
     @apply scroll-smooth;

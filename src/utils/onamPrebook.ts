@@ -9,7 +9,8 @@ export interface OnamPrebook {
   date: string
   slot: string
   plates: number
-  customerName: string
+  /** Optional notes for the kitchen / delivery (gate code, allergies, etc.). */
+  comments: string
 }
 
 export interface OnamTimeSlot {
@@ -73,7 +74,7 @@ export function defaultOnamPrebook(): OnamPrebook {
     date: ONAM_SADHYA.dates[0].value,
     slot: onamTimeSlots()[0]?.value ?? '11:00',
     plates: 2,
-    customerName: '',
+    comments: '',
   }
 }
 
@@ -108,13 +109,17 @@ export function parseOnamPrebook(raw: unknown): OnamPrebook | null {
       : null
   if (!service || !date || !slot || !plates) return null
 
+  const commentsFromField =
+    typeof value.comments === 'string' ? value.comments.trim() : ''
+  const legacyName =
+    typeof value.customerName === 'string' ? value.customerName.trim() : ''
+
   return {
     service,
     date,
     slot,
     plates,
-    customerName:
-      typeof value.customerName === 'string' ? value.customerName.trim() : '',
+    comments: commentsFromField || legacyName,
   }
 }
 
@@ -145,8 +150,8 @@ export function onamOrderNote(prebook: OnamPrebook) {
     `Slot: ${onamSlotLabel(prebook.slot)}`,
     `Plates: ${prebook.plates}`,
   ]
-  if (prebook.customerName) {
-    lines.push(`Name: ${prebook.customerName}`)
+  if (prebook.comments) {
+    lines.push(`Comments: ${prebook.comments}`)
   }
   return lines.join('\n')
 }
@@ -154,12 +159,9 @@ export function onamOrderNote(prebook: OnamPrebook) {
 export function onamWhatsAppMessage(prebook: OnamPrebook) {
   const service = ONAM_SADHYA.services[prebook.service]
   const subtotal = service.price * prebook.plates
-  const greeting = prebook.customerName
-    ? `Hi, this is ${prebook.customerName}.`
-    : 'Hi,'
 
-  return [
-    greeting,
+  const lines = [
+    'Hi,',
     `I would like to pre-book Onam Sadhya at ${ONAM_SADHYA.restaurant}.`,
     '',
     `• ${service.label}`,
@@ -167,9 +169,12 @@ export function onamWhatsAppMessage(prebook: OnamPrebook) {
     `• ${onamDateLabel(prebook.date)}`,
     `• ${onamSlotLabel(prebook.slot)}`,
     `• ₹${service.price} + tax per plate (about ₹${subtotal} + tax)`,
-    '',
-    'Please confirm the booking.',
-  ].join('\n')
+  ]
+  if (prebook.comments) {
+    lines.push('', `Comments: ${prebook.comments}`)
+  }
+  lines.push('', 'Please confirm the booking.')
+  return lines.join('\n')
 }
 
 export function onamWhatsAppUrl(prebook: OnamPrebook) {

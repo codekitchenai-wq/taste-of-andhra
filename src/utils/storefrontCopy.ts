@@ -1,7 +1,7 @@
 import { LOCAL_IMAGES } from '@/constants/IMAGES'
 import { APP_DESCRIPTION, CONTACT, OPENING_HOURS } from '@/constants/APP'
 import { SHOW_TEST_HELPERS } from '@/constants/DEMO_ACCOUNTS'
-import { heroContent, testimonials, whyChooseUsItems } from '@/data/home'
+import { heroContent, whyChooseUsItems } from '@/data/home'
 import type { OrganizationContextValue } from '@/contexts/OrganizationContext'
 import { isSpiceMalabarSlug, isTasteOfAndhraSlug } from '@/constants/TENANTS'
 import {
@@ -45,11 +45,23 @@ export function isSpiceMalabarStorefront(org: OrganizationContextValue) {
   return isSpiceMalabar(org)
 }
 
+/** Public /menu (and light menu) — off for Chopsticks (Onam + contact only). */
+export function storefrontPublicMenuEnabled(org: OrganizationContextValue) {
+  return !isSpiceMalabar(org)
+}
+
+/** Public /party-order — off for Chopsticks. */
+export function storefrontPartyOrdersEnabled(org: OrganizationContextValue) {
+  return !isSpiceMalabar(org)
+}
+
 /** QA footer/login helpers — current restaurant only, never other tenants’ logins. */
 export function showStorefrontQaHelpers(org: OrganizationContextValue) {
   if (!SHOW_TEST_HELPERS) return false
   if (org.isLoading) return false
   if (isPlatformMarketingHost()) return false
+  // Chopsticks production storefront — no demo credential panel.
+  if (isSpiceMalabarSlug(org.slug)) return false
   return true
 }
 
@@ -144,41 +156,15 @@ export function storefrontWhyChooseUs(org: OrganizationContextValue) {
   )
 }
 
-export function storefrontTestimonials(org: OrganizationContextValue) {
-  if (!isSpiceMalabar(org) && !org.resolvedFromHost) {
-    return testimonials
-  }
-
-  if (!isSpiceMalabar(org)) {
-    return []
-  }
-
-  const name = org.name || 'the restaurant'
-  return [
-    {
-      id: 'sm-1',
-      name: 'Anjali Nair',
-      rating: 5,
-      quote: `The Kerala fish curry and appam at ${name} taste like home. Best Malabar food in Viman Nagar.`,
-      location: 'Viman Nagar, Pune',
-    },
-    {
-      id: 'sm-2',
-      name: 'Rohit Deshpande',
-      rating: 5,
-      quote:
-        'Pomfret Tandoori is outstanding — crisp outside, perfectly cooked inside. We order every weekend.',
-      location: 'Kalyani Nagar',
-    },
-    {
-      id: 'sm-3',
-      name: 'Meera Menon',
-      rating: 4.8,
-      quote:
-        'Chicken pothichoru and Malabar biryani are our go-to. Generous portions and quick delivery.',
-      location: 'Viman Nagar',
-    },
-  ]
+/** Dummy testimonials removed — use per-org Google reviews instead. */
+export function storefrontTestimonials(_org: OrganizationContextValue) {
+  return [] as Array<{
+    id: string
+    name: string
+    rating: number
+    quote: string
+    location: string
+  }>
 }
 
 export function storefrontCategoriesSubtitle(org: OrganizationContextValue) {

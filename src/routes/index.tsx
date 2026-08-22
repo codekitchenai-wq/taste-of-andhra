@@ -14,6 +14,10 @@ import {
   MasterLayout,
   MasterRoute,
 } from '@/components/routing/MasterRoute'
+import {
+  StorefrontMenuRoute,
+  StorefrontPartyOrderRoute,
+} from '@/components/routing/StorefrontFeatureRoute'
 import { isPlatformMarketingHost } from '@/utils/platformHost'
 
 const HomePage = lazy(() => import('@/pages/public/HomePage'))
@@ -36,6 +40,9 @@ const PlatformLandingPage = lazy(
 )
 const PlatformDemoPage = lazy(
   () => import('@/pages/platform/PlatformDemoPage'),
+)
+const PlatformStarterRequestPage = lazy(
+  () => import('@/pages/platform/PlatformStarterRequestPage'),
 )
 
 const LoginPage = lazy(() => import('@/pages/customer/LoginPage'))
@@ -124,6 +131,9 @@ const MasterFeaturesPage = lazy(
 const MasterStarterIntakePage = lazy(
   () => import('@/pages/master/MasterStarterIntakePage'),
 )
+const MasterApprovalsPage = lazy(
+  () => import('@/pages/master/MasterApprovalsPage'),
+)
 const StarterSetupWizardPage = lazy(
   () => import('@/pages/admin/StarterSetupWizardPage'),
 )
@@ -147,6 +157,10 @@ const sharedStaffRoutes = [
           {
             path: ROUTES.MASTER.STARTER_INTAKE,
             element: <MasterStarterIntakePage />,
+          },
+          {
+            path: ROUTES.MASTER.APPROVALS,
+            element: <MasterApprovalsPage />,
           },
           {
             path: '/master/website-starter',
@@ -240,6 +254,10 @@ const platformMarketingRoutes = [
     children: [
       { index: true, element: <PlatformLandingPage /> },
       { path: ROUTES.PLATFORM.DEMO, element: <PlatformDemoPage /> },
+      {
+        path: ROUTES.PLATFORM.STARTER_REQUEST,
+        element: <PlatformStarterRequestPage />,
+      },
       { path: ROUTES.PRIVACY, element: <PrivacyPolicyPage /> },
     ],
   },
@@ -262,13 +280,23 @@ const restaurantStorefrontRoutes = [
     children: [
       { index: true, element: <HomePage /> },
       { path: ROUTES.ABOUT, element: <AboutPage /> },
-      { path: ROUTES.MENU, element: <MenuPage /> },
-      { path: ROUTES.LIGHT_MENU, element: <LightMenuPage /> },
-      { path: `${ROUTES.MENU}/:slug`, element: <DishDetailsPage /> },
+      {
+        element: <StorefrontMenuRoute />,
+        children: [
+          { path: ROUTES.MENU, element: <MenuPage /> },
+          { path: ROUTES.LIGHT_MENU, element: <LightMenuPage /> },
+          { path: `${ROUTES.MENU}/:slug`, element: <DishDetailsPage /> },
+        ],
+      },
       { path: ROUTES.GALLERY, element: <GalleryPage /> },
       { path: ROUTES.CONTACT, element: <ContactPage /> },
       { path: ROUTES.PRIVACY, element: <PrivacyPolicyPage /> },
-      { path: ROUTES.PARTY_ORDER, element: <PartyOrderPage /> },
+      {
+        element: <StorefrontPartyOrderRoute />,
+        children: [
+          { path: ROUTES.PARTY_ORDER, element: <PartyOrderPage /> },
+        ],
+      },
       { path: ROUTES.ONAM, element: <OnamSpecialPage /> },
       { path: 'qr/:tableCode', element: <QrMenuPage /> },
       { path: 'b/:slug', element: <BranchMenuPage /> },

@@ -1,4 +1,10 @@
 import { ROUTES } from '@/constants/ROUTES'
+import type { OrganizationContextValue } from '@/contexts/OrganizationContext'
+import {
+  isSpiceMalabarStorefront,
+  storefrontPartyOrdersEnabled,
+  storefrontPublicMenuEnabled,
+} from '@/utils/storefrontCopy'
 
 export interface NavLink {
   label: string
@@ -29,6 +35,44 @@ export const footerQuickLinks: NavLink[] = [
   { label: 'Contact', to: ROUTES.CONTACT },
   { label: 'Privacy Policy', to: ROUTES.PRIVACY },
 ]
+
+function filterDisabledStorefrontLinks(
+  links: NavLink[],
+  org: OrganizationContextValue,
+): NavLink[] {
+  const menuOn = storefrontPublicMenuEnabled(org)
+  const partyOn = storefrontPartyOrdersEnabled(org)
+  return links.filter((link) => {
+    if (
+      !menuOn &&
+      (link.to === ROUTES.MENU || link.to === ROUTES.LIGHT_MENU)
+    ) {
+      return false
+    }
+    if (!partyOn && link.to === ROUTES.PARTY_ORDER) return false
+    return true
+  })
+}
+
+/** Main header links for the current restaurant host. */
+export function storefrontMainNavLinks(
+  org: OrganizationContextValue,
+): NavLink[] {
+  const base = isSpiceMalabarStorefront(org)
+    ? [mainNavLinks[0], onamSpecialNavLink, ...mainNavLinks.slice(1)]
+    : mainNavLinks
+  return filterDisabledStorefrontLinks(base, org)
+}
+
+/** Footer quick links for the current restaurant host. */
+export function storefrontFooterQuickLinks(
+  org: OrganizationContextValue,
+): NavLink[] {
+  const base = isSpiceMalabarStorefront(org)
+    ? [footerQuickLinks[0], onamSpecialNavLink, ...footerQuickLinks.slice(1)]
+    : footerQuickLinks
+  return filterDisabledStorefrontLinks(base, org)
+}
 
 /** TEMPORARY — persona entry points for QA. Gated by SHOW_TEST_HELPERS. */
 export const footerTestPersonaLinks: NavLink[] = [
