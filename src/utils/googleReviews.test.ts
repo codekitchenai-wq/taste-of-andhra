@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   CHOPSTICKS_SPICE_MALABAR_GOOGLE_PLACE_REF,
+  googleMapsDirectionsUrl,
   googleReadReviewsUrl,
   googleReviewsFromSettings,
   googleWriteReviewUrl,
@@ -69,6 +70,24 @@ describe('google review URLs', () => {
     expect(
       googleReadReviewsUrl(CHOPSTICKS_SPICE_MALABAR_GOOGLE_PLACE_REF),
     ).toContain('cid=')
+  })
+
+  it('prefers saved Maps URL for directions', () => {
+    expect(
+      googleMapsDirectionsUrl({
+        mapsUrl: 'https://www.google.com/maps?cid=11066221307886117258',
+        placeId: CHOPSTICKS_SPICE_MALABAR_GOOGLE_PLACE_REF,
+        address: 'Somewhere else',
+      }),
+    ).toBe('https://www.google.com/maps?cid=11066221307886117258')
+  })
+
+  it('uses Chopsticks feature id listing when no saved Maps URL', () => {
+    expect(
+      googleMapsDirectionsUrl({
+        placeId: CHOPSTICKS_SPICE_MALABAR_GOOGLE_PLACE_REF,
+      }),
+    ).toBe('https://www.google.com/maps?cid=11066221307886117258')
   })
 })
 

@@ -12,10 +12,20 @@ import { isAndhraLocalAsset, optimizeMenuImage } from '@/utils/menuImage'
 import { isPlatformMarketingHost } from '@/utils/platformHost'
 import {
   galleryFromSettings,
+  GOOGLE_MAPS_URL_SETTING_KEY,
   isWebsiteStarterTrack,
 } from '@/utils/websiteStarter'
+import {
+  CHOPSTICKS_SPICE_MALABAR_GOOGLE_PLACE_REF,
+  googleMapsDirectionsUrl,
+  googleReviewsFromSettings,
+} from '@/utils/googleReviews'
 
 export const SPICE_MALABAR_HERO = '/images/tenants/spice-malabar-hero.png'
+
+/** Exact Google Business listing used by Chopsticks reviews / directions. */
+export const SPICE_MALABAR_MAPS_URL =
+  'https://www.google.com/maps?cid=11066221307886117258'
 
 export const SPICE_MALABAR_CONTACT = {
   name: 'Chopstick Spice Malabar',
@@ -27,6 +37,7 @@ export const SPICE_MALABAR_CONTACT = {
   alternatePhone: '+91 98900 82699',
   address:
     'Shop No 1, Gulmohar Regency, Symbiosis College Road, Viman Nagar, Pune 411014',
+  mapsUrl: SPICE_MALABAR_MAPS_URL,
   weekdayHours: '07:00 AM – 11:30 PM',
   weekendHours: '07:00 AM – 11:30 PM',
 } as const
@@ -214,7 +225,26 @@ export function dishImageFallback(
 }
 
 function mapsUrlFor(address: string) {
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`
+}
+
+function mapsUrlFromOrg(org: OrganizationContextValue, address: string): string {
+  const savedMaps =
+    typeof org.settings[GOOGLE_MAPS_URL_SETTING_KEY] === 'string'
+      ? String(org.settings[GOOGLE_MAPS_URL_SETTING_KEY]).trim()
+      : ''
+  const reviews = googleReviewsFromSettings(org.settings)
+  const spiceDefault = isSpiceMalabar(org) ? SPICE_MALABAR_MAPS_URL : ''
+
+  return (
+    googleMapsDirectionsUrl({
+      mapsUrl: savedMaps || spiceDefault || null,
+      placeId: reviews.placeId || (isSpiceMalabar(org)
+        ? CHOPSTICKS_SPICE_MALABAR_GOOGLE_PLACE_REF
+        : null),
+      address,
+    }) || mapsUrlFor(address)
+  )
 }
 
 function publicEmail(email: string | null | undefined): string | null {
@@ -276,7 +306,7 @@ export function storefrontContact(
       whatsappPhone,
       email: publicEmail(org.email),
       address,
-      mapsUrl: mapsUrlFor(address),
+      mapsUrl: mapsUrlFromOrg(org, address),
       weekdayHours,
       weekendHours,
     }

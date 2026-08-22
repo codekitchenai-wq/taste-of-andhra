@@ -12,6 +12,9 @@ import { createClient } from '@supabase/supabase-js'
 
 const SLUGS = ['chopsticksspicemalabar', 'spice-malabar']
 const PLACE_REF = '0x3bc2c147612d2283:0x99931da5ee69218a'
+const WIDGET_SRC = 'https://widgets.sociablekit.com/google-reviews/widget.js'
+const WIDGET_CLASS = 'sk-ww-google-reviews|25707547'
+const MAPS_URL = 'https://www.google.com/maps?cid=11066221307886117258'
 
 function loadEnvFile() {
   const envPath = resolve(dirname(fileURLToPath(import.meta.url)), '../.env.local')
@@ -66,9 +69,9 @@ for (const org of orgs) {
     org.settings && typeof org.settings === 'object' ? { ...org.settings } : {}
 
   settings.google_place_id = PLACE_REF
-  settings.google_reviews_widget_src = settings.google_reviews_widget_src || ''
-  settings.google_reviews_widget_class =
-    settings.google_reviews_widget_class || ''
+  settings.google_reviews_widget_src = WIDGET_SRC
+  settings.google_reviews_widget_class = WIDGET_CLASS
+  settings.google_maps_url = MAPS_URL
 
   const { data: updated, error: updateError } = await admin
     .from('organizations')
@@ -84,9 +87,12 @@ for (const org of orgs) {
 
   const saved =
     updated.settings && typeof updated.settings === 'object'
-      ? updated.settings.google_place_id
-      : null
+      ? updated.settings
+      : {}
 
   console.log(`Updated ${updated.slug} (${updated.name})`)
-  console.log(`google_place_id → ${saved}`)
+  console.log(`google_place_id → ${saved.google_place_id}`)
+  console.log(`widget_src → ${saved.google_reviews_widget_src}`)
+  console.log(`widget_class → ${saved.google_reviews_widget_class}`)
+  console.log(`google_maps_url → ${saved.google_maps_url}`)
 }

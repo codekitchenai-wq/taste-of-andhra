@@ -175,6 +175,39 @@ export function googleReadReviewsUrl(placeId: string): string {
   return `https://search.google.com/local/reviews?placeid=${encodeURIComponent(id)}`
 }
 
+/**
+ * Opens the exact Google Maps listing for directions. Prefer an admin-saved
+ * Maps URL; otherwise Place ID / feature id — never a vague address search
+ * that can land on the wrong pin.
+ */
+export function googleMapsDirectionsUrl(input: {
+  mapsUrl?: string | null
+  placeId?: string | null
+  address?: string | null
+}): string {
+  const saved = input.mapsUrl?.trim()
+  if (saved) return saved
+
+  const placeId = normalizeGooglePlaceRef(input.placeId ?? '')
+  if (placeId) {
+    // ChIJ Place IDs support turn-by-turn destination_place_id.
+    if (PLACE_ID_RE.test(placeId)) {
+      return `https://www.google.com/maps/dir/?api=1&destination_place_id=${encodeURIComponent(
+        placeId,
+      )}`
+    }
+    // Feature ids (from Maps share links) open the exact listing via CID.
+    const listing = googleReadReviewsUrl(placeId)
+    if (listing) return listing
+  }
+
+  const address = input.address?.trim()
+  if (!address) return ''
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+    address,
+  )}`
+}
+
 /** Place ID, feature id, or empty. Maps short links alone are not accepted. */
 export function isPlausibleGooglePlaceId(value: string): boolean {
   const trimmed = value.trim()
