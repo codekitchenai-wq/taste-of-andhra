@@ -1,36 +1,26 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
-import { MasterFeatureToggles } from '@/components/master/MasterFeatureToggles'
+import { useEffect, useState } from 'react'
+import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { LoadingState } from '@/components/ui/LoadingState'
 import { Select } from '@/components/ui/Select'
 import { ROUTES } from '@/constants/ROUTES'
-import {
-  getOrgFeatureStates,
-  listMasterOrganizations,
-} from '@/services/entitlementService'
-import type {
-  MasterOrganizationSummary,
-  OrgFeatureState,
-} from '@/types/Organization'
+import { listMasterOrganizations } from '@/services/entitlementService'
+import type { MasterOrganizationSummary } from '@/types/Organization'
 
+/**
+ * Feature catalog page — now a quick-select to jump to a tenant's feature
+ * toggles tab. Full feature management is embedded in the tenant detail page.
+ */
 export default function MasterFeaturesPage() {
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   const orgFromQuery = searchParams.get('org') ?? ''
 
   const [orgs, setOrgs] = useState<MasterOrganizationSummary[]>([])
-  const [features, setFeatures] = useState<OrgFeatureState[]>([])
   const [orgsError, setOrgsError] = useState<string | null>(null)
-  const [featuresError, setFeaturesError] = useState<string | null>(null)
   const [loadingOrgs, setLoadingOrgs] = useState(true)
-  const [loadingFeatures, setLoadingFeatures] = useState(false)
 
-  const selectedOrg = useMemo(
-    () => orgs.find((org) => org.id === orgFromQuery) ?? orgs[0] ?? null,
-    [orgs, orgFromQuery],
-  )
-
-  const loadOrgs = useCallback(async () => {
+  async function loadOrgs() {
     setLoadingOrgs(true)
     const result = await listMasterOrganizations()
     setLoadingOrgs(false)
@@ -41,38 +31,26 @@ export default function MasterFeaturesPage() {
     }
     setOrgsError(null)
     setOrgs(result.data)
-  }, [])
-
-  useEffect(() => {
-    if (orgFromQuery || !orgs[0]) return
-    setSearchParams({ org: orgs[0].id }, { replace: true })
-  }, [orgFromQuery, orgs, setSearchParams])
-
-  const loadFeatures = useCallback(async (organizationId: string) => {
-    setLoadingFeatures(true)
-    const result = await getOrgFeatureStates(organizationId)
-    setLoadingFeatures(false)
-    if (!result.success) {
-      setFeaturesError(result.message)
-      setFeatures([])
-      return
-    }
-    setFeaturesError(null)
-    setFeatures(result.data)
-  }, [])
+  }
 
   useEffect(() => {
     void loadOrgs()
-  }, [loadOrgs])
+  }, [])
 
+  // If org is in query string, redirect straight to that tenant's features tab
   useEffect(() => {
-    if (!selectedOrg) return
-    void loadFeatures(selectedOrg.id)
-  }, [selectedOrg, loadFeatures])
+    if (orgFromQuery && orgs.length > 0) {
+      const match = orgs.find((o) => o.id === orgFromQuery)
+      if (match) {
+        void navigate(
+          `${ROUTES.MASTER.tenant(orgFromQuery)}?tab=features`,
+          { replace: true },
+        )
+      }
+    }
+  }, [orgFromQuery, orgs, navigate])
 
-  if (loadingOrgs) {
-    return <LoadingState variant="inline" />
-  }
+  if (loadingOrgs) return <LoadingState variant="inline" />
 
   if (orgsError) {
     return (
@@ -84,7 +62,7 @@ export default function MasterFeaturesPage() {
     )
   }
 
-  if (!selectedOrg) {
+  if (orgs.length === 0) {
     return (
       <ErrorState
         title="No restaurants yet"
@@ -98,55 +76,55 @@ export default function MasterFeaturesPage() {
       <div>
         <h1 className="font-heading text-3xl font-bold">Feature catalog</h1>
         <p className="mt-2 max-w-2xl text-sm text-text-secondary">
-          Only you (platform admin) can turn modules on or off for each
-          restaurant. Restaurant owners and staff cannot enable or disable
-          features. Core modules stay on. Turning an add-on on also enables
-          anything it depends on.
+          Select a restaurant to manage its feature toggles. Only DirectApp
+          Master can turn modules on or off — restaurant admins cannot.
         </p>
       </div>
 
-      <section className="space-y-4">
-        <div className="max-w-md">
-          <Select
-            label="Restaurant"
-            value={selectedOrg.id}
-            onChange={(event) =>
-              setSearchParams({ org: event.target.value }, { replace: true })
+      <section className="max-w-md space-y-4 rounded-[var(--radius-card)] border border-black/10 bg-surface p-5">
+        <Select
+          label="Jump to restaurant features"
+          value=""
+          onChange={(event) => {
+            if (event.target.value) {
+              void navigate(
+                `${ROUTES.MASTER.tenant(event.target.value)}?tab=features`,
+              )
             }
-            options={orgs.map((org) => ({
+          }}
+          options={[
+            { value: '', label: 'Select a restaurant…' },
+            ...orgs.map((org) => ({
               value: org.id,
               label: `${org.name} (${org.slug})`,
-            }))}
-          />
-        </div>
+            })),
+          ]}
+        />
         <p className="text-xs text-text-secondary">
-          Status: {selectedOrg.status}
-          {selectedOrg.subscription_active ? ' · subscription active' : ' · subscription inactive'}
+          Feature toggles are now managed inside each restaurant's detail page.
         </p>
-
-        {loadingFeatures ? (
-          <LoadingState variant="inline" />
-        ) : featuresError ? (
-          <ErrorState
-            title="Could not load features"
-            message={featuresError}
-            onRetry={() => void loadFeatures(selectedOrg.id)}
-          />
-        ) : (
-          <MasterFeatureToggles
-            organizationId={selectedOrg.id}
-            features={features}
-            subscriptionActive={selectedOrg.subscription_active}
-            onUpdated={() => void loadFeatures(selectedOrg.id)}
-          />
-        )}
       </section>
 
-      <p className="text-sm text-text-secondary">
-        <Link to={ROUTES.MASTER.TENANTS} className="text-primary hover:underline">
-          Back to tenants
-        </Link>
-      </p>
+      <div className="flex flex-wrap gap-3">
+        {orgs.map((org) => (
+          <Link
+            key={org.id}
+            to={`${ROUTES.MASTER.tenant(org.id)}?tab=features`}
+            className="inline-flex items-center gap-2 rounded-[var(--radius-button)] border border-black/10 bg-surface px-4 py-2 text-sm hover:border-primary/40 hover:text-primary"
+          >
+            {org.name}
+            <span
+              className={
+                org.subscription_active
+                  ? 'text-xs text-success'
+                  : 'text-xs text-amber-600'
+              }
+            >
+              {org.subscription_active ? 'active' : 'inactive'}
+            </span>
+          </Link>
+        ))}
+      </div>
     </div>
   )
 }

@@ -1,21 +1,138 @@
-const PLACE_ID = import.meta.env.VITE_GOOGLE_PLACE_ID?.trim() ?? ''
-const WIDGET_SRC = import.meta.env.VITE_GOOGLE_REVIEWS_WIDGET_SRC?.trim() ?? ''
-const WIDGET_CONTAINER_CLASS =
-  import.meta.env.VITE_GOOGLE_REVIEWS_WIDGET_CLASS?.trim() ?? ''
+/** Per-restaurant Google Business Profile keys on `organizations.settings`. */
+export const GOOGLE_PLACE_ID_SETTING_KEY = 'google_place_id'
+export const GOOGLE_REVIEWS_WIDGET_SRC_SETTING_KEY =
+  'google_reviews_widget_src'
+export const GOOGLE_REVIEWS_WIDGET_CLASS_SETTING_KEY =
+  'google_reviews_widget_class'
 
-export const isGoogleReviewsConfigured = PLACE_ID.length > 0
-export const isGoogleReviewsWidgetConfigured = WIDGET_SRC.length > 0
+/** Chopsticks Spice Malabar (Viman Nagar) — from their Google Maps share link. */
+export const CHOPSTICKS_SPICE_MALABAR_GOOGLE_PLACE_REF =
+  '0x3bc2c147612d2283:0x99931da5ee69218a'
 
-export const googleReviewsWidget = {
-  src: WIDGET_SRC,
-  containerClass: WIDGET_CONTAINER_CLASS,
-} as const
+export interface GoogleReviewsConfig {
+  placeId: string
+  widgetSrc: string
+  widgetClass: string
+}
 
-/** Opens the Google review composer for our listing, pre-selected. */
-export const googleWriteReviewUrl = isGoogleReviewsConfigured
-  ? `https://search.google.com/local/writereview?placeid=${encodeURIComponent(PLACE_ID)}`
-  : ''
+function settingString(
+  settings: Record<string, unknown> | null | undefined,
+  key: string,
+): string {
+  const raw = settings?.[key]
+  if (typeof raw !== 'string') return ''
+  return raw.trim()
+}
 
-export const googleReadReviewsUrl = isGoogleReviewsConfigured
-  ? `https://search.google.com/local/reviews?placeid=${encodeURIComponent(PLACE_ID)}`
-  : ''
+const FEATURE_ID_RE = /0x[0-9a-fA-F]+:0x[0-9a-fA-F]+/
+const PLACE_ID_RE = /ChIJ[\w-]+/
+
+/**
+ * Accepts a Place ID (`ChIJ…`), Maps feature id (`0x…:0x…`), or a Google Maps
+ * place URL that contains either. Short `maps.app.goo.gl` links must be opened
+ * once so Google expands them, then paste the long `maps.google.com/place/…` URL.
+ */
+export function normalizeGooglePlaceRef(raw: string): string {
+  const trimmed = raw.trim()
+  if (!trimmed) return ''
+
+  if (PLACE_ID_RE.test(trimmed) && !trimmed.includes('://')) {
+    const match = trimmed.match(PLACE_ID_RE)
+    return match?.[0] ?? trimmed
+  }
+
+  if (FEATURE_ID_RE.test(trimmed) && !trimmed.includes('://')) {
+    const match = trimmed.match(FEATURE_ID_RE)
+    return match?.[0] ?? trimmed
+  }
+
+  try {
+    const url = new URL(trimmed)
+    const fromQuery =
+      url.searchParams.get('placeid') ||
+      url.searchParams.get('place_id') ||
+      url.searchParams.get('query_place_id')
+    if (fromQuery) {
+      const nested = normalizeGooglePlaceRef(fromQuery)
+      if (nested) return nested
+    }
+
+    const decoded = decodeURIComponent(url.href)
+    const feature = decoded.match(FEATURE_ID_RE)
+    if (feature) return feature[0]
+    const place = decoded.match(PLACE_ID_RE)
+    if (place) return place[0]
+  } catch {
+    // not a URL — fall through
+  }
+
+  const featureLoose = trimmed.match(FEATURE_ID_RE)
+  if (featureLoose) return featureLoose[0]
+  const placeLoose = trimmed.match(PLACE_ID_RE)
+  if (placeLoose) return placeLoose[0]
+
+  return trimmed
+}
+
+/** Reads Google review settings for the current restaurant only — never another tenant. */
+export function googleReviewsFromSettings(
+  settings: Record<string, unknown> | null | undefined,
+): GoogleReviewsConfig {
+  return {
+    placeId: normalizeGooglePlaceRef(
+      settingString(settings, GOOGLE_PLACE_ID_SETTING_KEY),
+    ),
+    widgetSrc: settingString(settings, GOOGLE_REVIEWS_WIDGET_SRC_SETTING_KEY),
+    widgetClass: settingString(
+      settings,
+      GOOGLE_REVIEWS_WIDGET_CLASS_SETTING_KEY,
+    ),
+  }
+}
+
+export function isGooglePlaceConfigured(config: GoogleReviewsConfig): boolean {
+  return config.placeId.length > 0
+}
+
+export function isGoogleReviewsWidgetConfigured(
+  config: GoogleReviewsConfig,
+): boolean {
+  return config.widgetSrc.length > 0
+}
+
+/** True when the homepage should show a Google reviews section for this org. */
+export function shouldShowGoogleReviewsSection(
+  config: GoogleReviewsConfig,
+): boolean {
+  return (
+    isGoogleReviewsWidgetConfigured(config) || isGooglePlaceConfigured(config)
+  )
+}
+
+/** Opens Google’s review composer for this restaurant’s listing. */
+export function googleWriteReviewUrl(placeId: string): string {
+  const id = normalizeGooglePlaceRef(placeId)
+  if (!id) return ''
+  return `https://search.google.com/local/writereview?placeid=${encodeURIComponent(id)}`
+}
+
+export function googleReadReviewsUrl(placeId: string): string {
+  const id = normalizeGooglePlaceRef(placeId)
+  if (!id) return ''
+  if (FEATURE_ID_RE.test(id)) {
+    return `https://www.google.com/maps?cid=${BigInt(id.split(':')[1]).toString(10)}`
+  }
+  return `https://search.google.com/local/reviews?placeid=${encodeURIComponent(id)}`
+}
+
+/** Place ID, feature id, or empty. Maps short links alone are not accepted. */
+export function isPlausibleGooglePlaceId(value: string): boolean {
+  const trimmed = value.trim()
+  if (!trimmed) return true
+  if (/maps\.app\.goo\.gl/i.test(trimmed)) return false
+  const normalized = normalizeGooglePlaceRef(trimmed)
+  if (!normalized) return false
+  if (PLACE_ID_RE.test(normalized)) return true
+  if (FEATURE_ID_RE.test(normalized)) return true
+  return false
+}

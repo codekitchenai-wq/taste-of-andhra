@@ -49,17 +49,25 @@ export default function MasterDashboardPage() {
       </div>
 
       <section className="rounded-[var(--radius-card)] border border-primary/30 bg-primary/5 p-5">
-        <h2 className="text-lg font-semibold">Starter intake</h2>
+        <h2 className="text-lg font-semibold">Approvals</h2>
         <p className="mt-1 text-sm text-text-secondary">
-          Free website + menu for new restaurants (FSSAI lock, invite link,
-          photos, AI/CSV menu). Does not change Taste of Andhra or Chopsticks.
+          Review Website Starter go-live requests and FSSAI fields in one place.
+          Licence details stay internal — not shown on public sites.
         </p>
-        <Link
-          to={ROUTES.MASTER.STARTER_INTAKE}
-          className="mt-4 inline-flex h-10 items-center rounded-[var(--radius-button)] bg-primary px-5 text-sm font-medium text-white hover:bg-primary-dark"
-        >
-          Open Starter intake
-        </Link>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Link
+            to={ROUTES.MASTER.APPROVALS}
+            className="inline-flex h-10 items-center rounded-[var(--radius-button)] bg-primary px-5 text-sm font-medium text-white hover:bg-primary-dark"
+          >
+            Open Approvals
+          </Link>
+          <Link
+            to={ROUTES.MASTER.STARTER_INTAKE}
+            className="inline-flex h-10 items-center rounded-[var(--radius-button)] border border-primary/40 bg-white px-5 text-sm font-medium text-primary"
+          >
+            Starter intake
+          </Link>
+        </div>
       </section>
 
       <section className="rounded-[var(--radius-card)] border border-black/10 bg-surface p-5">
@@ -68,6 +76,12 @@ export default function MasterDashboardPage() {
           Master login lives only at www.directapp.in/master/login
         </p>
         <div className="mt-4 flex flex-wrap gap-3 text-sm">
+          <Link
+            to={ROUTES.MASTER.APPROVALS}
+            className="font-medium text-primary hover:underline"
+          >
+            Approvals
+          </Link>
           <Link
             to={ROUTES.MASTER.STARTER_INTAKE}
             className="font-medium text-primary hover:underline"

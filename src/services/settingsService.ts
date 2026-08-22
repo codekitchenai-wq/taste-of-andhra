@@ -39,6 +39,15 @@ import {
   WHATSAPP_OTP_LOGIN_SETTING_KEY,
   whatsappOtpLoginEnabledFromSettings,
 } from '@/utils/tenantFeatures'
+import {
+  GOOGLE_PLACE_ID_SETTING_KEY,
+  GOOGLE_REVIEWS_WIDGET_CLASS_SETTING_KEY,
+  GOOGLE_REVIEWS_WIDGET_SRC_SETTING_KEY,
+  googleReviewsFromSettings,
+  isPlausibleGooglePlaceId,
+  normalizeGooglePlaceRef,
+  type GoogleReviewsConfig,
+} from '@/utils/googleReviews'
 import { normalizeIndianPhone } from '@/utils/phone'
 
 const DEFAULT_ETA_KEY = 'default_eta_minutes'
@@ -683,4 +692,69 @@ export async function setGstSettings(
   }
 
   return createSuccessResponse(normalized)
+}
+
+export async function getGoogleReviewsSettings(): Promise<
+  ServiceResponse<GoogleReviewsConfig>
+> {
+  const org = await loadCurrentRestaurant()
+  return createSuccessResponse(googleReviewsFromSettings(org.settings))
+}
+
+export async function setGoogleReviewsSettings(
+  input: GoogleReviewsConfig,
+): Promise<ServiceResponse<GoogleReviewsConfig>> {
+  const placeId = normalizeGooglePlaceRef(input.placeId)
+  const widgetSrc = input.widgetSrc.trim()
+  const widgetClass = input.widgetClass.trim()
+
+  if (input.placeId.trim() && /maps\.app\.goo\.gl/i.test(input.placeId)) {
+    return createErrorResponse(
+      'Paste the full Google Maps place link (maps.google.com/place/…), not the short maps.app.goo.gl link. Open the short link once, then copy the address bar URL.',
+    )
+  }
+
+  if (!isPlausibleGooglePlaceId(placeId)) {
+    return createErrorResponse(
+      'Enter a Google Place ID (ChIJ…), a Maps place URL, or leave blank.',
+    )
+  }
+
+  if (widgetSrc) {
+    try {
+      const url = new URL(widgetSrc)
+      if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+        return createErrorResponse(
+          'Widget script URL must start with https://',
+        )
+      }
+    } catch {
+      return createErrorResponse(
+        'Enter a valid widget loader URL (e.g. from Elfsight or Trustindex).',
+      )
+    }
+  }
+
+  const orgId = getCurrentOrganizationId()
+  const org = await loadCurrentRestaurant()
+  const nextSettings = {
+    ...org.settings,
+    [GOOGLE_PLACE_ID_SETTING_KEY]: placeId,
+    [GOOGLE_REVIEWS_WIDGET_SRC_SETTING_KEY]: widgetSrc,
+    [GOOGLE_REVIEWS_WIDGET_CLASS_SETTING_KEY]: widgetClass,
+  }
+
+  const { error } = await supabase
+    .from('organizations')
+    .update({ settings: nextSettings })
+    .eq('id', orgId)
+
+  if (error) {
+    return createErrorResponse(
+      'Unable to save Google reviews settings.',
+      error.message,
+    )
+  }
+
+  return createSuccessResponse({ placeId, widgetSrc, widgetClass })
 }

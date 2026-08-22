@@ -1,17 +1,25 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ENABLE_STARTER_ONBOARDING } from '@/constants/ARCHITECTURE_GATES'
+import {
+  ENABLE_STARTER_ONBOARDING,
+  SHOW_FSSAI_EXTRACT_PATH,
+} from '@/constants/ARCHITECTURE_GATES'
 import { ROUTES } from '@/constants/ROUTES'
 import {
-  approveStarterGoLive,
+  checkOrganizationSlugAvailable,
+  findFssaiDuplicates,
+  FSSAI_EXTRACT_PATH_LABELS,
+  hashCertificateFile,
   intakeWebsiteStarter,
-  listPendingStarterOrgs,
   parseFssaiWithAi,
-  rejectStarterGoLive,
+  proposeAvailableSlug,
+  uploadIntakeCertificate,
   uploadOrgMedia,
+  type FssaiDuplicateMatch,
+  type FssaiExtractPath,
   type StarterIntakeResult,
-  type StarterOrgSummary,
 } from '@/services/websiteStarterService'
+import { generateSlug } from '@/utils/slug'
 import { proposeDisplayName, proposeSlugBase } from '@/utils/websiteStarter'
 
 export default function MasterStarterIntakePage() {
@@ -19,27 +27,44 @@ export default function MasterStarterIntakePage() {
   const [preferredStoreName, setPreferredStoreName] = useState('')
   const [fssaiLicense, setFssaiLicense] = useState('')
   const [fssaiValidUntil, setFssaiValidUntil] = useState('')
+  const [fssaiIssuedOn, setFssaiIssuedOn] = useState('')
   const [fssaiCertificateUrl, setFssaiCertificateUrl] = useState('')
+  const [fssaiCertificateHash, setFssaiCertificateHash] = useState('')
   const [city, setCity] = useState('')
+  const [state, setState] = useState('')
+  const [pincode, setPincode] = useState('')
   const [addressFromFssai, setAddressFromFssai] = useState('')
   const [ownerName, setOwnerName] = useState('')
   const [ownerEmail, setOwnerEmail] = useState('')
   const [ownerPhone, setOwnerPhone] = useState('')
   const [googleMapsUrl, setGoogleMapsUrl] = useState('')
   const [cuisineType, setCuisineType] = useState('')
+  const [slug, setSlug] = useState('')
+  const [slugTouched, setSlugTouched] = useState(false)
+  const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null)
+  const [slugChecking, setSlugChecking] = useState(false)
+  const [allowDuplicateFssai, setAllowDuplicateFssai] = useState(false)
+  const [duplicates, setDuplicates] = useState<FssaiDuplicateMatch[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [created, setCreated] = useState<StarterIntakeResult | null>(null)
-  const [pending, setPending] = useState<StarterOrgSummary[]>([])
   const [certFile, setCertFile] = useState<File | null>(null)
   const [certPreviewUrl, setCertPreviewUrl] = useState<string | null>(null)
   const [extractNote, setExtractNote] = useState<string | null>(null)
+  const [extractPath, setExtractPath] = useState<FssaiExtractPath | null>(null)
+  const [extractAttempts, setExtractAttempts] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const cameraInputRef = useRef<HTMLInputElement | null>(null)
 
   const previewSlug = useMemo(() => {
     const name = proposeDisplayName(legalName, preferredStoreName)
     return proposeSlugBase(name) || 'restaurant'
   }, [legalName, preferredStoreName])
+
+  const homepagePreview = useMemo(() => {
+    const s = slug.trim() || previewSlug
+    return s ? `https://${s}.directapp.in` : ''
+  }, [slug, previewSlug])
 
   const canAiExtract = Boolean(
     certFile ||
@@ -48,14 +73,57 @@ export default function MasterStarterIntakePage() {
         !fssaiCertificateUrl.startsWith('/')),
   )
 
-  async function refreshPending() {
-    const result = await listPendingStarterOrgs()
-    if (result.success) setPending(result.data)
-  }
-
+  // Auto-propose slug from name until the user edits it
   useEffect(() => {
-    void refreshPending()
-  }, [])
+    if (slugTouched) return
+    const name = proposeDisplayName(legalName, preferredStoreName)
+    if (!name.trim()) {
+      setSlug('')
+      setSlugAvailable(null)
+      return
+    }
+    let cancelled = false
+    void proposeAvailableSlug(name, city).then((result) => {
+      if (cancelled || slugTouched) return
+      if (result.success) {
+        setSlug(result.data)
+        setSlugAvailable(true)
+      } else {
+        setSlug(proposeSlugBase(name))
+        setSlugAvailable(null)
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [legalName, preferredStoreName, city, slugTouched])
+
+  // Live availability check when slug changes
+  useEffect(() => {
+    const candidate = generateSlug(slug)
+    if (!candidate || candidate.length < 2) {
+      setSlugAvailable(null)
+      return
+    }
+    let cancelled = false
+    setSlugChecking(true)
+    const timer = window.setTimeout(() => {
+      void checkOrganizationSlugAvailable(candidate).then((result) => {
+        if (cancelled) return
+        setSlugChecking(false)
+        if (!result.success) {
+          setSlugAvailable(null)
+          return
+        }
+        if (result.data.slug !== candidate) setSlug(result.data.slug)
+        setSlugAvailable(result.data.available)
+      })
+    }, 350)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [slug])
 
   useEffect(() => {
     if (!certFile || !certFile.type.startsWith('image/')) {
@@ -66,6 +134,24 @@ export default function MasterStarterIntakePage() {
     setCertPreviewUrl(url)
     return () => URL.revokeObjectURL(url)
   }, [certFile])
+
+  useEffect(() => {
+    const license = fssaiLicense.trim()
+    const hash = fssaiCertificateHash.trim()
+    if (!license && !hash) {
+      setDuplicates([])
+      return
+    }
+    let cancelled = false
+    void findFssaiDuplicates({ license, hash }).then((result) => {
+      if (cancelled) return
+      if (result.success) setDuplicates(result.data)
+      else setDuplicates([])
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [fssaiLicense, fssaiCertificateHash])
 
   if (!ENABLE_STARTER_ONBOARDING) {
     return (
@@ -82,25 +168,52 @@ export default function MasterStarterIntakePage() {
     setCertFile(null)
     setCertPreviewUrl(null)
     setFssaiCertificateUrl('')
+    setFssaiCertificateHash('')
     setExtractNote(null)
+    setExtractPath(null)
+    setExtractAttempts([])
+    setAllowDuplicateFssai(false)
     if (fileInputRef.current) fileInputRef.current.value = ''
+    if (cameraInputRef.current) cameraInputRef.current.value = ''
   }
 
-  function onSelectCert(file: File) {
+  async function onSelectCert(
+    file: File,
+    options?: { autoExtract?: boolean },
+  ) {
     setError(null)
     setExtractNote(null)
+    setExtractPath(null)
+    setExtractAttempts([])
     setCertFile(file)
-    // Keep URL field for https only — never put local Windows paths here
+    setAllowDuplicateFssai(false)
     if (fssaiCertificateUrl.includes(':\\') || fssaiCertificateUrl.startsWith('/Users')) {
       setFssaiCertificateUrl('')
     }
+    try {
+      const hash = await hashCertificateFile(file)
+      setFssaiCertificateHash(hash)
+    } catch {
+      setFssaiCertificateHash('')
+    }
+    // Persist immediately so the certificate is kept for later reference
+    const uploaded = await uploadIntakeCertificate(file)
+    if (uploaded.success) {
+      setFssaiCertificateUrl(uploaded.data)
+    }
+    if (options?.autoExtract) {
+      await onAiExtract(file)
+    }
   }
 
-  async function onAiExtract() {
+  async function onAiExtract(fileOverride?: File | null) {
     setBusy(true)
     setError(null)
     setExtractNote(null)
+    setExtractPath(null)
+    setExtractAttempts([])
 
+    const file = fileOverride ?? certFile
     const httpsUrl =
       fssaiCertificateUrl.trim().startsWith('http') &&
       !fssaiCertificateUrl.includes(':\\')
@@ -108,7 +221,7 @@ export default function MasterStarterIntakePage() {
         : undefined
 
     const result = await parseFssaiWithAi({
-      file: certFile,
+      file,
       certificateUrl: httpsUrl,
     })
     setBusy(false)
@@ -118,34 +231,77 @@ export default function MasterStarterIntakePage() {
       return
     }
 
-    if (result.data.legalName) setLegalName(result.data.legalName)
-    if (result.data.fssaiLicense) setFssaiLicense(result.data.fssaiLicense)
-    if (result.data.fssaiValidUntil) {
-      setFssaiValidUntil(String(result.data.fssaiValidUntil).slice(0, 10))
+    const d = result.data
+    if (d.legalName) {
+      setLegalName(d.legalName)
+      if (!preferredStoreName.trim()) setPreferredStoreName(d.legalName)
     }
-    if (result.data.address) {
-      setAddressFromFssai(result.data.address)
-      // Best-effort city from trailing address token
-      if (!city.trim()) {
-        const parts = result.data.address.split(',').map((p) => p.trim())
-        const maybeCity = parts[parts.length - 2] || parts[parts.length - 1]
-        if (maybeCity) setCity(maybeCity.replace(/\d{6}/g, '').trim())
-      }
+    if (d.fssaiLicense) setFssaiLicense(d.fssaiLicense)
+    if (d.fssaiValidUntil) {
+      setFssaiValidUntil(String(d.fssaiValidUntil).slice(0, 10))
     }
-    if (result.data.certificateUrl) {
-      setFssaiCertificateUrl(result.data.certificateUrl)
+    if (d.issuedOn) {
+      setFssaiIssuedOn(String(d.issuedOn).slice(0, 10))
     }
-    if (result.data.note) setExtractNote(result.data.note)
-    else if (
-      !result.data.legalName &&
-      !result.data.fssaiLicense &&
-      !result.data.fssaiValidUntil
-    ) {
+    if (d.address) setAddressFromFssai(d.address)
+    if (d.city) setCity(d.city)
+    else if (d.address && !city.trim()) {
+      const parts = d.address.split(',').map((p) => p.trim())
+      const maybeCity = parts[parts.length - 2] || parts[parts.length - 1]
+      if (maybeCity) setCity(maybeCity.replace(/\d{6}/g, '').trim())
+    }
+    if (d.state) setState(d.state)
+    if (d.pincode) setPincode(String(d.pincode).replace(/\D/g, '').slice(0, 6))
+    if (d.proprietorName) setOwnerName(d.proprietorName)
+    if (d.phone) setOwnerPhone(String(d.phone).replace(/[^\d+]/g, ''))
+    if (d.email) setOwnerEmail(d.email.trim())
+    if (d.kindOfBusiness && !cuisineType.trim()) {
+      setCuisineType(d.kindOfBusiness)
+    }
+    if (d.certificateUrl) setFssaiCertificateUrl(d.certificateUrl)
+
+    setExtractPath(d.extractPath ?? null)
+    setExtractAttempts(d.extractAttempts ?? [])
+
+    const filled = [
+      d.legalName,
+      d.fssaiLicense,
+      d.fssaiValidUntil,
+      d.issuedOn,
+      d.address,
+      d.city,
+      d.state,
+      d.pincode,
+      d.proprietorName,
+      d.phone,
+      d.email,
+      d.kindOfBusiness,
+    ].filter(Boolean).length
+
+    const missingCore = [
+      !d.legalName && 'legal name',
+      !d.fssaiLicense && 'licence number (on Registration Certificate, not payment receipt)',
+      !d.fssaiValidUntil && 'valid until',
+    ].filter(Boolean) as string[]
+
+    if (d.note) {
+      setExtractNote(d.note)
+    } else if (filled === 0) {
       setExtractNote(
-        'No fields detected. Check the image is clear, or enter details manually.',
+        'No fields detected. Prefer FoSCoS PDF (certificate or receipt), or enter details manually.',
+      )
+    } else if (missingCore.length && !d.legalName) {
+      setExtractNote(
+        `Filled ${filled} field(s). Still missing ${missingCore.join(', ')} — check those manually.`,
+      )
+    } else if (missingCore.length) {
+      setExtractNote(
+        `Filled ${filled} field(s). Optional next: ${missingCore.join(', ')}.`,
       )
     } else {
-      setExtractNote('Fields filled from certificate — review before creating.')
+      setExtractNote(
+        `Filled ${filled} field(s) from certificate — review before creating.`,
+      )
     }
   }
 
@@ -155,19 +311,64 @@ export default function MasterStarterIntakePage() {
     setError(null)
     setCreated(null)
 
+    const chosenSlug = generateSlug(slug || previewSlug)
+    if (!chosenSlug) {
+      setBusy(false)
+      setError('Enter a URL slug for the restaurant site.')
+      return
+    }
+    if (slugAvailable === false) {
+      setBusy(false)
+      setError(`Slug “${chosenSlug}” is already taken. Choose another.`)
+      return
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fssaiValidUntil.trim())) {
+      setBusy(false)
+      setError(
+        'FSSAI valid until is required. Extract from the PDF or enter the date manually.',
+      )
+      return
+    }
+
+    let hash = fssaiCertificateHash
+    if (certFile && !hash) {
+      try {
+        hash = await hashCertificateFile(certFile)
+        setFssaiCertificateHash(hash)
+      } catch {
+        hash = ''
+      }
+    }
+
+    // Ensure certificate is stored before create (kept for later reference)
+    let certificateUrl = fssaiCertificateUrl.trim()
+    if (certFile && !certificateUrl.startsWith('http')) {
+      const staged = await uploadIntakeCertificate(certFile)
+      if (staged.success) {
+        certificateUrl = staged.data
+        setFssaiCertificateUrl(staged.data)
+      }
+    }
+
     const result = await intakeWebsiteStarter({
       legalName,
       preferredStoreName,
+      slug: chosenSlug,
       fssaiLicense,
       fssaiValidUntil,
-      fssaiCertificateUrl,
+      fssaiIssuedOn,
+      fssaiCertificateUrl: certificateUrl,
+      fssaiCertificateHash: hash,
       city,
+      state,
+      pincode,
       ownerName,
       ownerEmail,
       ownerPhone,
       googleMapsUrl,
       cuisineType,
       addressFromFssai,
+      allowDuplicateFssai,
     })
 
     if (!result.success) {
@@ -185,43 +386,30 @@ export default function MasterStarterIntakePage() {
       })
       if (uploaded.success) {
         setFssaiCertificateUrl(uploaded.data)
-        await intakePatchCert(result.data.organizationId, uploaded.data)
+        await intakePatchCert(result.data.organizationId, uploaded.data, hash)
       }
     }
 
     setCreated(result.data)
     setBusy(false)
-    void refreshPending()
   }
 
-  async function intakePatchCert(organizationId: string, url: string) {
+  async function intakePatchCert(
+    organizationId: string,
+    url: string,
+    hash: string,
+  ) {
     const { updateStarterProfile } = await import(
       '@/services/websiteStarterService'
     )
-    await updateStarterProfile(organizationId, { fssaiCertificateUrl: url })
-  }
-
-  async function onApprove(orgId: string) {
-    setBusy(true)
-    const result = await approveStarterGoLive(orgId)
-    setBusy(false)
-    if (!result.success) {
-      setError(result.message)
-      return
-    }
-    void refreshPending()
-  }
-
-  async function onReject(orgId: string) {
-    const note = window.prompt('Optional note for the restaurant:') || undefined
-    setBusy(true)
-    const result = await rejectStarterGoLive(orgId, note)
-    setBusy(false)
-    if (!result.success) {
-      setError(result.message)
-      return
-    }
-    void refreshPending()
+    await updateStarterProfile(
+      organizationId,
+      {
+        fssaiCertificateUrl: url,
+        fssaiCertificateHash: hash || undefined,
+      },
+      { allowFssaiUpdate: true },
+    )
   }
 
   return (
@@ -232,9 +420,17 @@ export default function MasterStarterIntakePage() {
         </h1>
         <p className="mt-1 text-sm text-text-secondary">
           New restaurants only — does not change Taste of Andhra or Chopsticks.
-          Lock FSSAI legal name, propose slug, send WhatsApp setup link.
+          Prefer FoSCoS PDF upload to prefill fields. FSSAI stays internal (not
+          on the public site). Go-live reviews live under Approvals. Owners can
+          also self-request at /starter (FSSAI required).
         </p>
-        <p className="mt-2 text-sm">
+        <p className="mt-2 flex flex-wrap gap-3 text-sm">
+          <Link
+            className="font-medium text-primary hover:underline"
+            to={ROUTES.MASTER.APPROVALS}
+          >
+            Open Approvals
+          </Link>
           <Link className="text-primary hover:underline" to={ROUTES.MASTER.ONBOARD}>
             Classic Growth onboard (CSV)
           </Link>
@@ -255,6 +451,19 @@ export default function MasterStarterIntakePage() {
           <p>
             Legal name locked: <strong>{created.legalName}</strong>
           </p>
+          {fssaiCertificateUrl.startsWith('http') && (
+            <p>
+              Certificate kept:{' '}
+              <a
+                className="text-primary underline"
+                href={fssaiCertificateUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                open FSSAI file
+              </a>
+            </p>
+          )}
           <p>
             Site:{' '}
             <a
@@ -296,278 +505,377 @@ export default function MasterStarterIntakePage() {
         </div>
       )}
 
-      <form onSubmit={onSubmit} className="space-y-4 rounded border border-black/10 bg-surface p-4">
-        <h2 className="font-heading text-lg font-semibold">New intake</h2>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-2 rounded border border-black/10 bg-black/[0.02] p-3 sm:col-span-2">
-            <p className="text-sm font-medium">FSSAI certificate</p>
-            <p className="text-xs text-text-secondary">
-              Upload a clear JPG/PNG photo of the certificate (preferred), or a
-              PDF. Then click <strong>AI Extract</strong>. Do not paste Windows
-              file paths into the URL box.
-            </p>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,application/pdf"
-              className="block w-full text-sm"
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (file) onSelectCert(file)
-              }}
-            />
-            {certFile && (
-              <div className="flex flex-wrap items-center gap-3 rounded border border-black/10 bg-white p-2 text-sm">
-                {certPreviewUrl ? (
-                  <img
-                    src={certPreviewUrl}
-                    alt="FSSAI preview"
-                    className="h-20 w-20 rounded object-cover"
-                  />
-                ) : (
-                  <span className="rounded bg-black/5 px-2 py-1 text-xs">PDF</span>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{certFile.name}</p>
-                  <p className="text-xs text-text-secondary">
-                    {(certFile.size / 1024).toFixed(0)} KB
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className="rounded border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50"
-                  onClick={clearCertificate}
-                >
-                  Remove file
-                </button>
-              </div>
-            )}
-            <label className="block text-sm">
-              Or public https URL
-              <input
-                className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-                value={
-                  fssaiCertificateUrl.includes(':\\')
-                    ? ''
-                    : fssaiCertificateUrl
-                }
-                onChange={(e) => setFssaiCertificateUrl(e.target.value)}
-                placeholder="https://…"
-              />
-            </label>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                disabled={busy || !canAiExtract}
-                onClick={() => void onAiExtract()}
-                className="rounded bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-              >
-                {busy ? 'Extracting…' : 'AI Extract'}
-              </button>
-              {!canAiExtract && (
-                <span className="text-xs text-text-secondary">
-                  Choose a file or paste an https URL first
-                </span>
-              )}
-            </div>
-            {extractNote && (
-              <p className="text-xs text-emerald-800">{extractNote}</p>
-            )}
-          </div>
-
-          <label className="block text-sm sm:col-span-2">
-            Legal name (FSSAI) — locked after create *
-            <input
-              required
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-              value={legalName}
-              onChange={(e) => setLegalName(e.target.value)}
-            />
-          </label>
-          <label className="block text-sm">
-            Preferred store / display name
-            <input
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-              value={preferredStoreName}
-              onChange={(e) => setPreferredStoreName(e.target.value)}
-              placeholder="Shown on website"
-            />
-          </label>
-          <label className="block text-sm">
-            Proposed slug preview
-            <input
-              readOnly
-              className="mt-1 w-full rounded border border-black/10 bg-black/5 px-3 py-2 font-mono text-xs"
-              value={previewSlug}
-            />
-          </label>
-          <label className="block text-sm">
-            FSSAI licence number
-            <input
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-              value={fssaiLicense}
-              onChange={(e) => setFssaiLicense(e.target.value)}
-            />
-          </label>
-          <label className="block text-sm">
-            FSSAI valid until
-            <input
-              type="date"
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-              value={fssaiValidUntil}
-              onChange={(e) => setFssaiValidUntil(e.target.value)}
-            />
-          </label>
-          <label className="block text-sm">
-            City *
-            <input
-              required
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-            />
-          </label>
-          <label className="block text-sm">
-            Address (from FSSAI)
-            <input
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-              value={addressFromFssai}
-              onChange={(e) => setAddressFromFssai(e.target.value)}
-            />
-          </label>
-          <label className="block text-sm">
-            Owner name *
-            <input
-              required
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-              value={ownerName}
-              onChange={(e) => setOwnerName(e.target.value)}
-            />
-          </label>
-          <label className="block text-sm">
-            Owner email *
-            <input
-              required
-              type="email"
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-              value={ownerEmail}
-              onChange={(e) => setOwnerEmail(e.target.value)}
-            />
-          </label>
-          <label className="block text-sm">
-            Owner WhatsApp *
-            <input
-              required
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-              value={ownerPhone}
-              onChange={(e) => setOwnerPhone(e.target.value)}
-            />
-          </label>
-          <label className="block text-sm">
-            Cuisine type
-            <input
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-              value={cuisineType}
-              onChange={(e) => setCuisineType(e.target.value)}
-              placeholder="Malabar, South Indian…"
-            />
-          </label>
-          <label className="block text-sm sm:col-span-2">
-            Google Maps link
-            <input
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-              value={googleMapsUrl}
-              onChange={(e) => setGoogleMapsUrl(e.target.value)}
-            />
-          </label>
+      <form
+        onSubmit={onSubmit}
+        className="space-y-8 rounded border border-black/10 bg-surface p-5 sm:p-6"
+      >
+        <div>
+          <h2 className="font-heading text-lg font-semibold tracking-tight">
+            New intake
+          </h2>
+          <p className="mt-1 text-sm text-text-secondary">
+            Upload FoSCoS PDF first. Details below fill automatically when
+            possible — review, then add website invite fields.
+          </p>
         </div>
 
-        <button
-          type="submit"
-          disabled={busy}
-          className="rounded bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-        >
-          {busy ? 'Creating…' : 'Create Website Starter + invite'}
-        </button>
+        {/* Upload */}
+        <section className="space-y-3 border-b border-black/10 pb-6">
+          <h3 className="text-sm font-semibold text-text-primary">
+            1. FoSCoS document
+          </h3>
+          <p className="text-xs text-text-secondary">
+            Prefer the <strong>Registration Certificate</strong> PDF (has the
+            14-digit licence). A <strong>payment receipt</strong> still fills
+            name and address; add the licence number later. Not shown on the
+            public site.
+          </p>
+
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="sr-only"
+            aria-hidden
+            tabIndex={-1}
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) void onSelectCert(file, { autoExtract: true })
+            }}
+          />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/pdf,image/jpeg,image/png,image/webp"
+            className="sr-only"
+            aria-hidden
+            tabIndex={-1}
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) void onSelectCert(file, { autoExtract: true })
+            }}
+          />
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => fileInputRef.current?.click()}
+              className="min-h-11 rounded bg-primary px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              Upload FoSCoS PDF
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => cameraInputRef.current?.click()}
+              className="min-h-11 rounded border border-black/15 bg-white px-4 py-2.5 text-sm text-text-secondary disabled:opacity-50"
+            >
+              Photo fallback
+            </button>
+            <button
+              type="button"
+              disabled={busy || !canAiExtract}
+              onClick={() => void onAiExtract()}
+              className="min-h-11 rounded border border-black/15 px-4 py-2.5 text-sm font-medium disabled:opacity-50"
+            >
+              {busy ? 'Extracting…' : 'Re-extract'}
+            </button>
+          </div>
+
+          {certFile && (
+            <div className="flex flex-wrap items-center gap-3 rounded border border-black/10 bg-black/[0.02] p-3 text-sm">
+              {certPreviewUrl ? (
+                <img
+                  src={certPreviewUrl}
+                  alt=""
+                  className="h-16 w-16 rounded object-cover"
+                />
+              ) : (
+                <span className="rounded bg-black/5 px-2 py-1 text-xs">PDF</span>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium">{certFile.name}</p>
+                <p className="text-xs text-text-secondary">
+                  {(certFile.size / 1024).toFixed(0)} KB
+                </p>
+                {fssaiCertificateUrl.startsWith('http') && (
+                  <a
+                    className="text-xs text-primary hover:underline"
+                    href={fssaiCertificateUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open saved file
+                  </a>
+                )}
+              </div>
+              <button
+                type="button"
+                className="text-xs text-red-700 hover:underline"
+                onClick={clearCertificate}
+              >
+                Remove
+              </button>
+            </div>
+          )}
+
+          {extractNote && (
+            <p
+              className={
+                /could not|error|failed|found no|little text|manually|not this receipt/i.test(
+                  extractNote,
+                )
+                  ? 'text-sm text-amber-900'
+                  : 'text-sm text-emerald-800'
+              }
+            >
+              {extractNote}
+            </p>
+          )}
+
+          {SHOW_FSSAI_EXTRACT_PATH &&
+            (extractPath || extractAttempts.length > 0) && (
+              <details className="text-xs text-text-secondary">
+                <summary className="cursor-pointer font-medium">
+                  Extract debug
+                  {extractPath
+                    ? ` — ${FSSAI_EXTRACT_PATH_LABELS[extractPath]}`
+                    : ''}
+                </summary>
+                <ol className="mt-2 list-inside list-decimal space-y-0.5 font-mono">
+                  {extractAttempts.map((step, index) => (
+                    <li key={`${index}-${step}`}>{step}</li>
+                  ))}
+                </ol>
+              </details>
+            )}
+
+          {duplicates.length > 0 && (
+            <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+              <p className="font-medium">Possible duplicate FSSAI</p>
+              <ul className="mt-1 list-inside list-disc text-xs">
+                {duplicates.map((d) => (
+                  <li key={d.id}>
+                    {d.name} ({d.slug}) — {d.match}
+                    {d.fssai_license ? ` · ${d.fssai_license}` : ''}
+                  </li>
+                ))}
+              </ul>
+              <label className="mt-2 flex items-center gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  checked={allowDuplicateFssai}
+                  onChange={(e) => setAllowDuplicateFssai(e.target.checked)}
+                />
+                Create anyway
+              </label>
+            </div>
+          )}
+        </section>
+
+        {/* FSSAI fields first */}
+        <section className="space-y-4 border-b border-black/10 pb-6">
+          <h3 className="text-sm font-semibold text-text-primary">
+            2. Details from FSSAI
+          </h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block text-sm sm:col-span-2">
+              Legal name of FBO
+              <input
+                className="mt-1.5 w-full rounded border border-black/15 px-3 py-2"
+                value={legalName}
+                onChange={(e) => setLegalName(e.target.value)}
+                placeholder="Locked after create"
+              />
+            </label>
+            <label className="block text-sm sm:col-span-2">
+              Registration / Licence number
+              <input
+                className="mt-1.5 w-full rounded border border-black/15 px-3 py-2 font-mono"
+                value={fssaiLicense}
+                onChange={(e) => setFssaiLicense(e.target.value)}
+                placeholder="14 digits — blank on payment receipts"
+              />
+            </label>
+            <label className="block text-sm sm:col-span-2">
+              Premises address
+              <textarea
+                className="mt-1.5 w-full rounded border border-black/15 px-3 py-2"
+                rows={2}
+                value={addressFromFssai}
+                onChange={(e) => setAddressFromFssai(e.target.value)}
+              />
+            </label>
+            <label className="block text-sm">
+              City
+              <input
+                className="mt-1.5 w-full rounded border border-black/15 px-3 py-2"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+              />
+            </label>
+            <label className="block text-sm">
+              State
+              <input
+                className="mt-1.5 w-full rounded border border-black/15 px-3 py-2"
+                value={state}
+                onChange={(e) => setState(e.target.value)}
+              />
+            </label>
+            <label className="block text-sm">
+              Pincode
+              <input
+                className="mt-1.5 w-full rounded border border-black/15 px-3 py-2"
+                value={pincode}
+                onChange={(e) => setPincode(e.target.value)}
+                inputMode="numeric"
+                maxLength={6}
+              />
+            </label>
+            <label className="block text-sm">
+              Kind of business
+              <input
+                className="mt-1.5 w-full rounded border border-black/15 px-3 py-2"
+                value={cuisineType}
+                onChange={(e) => setCuisineType(e.target.value)}
+              />
+            </label>
+            <label className="block text-sm">
+              Issued on
+              <input
+                type="date"
+                className="mt-1.5 w-full rounded border border-black/15 px-3 py-2"
+                value={fssaiIssuedOn}
+                onChange={(e) => setFssaiIssuedOn(e.target.value)}
+              />
+            </label>
+            <label className="block text-sm">
+              Valid until (required)
+              <input
+                type="date"
+                required
+                className="mt-1.5 w-full rounded border border-black/15 px-3 py-2"
+                value={fssaiValidUntil}
+                onChange={(e) => setFssaiValidUntil(e.target.value)}
+              />
+              <span className="mt-1 block text-xs text-text-secondary">
+                From certificate “Valid Upto”, or receipt fee years from issue
+                date (e.g. 1 Year → +1 year). Used to pause the store when
+                expired.
+              </span>
+            </label>
+            <label className="block text-sm sm:col-span-2">
+              Proprietor / authorised person
+              <input
+                className="mt-1.5 w-full rounded border border-black/15 px-3 py-2"
+                value={ownerName}
+                onChange={(e) => setOwnerName(e.target.value)}
+              />
+            </label>
+          </div>
+        </section>
+
+        {/* Website & invite later */}
+        <section className="space-y-4">
+          <h3 className="text-sm font-semibold text-text-primary">
+            3. Website &amp; invite
+          </h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block text-sm">
+              Store / display name
+              <input
+                className="mt-1.5 w-full rounded border border-black/15 px-3 py-2"
+                value={preferredStoreName}
+                onChange={(e) => setPreferredStoreName(e.target.value)}
+                placeholder="Shown on the public site"
+              />
+            </label>
+            <label className="block text-sm">
+              URL slug
+              <input
+                className="mt-1.5 w-full rounded border border-black/15 px-3 py-2 font-mono text-sm"
+                value={slug}
+                onChange={(e) => {
+                  setSlugTouched(true)
+                  setSlug(generateSlug(e.target.value))
+                }}
+                placeholder="taste-of-andhra"
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <span className="mt-1 block text-xs text-text-secondary">
+                {homepagePreview || '—'}
+                {slugChecking && ' · checking…'}
+                {!slugChecking && slugAvailable === true && (
+                  <span className="text-emerald-700"> · available</span>
+                )}
+                {!slugChecking && slugAvailable === false && (
+                  <span className="text-red-700"> · taken</span>
+                )}
+              </span>
+            </label>
+            <label className="block text-sm">
+              Owner login email
+              <input
+                type="email"
+                className="mt-1.5 w-full rounded border border-black/15 px-3 py-2"
+                value={ownerEmail}
+                onChange={(e) => setOwnerEmail(e.target.value)}
+                required
+              />
+            </label>
+            <label className="block text-sm">
+              Owner WhatsApp / phone
+              <input
+                className="mt-1.5 w-full rounded border border-black/15 px-3 py-2"
+                value={ownerPhone}
+                onChange={(e) => setOwnerPhone(e.target.value)}
+              />
+            </label>
+            <label className="block text-sm sm:col-span-2">
+              Google Maps link
+              <input
+                className="mt-1.5 w-full rounded border border-black/15 px-3 py-2"
+                value={googleMapsUrl}
+                onChange={(e) => setGoogleMapsUrl(e.target.value)}
+                placeholder="Optional"
+              />
+            </label>
+          </div>
+        </section>
+
+        <div className="flex flex-wrap items-center gap-3 pt-2">
+          <button
+            type="submit"
+            disabled={
+              busy ||
+              (duplicates.length > 0 && !allowDuplicateFssai) ||
+              slugAvailable === false
+            }
+            className="rounded bg-primary px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {busy ? 'Creating…' : 'Create Website Starter + invite'}
+          </button>
+          {duplicates.length > 0 && !allowDuplicateFssai && (
+            <p className="text-xs text-amber-800">
+              Enable “Create anyway” above to proceed with a duplicate FSSAI.
+            </p>
+          )}
+        </div>
       </form>
 
-      <section className="space-y-3">
-        <h2 className="font-heading text-lg font-semibold">
-          Pending review / setup
-        </h2>
-        {pending.length === 0 ? (
-          <p className="text-sm text-text-secondary">No pending Website Starter tenants.</p>
-        ) : (
-          <div className="overflow-x-auto rounded border border-black/10">
-            <table className="min-w-full text-left text-sm">
-              <thead className="bg-black/5 text-xs uppercase tracking-wide text-text-secondary">
-                <tr>
-                  <th className="px-3 py-2">Restaurant</th>
-                  <th className="px-3 py-2">Onboarding</th>
-                  <th className="px-3 py-2">FSSAI</th>
-                  <th className="px-3 py-2">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pending.map((org) => (
-                  <tr key={org.id} className="border-t border-black/10">
-                    <td className="px-3 py-2">
-                      <div className="font-medium">{org.name}</div>
-                      <div className="font-mono text-xs text-text-secondary">
-                        {org.slug}
-                      </div>
-                      <div className="text-xs text-text-secondary">
-                        Legal: {org.legal_name || '—'}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2">{org.onboarding_status}</td>
-                    <td className="px-3 py-2 text-xs">
-                      {org.fssai_license || '—'}
-                      <br />
-                      {org.fssai_valid_until || 'no expiry'}
-                    </td>
-                    <td className="px-3 py-2 space-x-2">
-                      <Link
-                        className="text-primary hover:underline"
-                        to={ROUTES.MASTER.tenant(org.id)}
-                      >
-                        Open
-                      </Link>
-                      <Link
-                        className="text-primary hover:underline"
-                        to={`${ROUTES.ADMIN.SETUP}?org=${org.id}`}
-                      >
-                        Continue setup
-                      </Link>
-                      {org.onboarding_status === 'pending_review' && (
-                        <>
-                          <button
-                            type="button"
-                            disabled={busy}
-                            className="text-emerald-700 hover:underline"
-                            onClick={() => void onApprove(org.id)}
-                          >
-                            Approve
-                          </button>
-                          <button
-                            type="button"
-                            disabled={busy}
-                            className="text-red-700 hover:underline"
-                            onClick={() => void onReject(org.id)}
-                          >
-                            Reject
-                          </button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      <p className="text-sm text-text-secondary">
+        After create, review go-live in{' '}
+        <Link
+          className="font-medium text-primary hover:underline"
+          to={ROUTES.MASTER.APPROVALS}
+        >
+          Approvals
+        </Link>
+        . Licence details stay internal.
+      </p>
     </div>
   )
 }

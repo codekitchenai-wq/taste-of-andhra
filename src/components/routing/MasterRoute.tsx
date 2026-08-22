@@ -27,6 +27,7 @@ export function MasterRoute() {
 
 const NAV_ITEMS = [
   { label: 'Dashboard', to: ROUTES.MASTER.DASHBOARD, exact: true },
+  { label: 'Approvals', to: ROUTES.MASTER.APPROVALS, exact: false },
   { label: 'Restaurants', to: ROUTES.MASTER.TENANTS, exact: false },
   { label: 'Feature catalog', to: ROUTES.MASTER.FEATURES, exact: false },
   { label: 'Onboard new', to: ROUTES.MASTER.ONBOARD, exact: true },

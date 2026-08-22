@@ -1,27 +1,42 @@
 import { useEffect, useRef } from 'react'
-import { ExternalLink } from 'lucide-react'
+import { ExternalLink, Star } from 'lucide-react'
 import { Container } from '@/components/ui/Container'
 import { SectionHeader } from '@/components/home/SectionHeader'
+import { useOrganization } from '@/contexts/OrganizationContext'
+import { restaurantDisplayName } from '@/utils/tenantFeatures'
 import {
   googleReadReviewsUrl,
-  googleReviewsWidget,
-  isGoogleReviewsConfigured,
+  googleReviewsFromSettings,
+  googleWriteReviewUrl,
+  isGooglePlaceConfigured,
+  isGoogleReviewsWidgetConfigured,
+  shouldShowGoogleReviewsSection,
 } from '@/utils/googleReviews'
 
 /**
- * Embeds a hosted Google reviews widget (Trustindex, Elfsight, etc). The
- * provider handles Google's attribution and caching rules for us, so we only
- * need to drop their loader script into the container they render into.
+ * Shows this restaurant’s Google reviews. Prefers a hosted widget when
+ * configured; otherwise links customers to read/write on Google for this
+ * Place ID only — never another restaurant’s listing.
  */
 export function GoogleReviews() {
+  const org = useOrganization()
+  const config = googleReviewsFromSettings(org.settings)
   const containerRef = useRef<HTMLDivElement>(null)
+  const restaurantName = restaurantDisplayName({
+    name: org.name,
+    slug: org.slug,
+    organizationId: org.organizationId,
+  })
+
+  const showWidget = isGoogleReviewsWidgetConfigured(config)
+  const showPlaceLinks = isGooglePlaceConfigured(config)
 
   useEffect(() => {
     const container = containerRef.current
-    if (!container) return
+    if (!container || !showWidget) return
 
     const script = document.createElement('script')
-    script.src = googleReviewsWidget.src
+    script.src = config.widgetSrc
     script.async = true
     script.defer = true
     container.appendChild(script)
@@ -29,36 +44,95 @@ export function GoogleReviews() {
     return () => {
       container.replaceChildren()
     }
-  }, [])
+  }, [showWidget, config.widgetSrc])
+
+  if (!shouldShowGoogleReviewsSection(config)) return null
+
+  const writeUrl = googleWriteReviewUrl(config.placeId)
+  const readUrl = googleReadReviewsUrl(config.placeId)
 
   return (
     <section className="bg-surface py-12 md:py-16 lg:py-20">
       <Container as="div">
         <SectionHeader
           title="What Our Customers Say"
-          subtitle="Real reviews from food lovers across the city"
+          subtitle={`Real Google reviews for ${restaurantName}`}
         />
 
-        <div className="mt-10">
-          {googleReviewsWidget.containerClass && (
-            <div className={googleReviewsWidget.containerClass} />
-          )}
-          <div ref={containerRef} />
-        </div>
-
-        {isGoogleReviewsConfigured && (
-          <div className="mt-8 text-center">
-            <a
-              href={googleReadReviewsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-sm font-medium text-primary transition-colors hover:text-primary-dark"
-            >
-              Read all reviews on Google
-              <ExternalLink className="h-4 w-4" aria-hidden="true" />
-            </a>
+        {showWidget ? (
+          <div className="mt-10">
+            {config.widgetClass ? (
+              <div className={config.widgetClass} />
+            ) : null}
+            <div ref={containerRef} />
+          </div>
+        ) : (
+          <div className="mx-auto mt-10 max-w-xl rounded-[var(--radius-card)] border border-black/5 bg-background p-6 text-center shadow-sm">
+            <div className="flex justify-center gap-1" aria-hidden="true">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <Star
+                  key={index}
+                  className="h-5 w-5 fill-accent text-accent"
+                />
+              ))}
+            </div>
+            <p className="mt-4 text-sm leading-relaxed text-text-secondary">
+              See what diners are saying about {restaurantName} on Google, or
+              share your own experience after your meal.
+            </p>
+            <div className="mt-6 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
+              {writeUrl ? (
+                <a
+                  href={writeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-button)] bg-primary px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-dark"
+                >
+                  Write a Google review
+                  <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                </a>
+              ) : null}
+              {readUrl ? (
+                <a
+                  href={readUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 text-sm font-medium text-primary transition-colors hover:text-primary-dark"
+                >
+                  Read reviews on Google
+                  <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                </a>
+              ) : null}
+            </div>
           </div>
         )}
+
+        {showWidget && showPlaceLinks ? (
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-4 text-center">
+            {readUrl ? (
+              <a
+                href={readUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-sm font-medium text-primary transition-colors hover:text-primary-dark"
+              >
+                Read all reviews on Google
+                <ExternalLink className="h-4 w-4" aria-hidden="true" />
+              </a>
+            ) : null}
+            {writeUrl ? (
+              <a
+                href={writeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-sm font-medium text-primary transition-colors hover:text-primary-dark"
+              >
+                Write a review
+                <ExternalLink className="h-4 w-4" aria-hidden="true" />
+              </a>
+            ) : null}
+          </div>
+        ) : null}
       </Container>
     </section>
   )

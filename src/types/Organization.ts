@@ -96,6 +96,7 @@ export interface Organization {
   fssai_license: string | null
   fssai_valid_until: string | null
   fssai_certificate_url: string | null
+  fssai_certificate_hash?: string | null
   onboarding_status: OnboardingStatus | null
   homepage_mode: HomepageMode
   custom_domain: string | null

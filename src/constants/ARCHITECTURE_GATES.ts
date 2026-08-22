@@ -47,6 +47,15 @@ export const ENABLE_STARTER_ONBOARDING = envFlag(
 )
 
 /**
+ * Show which FSSAI extract path ran (Gemini / PDF / OCR) on Master intake.
+ * Default ON while tuning; set VITE_SHOW_FSSAI_EXTRACT_PATH=false to hide.
+ */
+export const SHOW_FSSAI_EXTRACT_PATH = envFlag(
+  'VITE_SHOW_FSSAI_EXTRACT_PATH',
+  true,
+)
+
+/**
  * Taste of Andhra custom domains (thetasteofandhra.com).
  * Off: those hosts bounce to www.directapp.in so Google Site URL cannot
  * leave customers on Taste of Andhra. Re-enable with VITE_ENABLE_TASTE_OF_ANDHRA_CUSTOM_DOMAIN=true.

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ENABLE_AI, ENABLE_STARTER_ONBOARDING } from '@/constants/ARCHITECTURE_GATES'
+import { ENABLE_STARTER_ONBOARDING } from '@/constants/ARCHITECTURE_GATES'
 import {
   GALLERY_SLOT_LABELS,
+  WEBSITE_STARTER_MAX_CATEGORIES,
   WEBSITE_STARTER_MAX_MENU_ITEMS,
   type GallerySlotKind,
 } from '@/constants/ONBOARDING'
@@ -48,7 +49,10 @@ function emptyDraft(): DraftRow {
 }
 
 export default function StarterSetupWizardPage() {
-  const { token } = useParams<{ token?: string }>()
+  const { token, orgId: orgIdParam } = useParams<{
+    token?: string
+    orgId?: string
+  }>()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const { user, isAuthenticated, login } = useAuth()
@@ -56,7 +60,7 @@ export default function StarterSetupWizardPage() {
 
   const orgFromQuery = searchParams.get('org')
   const [organizationId, setOrganizationId] = useState<string | null>(
-    orgFromQuery,
+    orgIdParam || orgFromQuery,
   )
   const [legalName, setLegalName] = useState('')
   const [displayName, setDisplayName] = useState('')
@@ -112,7 +116,7 @@ export default function StarterSetupWizardPage() {
         return
       }
 
-      const id = orgFromQuery || orgCtx.organizationId
+      const id = orgIdParam || orgFromQuery || orgCtx.organizationId
       if (!id) return
       setOrganizationId(id)
       const loaded = await loadStarterOrg(id)
@@ -120,7 +124,7 @@ export default function StarterSetupWizardPage() {
     }
 
     void boot()
-  }, [token, orgFromQuery, orgCtx.organizationId])
+  }, [token, orgIdParam, orgFromQuery, orgCtx.organizationId])
 
   function hydrateFromOrg(org: Record<string, unknown> | Partial<typeof orgCtx>) {
     const row = org as Record<string, unknown>
@@ -194,8 +198,20 @@ export default function StarterSetupWizardPage() {
         lineNumber: index + 1,
       }))
       .filter((row) => Number.isFinite(row.price))
-      .slice(0, WEBSITE_STARTER_MAX_MENU_ITEMS)
   }, [draftRows])
+
+  const uniqueCategoryCount = useMemo(() => {
+    return new Set(
+      menuCsvRows.map((row) => row.category.trim().toLowerCase() || 'menu'),
+    ).size
+  }, [menuCsvRows])
+
+  const menuOverItemLimit =
+    menuCsvRows.length > WEBSITE_STARTER_MAX_MENU_ITEMS
+  const menuOverCategoryLimit =
+    uniqueCategoryCount > WEBSITE_STARTER_MAX_CATEGORIES
+  const canSaveMenu =
+    menuCsvRows.length > 0 && !menuOverItemLimit && !menuOverCategoryLimit
 
   async function onLogin(event: React.FormEvent) {
     event.preventDefault()
@@ -227,8 +243,7 @@ export default function StarterSetupWizardPage() {
       logoUrl: logoUrl || undefined,
       heroUrl: gallery.front || undefined,
       gallery,
-      fssaiLicense,
-      fssaiValidUntil,
+      // FSSAI fields are Master-only — intentionally omitted
     })
     setBusy(false)
     if (!result.success) {
@@ -281,12 +296,6 @@ export default function StarterSetupWizardPage() {
 
   async function onAiMenu(files: FileList | null) {
     if (!organizationId || !files?.length) return
-    if (!ENABLE_AI) {
-      setError(
-        'AI menu import is off (VITE_ENABLE_AI). Paste CSV or enter items below.',
-      )
-      return
-    }
     setBusy(true)
     setError(null)
     const urls: string[] = []
@@ -319,12 +328,22 @@ export default function StarterSetupWizardPage() {
         name: row.name,
         price: String(row.price),
         isVeg: row.isVeg,
-        description: row.description,
+        description: row.description ?? '',
       })),
     )
-    setMessage(
-      `AI drafted ${parsed.data.rows.length} items (max ${WEBSITE_STARTER_MAX_MENU_ITEMS}). Review before apply.`,
-    )
+    const count = parsed.data.rows.length
+    if (count > WEBSITE_STARTER_MAX_MENU_ITEMS) {
+      setMessage(
+        `Extracted ${count} items. Review all below, then remove extras so you have ${WEBSITE_STARTER_MAX_MENU_ITEMS} or fewer before saving.`,
+      )
+      setError(
+        `Over the Website Starter limit (${WEBSITE_STARTER_MAX_MENU_ITEMS} items). Remove ${count - WEBSITE_STARTER_MAX_MENU_ITEMS} item(s) to enable save.`,
+      )
+    } else {
+      setMessage(
+        `Extracted ${count} items. Review names, prices, categories, and descriptions, then save.`,
+      )
+    }
     setStep(3)
   }
 
@@ -335,7 +354,7 @@ export default function StarterSetupWizardPage() {
       return
     }
     setDraftRows(
-      parsed.rows.slice(0, WEBSITE_STARTER_MAX_MENU_ITEMS).map((row) => ({
+      parsed.rows.map((row) => ({
         category: row.category,
         name: row.name,
         price: String(row.price),
@@ -343,7 +362,14 @@ export default function StarterSetupWizardPage() {
         description: row.description,
       })),
     )
-    setMessage(`Loaded ${Math.min(parsed.rows.length, WEBSITE_STARTER_MAX_MENU_ITEMS)} rows from CSV.`)
+    const count = parsed.rows.length
+    if (count > WEBSITE_STARTER_MAX_MENU_ITEMS) {
+      setMessage(
+        `Loaded ${count} CSV rows. Trim to ${WEBSITE_STARTER_MAX_MENU_ITEMS} or fewer before saving.`,
+      )
+    } else {
+      setMessage(`Loaded ${count} rows from CSV.`)
+    }
   }
 
   async function applyMenu() {
@@ -352,9 +378,22 @@ export default function StarterSetupWizardPage() {
       setError('Add at least one menu item.')
       return
     }
+    if (!canSaveMenu) {
+      if (menuOverItemLimit) {
+        setError(
+          `Save needs ${WEBSITE_STARTER_MAX_MENU_ITEMS} items or fewer (you have ${menuCsvRows.length}).`,
+        )
+      } else if (menuOverCategoryLimit) {
+        setError(
+          `Save needs ${WEBSITE_STARTER_MAX_CATEGORIES} categories or fewer (you have ${uniqueCategoryCount}).`,
+        )
+      }
+      return
+    }
     setBusy(true)
     const result = await applyMenuDraftRows(organizationId, menuCsvRows, {
       maxItems: WEBSITE_STARTER_MAX_MENU_ITEMS,
+      maxCategories: WEBSITE_STARTER_MAX_CATEGORIES,
       publishImmediately: false,
     })
     setBusy(false)
@@ -362,6 +401,7 @@ export default function StarterSetupWizardPage() {
       setError(result.message)
       return
     }
+    setError(null)
     setMessage(
       `Imported ${result.data.dishesCreated} dishes in ${result.data.categoriesCreated} new categories. Edit anytime in Admin → Dishes.`,
     )
@@ -395,7 +435,7 @@ export default function StarterSetupWizardPage() {
         <h1 className="font-heading text-2xl font-bold">Restaurant setup</h1>
         <p className="mt-1 text-sm text-text-secondary">
           Complete profile, 3 photos, and up to {WEBSITE_STARTER_MAX_MENU_ITEMS}{' '}
-          menu items. Legal name from FSSAI cannot be changed.
+          menu items / {WEBSITE_STARTER_MAX_CATEGORIES} categories. Legal name from FSSAI cannot be changed.
         </p>
       </div>
 
@@ -574,23 +614,27 @@ export default function StarterSetupWizardPage() {
                   />
                 </label>
                 <label className="block text-sm">
-                  FSSAI number
+                  FSSAI number (Master only)
                   <input
-                    className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-                    value={fssaiLicense}
-                    onChange={(e) => setFssaiLicense(e.target.value)}
+                    readOnly
+                    className="mt-1 w-full rounded border border-black/10 bg-black/5 px-3 py-2 font-mono"
+                    value={fssaiLicense || 'Set by DirectApp Master'}
                   />
                 </label>
                 <label className="block text-sm">
-                  FSSAI valid until
+                  FSSAI valid until (Master only)
                   <input
-                    type="date"
-                    className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-                    value={fssaiValidUntil}
-                    onChange={(e) => setFssaiValidUntil(e.target.value)}
+                    readOnly
+                    className="mt-1 w-full rounded border border-black/10 bg-black/5 px-3 py-2"
+                    value={fssaiValidUntil || 'Set by DirectApp Master'}
                   />
                 </label>
               </div>
+              <p className="text-xs text-text-secondary">
+                Licence details are not shown on your public website. To correct
+                them, ask DirectApp Master — they update fields in Approvals
+                after reviewing your certificate.
+              </p>
               <button
                 type="button"
                 disabled={busy}
@@ -666,8 +710,23 @@ export default function StarterSetupWizardPage() {
           {step === 3 && (
             <section className="space-y-4 rounded border border-black/10 p-4">
               <h2 className="font-heading text-lg font-semibold">
-                Menu (max {WEBSITE_STARTER_MAX_MENU_ITEMS})
+                Menu (max {WEBSITE_STARTER_MAX_MENU_ITEMS} items ·{' '}
+                {WEBSITE_STARTER_MAX_CATEGORIES} categories)
               </h2>
+              <p className="text-sm text-text-secondary">
+                Upload a menu photo for Gemini Flash extract. All items appear
+                below for review — add a description per dish if you want. Save
+                only works at {WEBSITE_STARTER_MAX_MENU_ITEMS} items or fewer and{' '}
+                {WEBSITE_STARTER_MAX_CATEGORIES} categories or fewer.
+              </p>
+              <p className="text-sm font-medium">
+                Ready rows: {menuCsvRows.length}/{WEBSITE_STARTER_MAX_MENU_ITEMS}{' '}
+                · Categories: {uniqueCategoryCount}/
+                {WEBSITE_STARTER_MAX_CATEGORIES}
+                {menuOverItemLimit || menuOverCategoryLimit
+                  ? ' — trim to enable save'
+                  : ''}
+              </p>
               <label className="block text-sm">
                 Upload menu photo/PDF for AI
                 <input
@@ -696,63 +755,76 @@ export default function StarterSetupWizardPage() {
                 Load CSV into editor
               </button>
 
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {draftRows.map((row, index) => (
                   <div
                     key={index}
-                    className="grid gap-2 rounded border border-black/10 p-2 sm:grid-cols-6"
+                    className="space-y-2 rounded border border-black/10 p-3"
                   >
-                    <input
-                      className="rounded border border-black/15 px-2 py-1 text-sm sm:col-span-1"
-                      placeholder="Category"
-                      value={row.category}
-                      onChange={(e) => {
-                        const next = [...draftRows]
-                        next[index] = { ...row, category: e.target.value }
-                        setDraftRows(next)
-                      }}
-                    />
-                    <input
-                      className="rounded border border-black/15 px-2 py-1 text-sm sm:col-span-2"
-                      placeholder="Item name"
-                      value={row.name}
-                      onChange={(e) => {
-                        const next = [...draftRows]
-                        next[index] = { ...row, name: e.target.value }
-                        setDraftRows(next)
-                      }}
-                    />
-                    <input
-                      className="rounded border border-black/15 px-2 py-1 text-sm"
-                      placeholder="Price"
-                      value={row.price}
-                      onChange={(e) => {
-                        const next = [...draftRows]
-                        next[index] = { ...row, price: e.target.value }
-                        setDraftRows(next)
-                      }}
-                    />
-                    <label className="flex items-center gap-1 text-xs">
+                    <div className="grid gap-2 sm:grid-cols-6">
                       <input
-                        type="checkbox"
-                        checked={row.isVeg}
+                        className="rounded border border-black/15 px-2 py-1 text-sm sm:col-span-1"
+                        placeholder="Category"
+                        value={row.category}
                         onChange={(e) => {
                           const next = [...draftRows]
-                          next[index] = { ...row, isVeg: e.target.checked }
+                          next[index] = { ...row, category: e.target.value }
                           setDraftRows(next)
                         }}
                       />
-                      Veg
-                    </label>
-                    <button
-                      type="button"
-                      className="text-xs text-red-700"
-                      onClick={() =>
-                        setDraftRows(draftRows.filter((_, i) => i !== index))
-                      }
-                    >
-                      Remove
-                    </button>
+                      <input
+                        className="rounded border border-black/15 px-2 py-1 text-sm sm:col-span-2"
+                        placeholder="Item name"
+                        value={row.name}
+                        onChange={(e) => {
+                          const next = [...draftRows]
+                          next[index] = { ...row, name: e.target.value }
+                          setDraftRows(next)
+                        }}
+                      />
+                      <input
+                        className="rounded border border-black/15 px-2 py-1 text-sm"
+                        placeholder="Price"
+                        value={row.price}
+                        onChange={(e) => {
+                          const next = [...draftRows]
+                          next[index] = { ...row, price: e.target.value }
+                          setDraftRows(next)
+                        }}
+                      />
+                      <label className="flex items-center gap-1 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={row.isVeg}
+                          onChange={(e) => {
+                            const next = [...draftRows]
+                            next[index] = { ...row, isVeg: e.target.checked }
+                            setDraftRows(next)
+                          }}
+                        />
+                        Veg
+                      </label>
+                      <button
+                        type="button"
+                        className="text-xs text-red-700"
+                        onClick={() =>
+                          setDraftRows(draftRows.filter((_, i) => i !== index))
+                        }
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <textarea
+                      className="w-full rounded border border-black/15 px-2 py-1 text-sm"
+                      rows={2}
+                      placeholder="Description (optional)"
+                      value={row.description}
+                      onChange={(e) => {
+                        const next = [...draftRows]
+                        next[index] = { ...row, description: e.target.value }
+                        setDraftRows(next)
+                      }}
+                    />
                   </div>
                 ))}
               </div>
@@ -768,8 +840,8 @@ export default function StarterSetupWizardPage() {
                 </button>
                 <button
                   type="button"
-                  disabled={busy}
-                  className="rounded bg-primary px-4 py-2 text-sm font-semibold text-white"
+                  disabled={busy || !canSaveMenu}
+                  className="rounded bg-primary px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                   onClick={() => void applyMenu()}
                 >
                   Apply menu to catalog
@@ -781,6 +853,15 @@ export default function StarterSetupWizardPage() {
                   Open Admin Dishes
                 </Link>
               </div>
+              {!canSaveMenu && menuCsvRows.length > 0 && (
+                <p className="text-sm text-amber-800">
+                  {menuOverItemLimit
+                    ? `Remove ${menuCsvRows.length - WEBSITE_STARTER_MAX_MENU_ITEMS} item(s) to save.`
+                    : menuOverCategoryLimit
+                      ? `Reduce to ${WEBSITE_STARTER_MAX_CATEGORIES} categories or fewer to save.`
+                      : null}
+                </p>
+              )}
               <button
                 type="button"
                 className="rounded bg-primary px-4 py-2 text-sm font-semibold text-white"
@@ -797,8 +878,8 @@ export default function StarterSetupWizardPage() {
                 Submit for go-live
               </h2>
               <p className="text-sm text-text-secondary">
-                Master will review FSSAI, photos, and menu before the public site
-                goes live.
+                Master will review compliance, photos, and menu before the
+                public site goes live. FSSAI licence numbers stay internal.
               </p>
               <button
                 type="button"

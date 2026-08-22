@@ -3,15 +3,13 @@ import { Globe, Mail, MapPin, Phone, Share2 } from 'lucide-react'
 import { WhatsAppLink } from '@/components/ui/WhatsAppLink'
 import {
   footerCustomerLinks,
-  footerQuickLinks,
   footerTestPersonaLinks,
-  onamSpecialNavLink,
+  storefrontFooterQuickLinks,
 } from '@/data/navigation'
 import { useOrganization } from '@/contexts/OrganizationContext'
 import { Container } from '@/components/ui/Container'
 import { FooterTestHelpers } from '@/components/layout/FooterTestHelpers'
 import {
-  isSpiceMalabarStorefront,
   showStorefrontQaHelpers,
   storefrontContact,
   storefrontSocialLinks,
@@ -23,9 +21,7 @@ export function Footer() {
   const org = useOrganization()
   const contact = storefrontContact(org)
   const showQa = showStorefrontQaHelpers(org)
-  const quickLinks = isSpiceMalabarStorefront(org)
-    ? [footerQuickLinks[0], onamSpecialNavLink, ...footerQuickLinks.slice(1)]
-    : footerQuickLinks
+  const quickLinks = storefrontFooterQuickLinks(org)
   const whatsApp = useStorefrontWhatsApp()
   const isLandingPage = useIsLandingPage()
   const showWhatsApp = whatsApp.enabled && whatsApp.orderUrl && !isLandingPage

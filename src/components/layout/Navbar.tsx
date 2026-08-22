@@ -13,11 +13,11 @@ import { useState } from 'react'
 import toast from 'react-hot-toast'
 import { ROUTES } from '@/constants/ROUTES'
 import { useOrganization } from '@/contexts/OrganizationContext'
-import { storefrontContact, isSpiceMalabarStorefront } from '@/utils/storefrontCopy'
+import { storefrontContact } from '@/utils/storefrontCopy'
 import { WhatsAppLink } from '@/components/ui/WhatsAppLink'
 import { useStorefrontWhatsApp } from '@/hooks/useStorefrontWhatsApp'
 import { useIsLandingPage } from '@/hooks/useIsLandingPage'
-import { mainNavLinks, onamSpecialNavLink } from '@/data/navigation'
+import { storefrontMainNavLinks } from '@/data/navigation'
 import { Container } from '@/components/ui/Container'
 import { MobileMenu } from '@/components/layout/MobileMenu'
 import { useAuth } from '@/hooks/useAuth'
@@ -28,9 +28,7 @@ export function Navbar() {
   const org = useOrganization()
   const { isAuthenticated, user, logout } = useAuth()
   const contact = storefrontContact(org)
-  const navLinks = isSpiceMalabarStorefront(org)
-    ? [mainNavLinks[0], onamSpecialNavLink, ...mainNavLinks.slice(1)]
-    : mainNavLinks
+  const navLinks = storefrontMainNavLinks(org)
   const { enabled: showWhatsApp, orderUrl: whatsAppOrderHref } =
     useStorefrontWhatsApp()
   const isLandingPage = useIsLandingPage()

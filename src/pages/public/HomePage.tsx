@@ -4,20 +4,29 @@ import { FeaturedDishes } from '@/components/home/FeaturedDishes'
 import { GoogleReviews } from '@/components/home/GoogleReviews'
 import { HeroSection } from '@/components/home/HeroSection'
 import { OnamSpecialBanner } from '@/components/home/OnamSpecialBanner'
-import { Testimonials } from '@/components/home/Testimonials'
 import { WhyChooseUs } from '@/components/home/WhyChooseUs'
 import { LoadingState } from '@/components/ui/LoadingState'
 import { useOrganization } from '@/contexts/OrganizationContext'
 import { useHomeFeatured } from '@/hooks/useHomeFeatured'
-import { isGoogleReviewsWidgetConfigured } from '@/utils/googleReviews'
+import {
+  googleReviewsFromSettings,
+  shouldShowGoogleReviewsSection,
+} from '@/utils/googleReviews'
+import {
+  isSpiceMalabarStorefront,
+  storefrontPublicMenuEnabled,
+} from '@/utils/storefrontCopy'
 import { bumpStarterAnalytics } from '@/utils/starterAnalytics'
 import { isWebsiteStarterTrack } from '@/utils/websiteStarter'
 
 export default function HomePage() {
   const org = useOrganization()
+  const isChopsticks = isSpiceMalabarStorefront(org)
+  const showMenuSections = storefrontPublicMenuEnabled(org)
   const { categories, dishes, isLoading } = useHomeFeatured()
-  const showGoogleReviews =
-    isGoogleReviewsWidgetConfigured && !org.resolvedFromHost
+  const showGoogleReviews = shouldShowGoogleReviewsSection(
+    googleReviewsFromSettings(org.settings),
+  )
 
   useEffect(() => {
     if (isWebsiteStarterTrack(org.settings)) {
@@ -25,20 +34,32 @@ export default function HomePage() {
     }
   }, [org.organizationId, org.settings])
 
+  // Chopsticks: Onam-focused landing + optional Google reviews for this org only.
+  if (isChopsticks) {
+    return (
+      <>
+        <HeroSection />
+        {showGoogleReviews ? <GoogleReviews /> : null}
+      </>
+    )
+  }
+
   return (
     <>
       <HeroSection />
       <OnamSpecialBanner />
-      {isLoading ? (
-        <LoadingState variant="inline" className="py-16" />
-      ) : (
-        <>
-          <FeaturedCategories categories={categories} />
-          <FeaturedDishes dishes={dishes} />
-        </>
-      )}
+      {showMenuSections ? (
+        isLoading ? (
+          <LoadingState variant="inline" className="py-16" />
+        ) : (
+          <>
+            <FeaturedCategories categories={categories} />
+            <FeaturedDishes dishes={dishes} />
+          </>
+        )
+      ) : null}
       <WhyChooseUs />
-      {showGoogleReviews ? <GoogleReviews /> : <Testimonials />}
+      {showGoogleReviews ? <GoogleReviews /> : null}
     </>
   )
 }

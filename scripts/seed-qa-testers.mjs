@@ -260,6 +260,45 @@ async function enrollCustomer(organizationId, userId) {
   return true
 }
 
+/** Roster row whose phone matches demo delivery login — enables /delivery job list in QA. */
+async function upsertDemoDeliveryPartner(organizationId, account) {
+  const { error } = await admin.from('delivery_partners').upsert(
+    {
+      organization_id: organizationId,
+      full_name: 'Test Delivery partner 1',
+      phone: account.phone,
+      is_active: true,
+      notes: 'Auto-linked to demo delivery login (seed:qa-testers)',
+    },
+    { onConflict: 'organization_id,phone' },
+  )
+  if (error) {
+    // Unique index may not exist on older DBs — try update by name
+    const { data: existing } = await admin
+      .from('delivery_partners')
+      .select('id')
+      .eq('organization_id', organizationId)
+      .ilike('full_name', 'Test Delivery partner 1')
+      .maybeSingle()
+    if (existing?.id) {
+      const { error: updErr } = await admin
+        .from('delivery_partners')
+        .update({ phone: account.phone, is_active: true })
+        .eq('id', existing.id)
+      if (updErr) {
+        console.error(`DELIVERY_PARTNER_ERR ${account.email}: ${updErr.message}`)
+        return false
+      }
+      console.log(`LINKED delivery partner phone ${account.phone} for ${account.tenantSlug}`)
+      return true
+    }
+    console.error(`DELIVERY_PARTNER_ERR ${account.email}: ${error.message}`)
+    return false
+  }
+  console.log(`LINKED delivery partner phone ${account.phone} for ${account.tenantSlug}`)
+  return true
+}
+
 async function verifyLogin(email) {
   if (!client) {
     console.warn(`SKIP_LOGIN_CHECK ${email} (no anon key)`)
@@ -376,6 +415,8 @@ for (const org of restaurants) {
     if (account.role === 'delivery') {
       const ok = await bindStaff(org.id, userId, 'delivery')
       if (!ok) seedOk = false
+      const partnerOk = await upsertDemoDeliveryPartner(org.id, account)
+      if (!partnerOk) seedOk = false
     }
     if (account.role === 'customer') {
       const ok = await enrollCustomer(org.id, userId)

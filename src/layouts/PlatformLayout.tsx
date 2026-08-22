@@ -12,6 +12,7 @@ const NAV = [
   { to: '/', label: 'Home', end: true },
   { to: '/#capabilities', label: 'Product' },
   { to: '/#plans', label: 'Plans' },
+  { to: '/starter', label: 'Get website' },
   { to: '/demo', label: 'Demo / Enroll' },
 ] as const
 
@@ -81,12 +82,12 @@ export function PlatformLayout() {
             >
               Live demo
             </a>
-            <Link to={ROUTES.PLATFORM.DEMO}>
+            <Link to={ROUTES.PLATFORM.STARTER_REQUEST}>
               <Button
                 size="sm"
                 className="bg-[var(--platform-accent)] text-white hover:bg-[var(--platform-accent-hot)]"
               >
-                Request demo
+                Get website
               </Button>
             </Link>
           </div>
@@ -112,6 +113,14 @@ export function PlatformLayout() {
               Explore
             </p>
             <ul className="mt-3 space-y-2 text-sm text-white/80">
+              <li>
+                <Link
+                  to={ROUTES.PLATFORM.STARTER_REQUEST}
+                  className="hover:text-white"
+                >
+                  Get Website Starter
+                </Link>
+              </li>
               <li>
                 <Link to={ROUTES.PLATFORM.DEMO} className="hover:text-white">
                   Request demo / enroll

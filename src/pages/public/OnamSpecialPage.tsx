@@ -8,12 +8,10 @@ import {
   Share2,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Container } from '@/components/ui/Container'
-import { Input } from '@/components/ui/Input'
-import { LazyImage } from '@/components/ui/LazyImage'
 import { Select } from '@/components/ui/Select'
+import { Textarea } from '@/components/ui/Textarea'
 import { OnamDeliveryAddress } from '@/components/checkout/OnamDeliveryAddress'
 import { ONAM_SADHYA } from '@/constants/ONAM_SADHYA'
 import { AUTH_REDIRECT_STORAGE_KEY } from '@/constants/AUTH'
@@ -93,11 +91,10 @@ export default function OnamSpecialPage() {
   ) => {
     const offer = ONAM_SADHYA.services[booking.service]
     const customerName =
-      booking.customerName.trim() ||
       selectedAddress?.full_name ||
       user?.full_name ||
       'Customer'
-    return [
+    const lines = [
       `Hi ${customerName},`,
       `Your Onam Sadhya order at ${whatsApp.contact.name} is confirmed.`,
       '',
@@ -110,9 +107,15 @@ export default function OnamSpecialPage() {
       `• Slot: ${slots.find((slot) => slot.value === booking.slot)?.label ?? booking.slot}`,
       `• Amount: ${formatPrice(subtotal)} + tax`,
       `• Delivery: ${selectedAddress ? formatAddressLine(selectedAddress) : ''}`,
+    ]
+    if (booking.comments.trim()) {
+      lines.push(`• Comments: ${booking.comments.trim()}`)
+    }
+    lines.push(
       '',
       'Complete UPI payment on the next screen to confirm your booking.',
-    ].join('\n')
+    )
+    return lines.join('\n')
   }
 
   const customerWhatsAppPhone = (): string | null => {
@@ -278,206 +281,210 @@ export default function OnamSpecialPage() {
   if (!showOffer) return null
 
   return (
-    <div className="bg-[#f7f1e3]">
-      <div className="relative overflow-hidden">
-        <LazyImage
-          src={ONAM_SADHYA.imageUrl}
-          alt="Traditional Kerala Onam Sadhya on a banana leaf"
-          eager
-          imageWidth={1400}
-          className="h-[42vh] w-full object-cover object-center md:h-[52vh]"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
-        <Container as="div" className="absolute inset-x-0 bottom-0 pb-8 pt-16">
-          <Badge className="bg-accent text-text-primary">
-            {ONAM_SADHYA.kicker}
-          </Badge>
-          <h1 className="mt-3 font-heading text-3xl font-bold text-white md:text-5xl">
-            {ONAM_SADHYA.title}
-          </h1>
-          <p className="mt-2 max-w-xl text-sm text-white/90 md:text-base">
-            {ONAM_SADHYA.headline}
+    <div className="min-h-[calc(100svh-72px)] bg-[#f4f0e8]">
+      <Container as="div" className="py-5 sm:py-7 md:py-10">
+        <section className="rounded-2xl border border-[#e4d9c4] bg-surface p-5 shadow-[0_8px_30px_rgba(40,28,12,0.06)] sm:p-6">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary">
+            {ONAM_SADHYA.restaurant}
           </p>
-        </Container>
-      </div>
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-text-secondary sm:text-base">
+            {ONAM_SADHYA.description}
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2.5">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-sm font-medium text-text-primary">
+              <CalendarDays className="h-4 w-4 text-primary" />
+              25 &amp; 26 August
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1.5 text-sm font-medium text-success">
+              <Leaf className="h-4 w-4" />
+              Vegetarian sadhya
+            </span>
+          </div>
+        </section>
 
-      <Container as="div" className="py-8 md:py-12">
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start">
-          <section className="space-y-6">
-            <div className="rounded-[var(--radius-card)] bg-surface p-5 shadow-sm md:p-6">
-              <p className="text-sm font-medium uppercase tracking-widest text-primary">
-                {ONAM_SADHYA.restaurant}
-              </p>
-              <p className="mt-2 text-text-secondary">
-                {ONAM_SADHYA.description}
-              </p>
-              <div className="mt-4 flex flex-wrap gap-3 text-sm text-text-primary">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1">
-                  <CalendarDays className="h-4 w-4 text-primary" />
-                  25 & 26 August
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1 text-success">
-                  <Leaf className="h-4 w-4" />
-                  Vegetarian sadhya
-                </span>
+        <div className="mt-5 grid gap-5 md:mt-6 md:gap-6 lg:grid-cols-2 lg:items-stretch">
+          <aside className="order-1 flex h-full flex-col overflow-hidden rounded-2xl border border-[#e4d9c4] bg-surface shadow-[0_8px_30px_rgba(40,28,12,0.06)] lg:order-2">
+            <div className="border-b border-[#efe6d6] bg-gradient-to-br from-primary/[0.08] via-surface to-surface px-5 py-4 sm:px-6">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <h1 className="font-heading text-2xl font-bold tracking-tight text-text-primary sm:text-3xl">
+                    Pre-book now
+                  </h1>
+                  <p className="mt-1 text-sm text-text-secondary">
+                    Parcel / delivery · prices per plate + tax
+                  </p>
+                </div>
+                <p className="font-heading text-2xl font-bold text-primary sm:text-3xl">
+                  {formatPrice(service.price)}
+                  <span className="ml-1.5 font-body text-xs font-medium text-text-secondary">
+                    / plate
+                  </span>
+                </p>
               </div>
             </div>
 
-            <div className="rounded-[var(--radius-card)] bg-surface p-5 shadow-sm md:p-6">
-              <h2 className="font-heading text-xl font-semibold">
-                Onam Sadhya includes
-              </h2>
-              <p className="mt-1 text-sm text-text-secondary">
-                28 traditional items served on banana leaf.
-              </p>
-              <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm text-text-primary sm:grid-cols-3">
-                {ONAM_SADHYA.includes.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </div>
-          </section>
-
-          <aside className="rounded-[var(--radius-card)] bg-surface p-5 shadow-md md:sticky md:top-24 md:p-6">
-            <h2 className="font-heading text-xl font-semibold">Pre-book now</h2>
-            <p className="mt-1 text-sm text-text-secondary">
-              Prices are per plate, plus tax.
-            </p>
-
-            <div className="mt-5 rounded-[var(--radius-button)] border border-primary bg-primary/5 p-3">
-              <p className="text-sm font-semibold">{service.label}</p>
-              <p className="mt-1 text-lg font-bold text-primary">
-                {formatPrice(service.price)}
-                <span className="ml-1 text-xs font-medium text-text-secondary">
-                  + tax per plate
-                </span>
-              </p>
-            </div>
-
-            <div className="mt-5 space-y-4">
-              <Select
-                label="Celebration date"
-                value={prebook.date}
-                onChange={(event) => update({ date: event.target.value })}
-                options={ONAM_SADHYA.dates.map((date) => ({
-                  value: date.value,
-                  label: date.label,
-                }))}
-              />
-              <Select
-                label="Time slot"
-                value={prebook.slot}
-                onChange={(event) => update({ slot: event.target.value })}
-                options={slots.map((slot) => ({
-                  value: slot.value,
-                  label: slot.label,
-                }))}
-              />
-
-              <div>
-                <p className="mb-2 text-sm font-medium text-text-primary">
-                  Number of plates
-                </p>
-                <div className="flex items-center justify-between rounded-[var(--radius-input)] border border-gray-300 px-2">
-                  <button
-                    type="button"
-                    className="flex h-11 w-11 items-center justify-center text-text-secondary hover:text-primary"
-                    aria-label="Fewer plates"
-                    disabled={prebook.plates <= ONAM_SADHYA.minPlates}
-                    onClick={() =>
-                      update({ plates: clampOnamPlates(prebook.plates - 1) })
-                    }
-                  >
-                    <Minus className="h-4 w-4" />
-                  </button>
-                  <span className="min-w-10 text-center text-lg font-semibold tabular-nums">
-                    {prebook.plates}
-                  </span>
-                  <button
-                    type="button"
-                    className="flex h-11 w-11 items-center justify-center text-text-secondary hover:text-primary"
-                    aria-label="More plates"
-                    disabled={prebook.plates >= ONAM_SADHYA.maxPlates}
-                    onClick={() =>
-                      update({ plates: clampOnamPlates(prebook.plates + 1) })
-                    }
-                  >
-                    <Plus className="h-4 w-4" />
-                  </button>
+            <div className="flex flex-1 flex-col gap-4 px-5 py-5 sm:px-6 sm:py-5">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+                <Select
+                  compact
+                  label="Celebration date"
+                  value={prebook.date}
+                  onChange={(event) => update({ date: event.target.value })}
+                  options={ONAM_SADHYA.dates.map((date) => ({
+                    value: date.value,
+                    label: date.label,
+                  }))}
+                />
+                <div>
+                  <p className="mb-0.5 text-xs font-medium text-text-primary">
+                    Pickup / delivery date
+                  </p>
+                  <div className="flex h-9 items-center rounded-[var(--radius-input)] border border-gray-200 bg-background/80 px-2.5 text-sm text-text-primary">
+                    {onamDateLabel(prebook.date)}
+                  </div>
                 </div>
               </div>
 
-              <Input
-                label="Your name (optional)"
-                autoComplete="name"
-                value={prebook.customerName}
-                onChange={(event) =>
-                  update({ customerName: event.target.value })
-                }
-              />
-            </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+                <Select
+                  compact
+                  label="Time slot"
+                  value={prebook.slot}
+                  onChange={(event) => update({ slot: event.target.value })}
+                  options={slots.map((slot) => ({
+                    value: slot.value,
+                    label: slot.label,
+                  }))}
+                />
+                <div>
+                  <p className="mb-0.5 text-xs font-medium text-text-primary">
+                    Number of plates
+                  </p>
+                  <div className="flex h-9 items-center justify-between rounded-[var(--radius-input)] border border-gray-300 bg-background/60 px-1">
+                    <button
+                      type="button"
+                      className="flex h-8 w-8 items-center justify-center text-text-secondary transition-colors hover:text-primary"
+                      aria-label="Fewer plates"
+                      disabled={prebook.plates <= ONAM_SADHYA.minPlates}
+                      onClick={() =>
+                        update({ plates: clampOnamPlates(prebook.plates - 1) })
+                      }
+                    >
+                      <Minus className="h-3.5 w-3.5" />
+                    </button>
+                    <span className="min-w-8 text-center text-base font-semibold tabular-nums">
+                      {prebook.plates}
+                    </span>
+                    <button
+                      type="button"
+                      className="flex h-8 w-8 items-center justify-center text-text-secondary transition-colors hover:text-primary"
+                      aria-label="More plates"
+                      disabled={prebook.plates >= ONAM_SADHYA.maxPlates}
+                      onClick={() =>
+                        update({ plates: clampOnamPlates(prebook.plates + 1) })
+                      }
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
 
-            {isAuthenticated ? (
-              <OnamDeliveryAddress
-                selectedAddressId={selectedAddressId}
-                onSelect={setSelectedAddressId}
-                onLoadingChange={setIsAddressLoading}
-                requestAddAddress={requestAddAddress}
+              <Textarea
+                compact
+                label="Additional comments (optional)"
+                rows={2}
+                placeholder="Gate code, allergies, spice preference…"
+                value={prebook.comments}
+                onChange={(event) => update({ comments: event.target.value })}
+                className="min-h-[64px] resize-y"
               />
-            ) : !isAuthLoading ? (
-              <p className="mt-5 text-sm text-text-secondary">
-                After you sign in, confirm your delivery address or add a new
-                one.
-              </p>
-            ) : null}
 
-            <div className="mt-5 rounded-[var(--radius-button)] bg-background px-4 py-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-text-secondary">
-                  {prebook.plates} × {formatPrice(service.price)}
-                </span>
-                <span className="font-semibold text-text-primary">
-                  {formatPrice(subtotal)} + tax
-                </span>
+              {isAuthenticated ? (
+                <OnamDeliveryAddress
+                  selectedAddressId={selectedAddressId}
+                  onSelect={setSelectedAddressId}
+                  onLoadingChange={setIsAddressLoading}
+                  requestAddAddress={requestAddAddress}
+                />
+              ) : !isAuthLoading ? (
+                <p className="rounded-[var(--radius-button)] bg-background px-3 py-2.5 text-sm leading-relaxed text-text-secondary">
+                  Sign in to confirm delivery address, then place your order.
+                </p>
+              ) : null}
+
+              <div className="mt-auto space-y-3 pt-1">
+                <div className="flex items-center justify-between rounded-[var(--radius-button)] bg-[#f7f1e3] px-4 py-2.5 text-sm">
+                  <span className="text-text-secondary">
+                    {prebook.plates} × {formatPrice(service.price)}
+                  </span>
+                  <span className="font-semibold text-text-primary">
+                    {formatPrice(subtotal)} + tax
+                  </span>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="primary"
+                  fullWidth
+                  size="lg"
+                  disabled={
+                    isUpdating ||
+                    isPlacingOrder ||
+                    (isAuthenticated && isAddressLoading)
+                  }
+                  onClick={() => void placeOnamWhatsAppOrder(true)}
+                >
+                  {isPlacingOrder
+                    ? 'Placing order…'
+                    : isUpdating
+                      ? 'Preparing details…'
+                      : isAuthenticated && isAddressLoading
+                        ? 'Loading address…'
+                        : 'Send order on WhatsApp'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  fullWidth
+                  onClick={() => void sharePage()}
+                >
+                  <Share2 className="h-4 w-4" />
+                  Share this offer
+                </Button>
+                <p className="text-center text-xs leading-relaxed text-text-secondary">
+                  Opens WhatsApp with your order, then UPI payment on the next
+                  screen.
+                </p>
               </div>
             </div>
-
-            <div className="mt-5 space-y-3">
-              <Button
-                type="button"
-                variant="primary"
-                fullWidth
-                size="lg"
-                disabled={
-                  isUpdating ||
-                  isPlacingOrder ||
-                  (isAuthenticated && isAddressLoading)
-                }
-                onClick={() => void placeOnamWhatsAppOrder(true)}
-              >
-                {isPlacingOrder
-                  ? 'Placing order…'
-                  : isUpdating
-                    ? 'Preparing details…'
-                    : isAuthenticated && isAddressLoading
-                      ? 'Loading address…'
-                      : 'Send order on WhatsApp'}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                fullWidth
-                onClick={() => void sharePage()}
-              >
-                <Share2 className="h-4 w-4" />
-                Share this offer
-              </Button>
-            </div>
-            <p className="mt-3 text-xs text-text-secondary">
-              Places your order, opens WhatsApp to your mobile number with order
-              details, then shows UPI payment on the next screen.
-            </p>
           </aside>
+
+          <section className="order-2 flex h-full flex-col overflow-hidden rounded-2xl border border-[#e4d9c4] bg-surface shadow-[0_8px_30px_rgba(40,28,12,0.06)] lg:order-1">
+            <div className="border-b border-[#efe6d6] px-5 py-4 sm:px-6">
+              <h2 className="font-heading text-2xl font-bold tracking-tight text-text-primary sm:text-3xl">
+                Onam Sadhya includes
+              </h2>
+              <p className="mt-1 text-sm text-text-secondary">
+                28 traditional items served on banana leaf
+              </p>
+            </div>
+
+            <ul className="grid flex-1 grid-cols-1 content-start gap-2 p-4 sm:grid-cols-2 sm:gap-2.5 sm:p-5 lg:grid-cols-2 xl:grid-cols-3">
+              {ONAM_SADHYA.includes.map((item) => (
+                <li
+                  key={item}
+                  className="flex items-start gap-2 rounded-xl bg-[#f7f1e3]/80 px-3 py-2.5 text-sm text-text-primary"
+                >
+                  <Leaf
+                    className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success"
+                    aria-hidden
+                  />
+                  <span className="leading-snug">{item}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
         </div>
       </Container>
     </div>
