@@ -122,6 +122,40 @@ describe('recoverOAuthTenantHostIfNeeded', () => {
     expect(recoverOAuthTenantHostIfNeeded()).toBe(false)
     expect(replace).not.toHaveBeenCalled()
   })
+  it('bounces Taste of Andhra subdomain to Chopsticks when tenant is known', () => {
+    vi.stubGlobal('window', {
+      location: {
+        hostname: 'thetasteofandhra.directapp.in',
+        search: '?tenant=chopsticksspicemalabar',
+        hash: '#access_token=abc&refresh_token=def',
+        replace,
+      },
+    })
+
+    expect(recoverOAuthTenantHostIfNeeded()).toBe(true)
+    expect(replace).toHaveBeenCalledWith(
+      'https://chopsticksspicemalabar.directapp.in/login?tenant=chopsticksspicemalabar#access_token=abc&refresh_token=def',
+    )
+  })
+
+  it('bounces Taste of Andhra subdomain using the OAuth cookie alone', () => {
+    vi.stubGlobal('document', {
+      cookie: 'toa_oauth_tenant=chopsticksspicemalabar',
+    })
+    vi.stubGlobal('window', {
+      location: {
+        hostname: 'thetasteofandhra.directapp.in',
+        search: '',
+        hash: '',
+        replace,
+      },
+    })
+
+    expect(recoverOAuthTenantHostIfNeeded()).toBe(true)
+    expect(replace).toHaveBeenCalledWith(
+      'https://chopsticksspicemalabar.directapp.in/login?tenant=chopsticksspicemalabar',
+    )
+  })
 })
 
 describe('pendingOAuthTenantHandoff', () => {
@@ -144,6 +178,16 @@ describe('pendingOAuthTenantHandoff', () => {
     expect(
       pendingOAuthTenantHandoff(
         'www.thetasteofandhra.com',
+        '?tenant=chopsticksspicemalabar',
+      ),
+    ).toBe(true)
+  })
+
+  it('holds Taste of Andhra subdomain until Chopsticks is restored', () => {
+    vi.stubGlobal('document', { cookie: '' })
+    expect(
+      pendingOAuthTenantHandoff(
+        'thetasteofandhra.directapp.in',
         '?tenant=chopsticksspicemalabar',
       ),
     ).toBe(true)

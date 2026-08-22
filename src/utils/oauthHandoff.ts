@@ -22,6 +22,7 @@ import {
   isPlatformApexHost,
   isTasteOfAndhraCustomHost,
   resolveTenantSlugFromLocation,
+  slugFromHostname,
 } from '@/utils/tenantHost'
 
 /** Storefront origin to return the customer after Google OAuth. */
@@ -148,8 +149,20 @@ function shouldApplySessionHashOnThisHost(): boolean {
   if (typeof window === 'undefined') return false
   const hostname = window.location.hostname
   const tenant = resolveOAuthTenantSlug(window.location.search)
-  if (!tenant) return true
-  return hostServesTenant(hostname, tenant)
+
+  // Always hop first when the OAuth restaurant is known and this host is not it.
+  if (tenant) {
+    return hostServesTenant(hostname, tenant)
+  }
+
+  // Callback / Site URL hosts without a tenant must not consume the session —
+  // handoff needs the hash (or getSession) to copy to the restaurant.
+  if (isPlatformApexHost(hostname) || isTasteOfAndhraCustomHost(hostname)) {
+    return false
+  }
+
+  // Restaurant subdomain with no oauth tenant: apply for that restaurant.
+  return Boolean(slugFromHostname(hostname))
 }
 
 /** Apply `#access_token` tokens on the restaurant host (PKCE does not auto-set them). */
@@ -206,22 +219,30 @@ export function pendingOAuthTenantHandoff(
   ) {
     return true
   }
-  if (!isOAuthCompletionHost(hostname)) return false
 
   const tenant = resolveOAuthTenantSlug(search)
+  if (!tenant) return false
+  if (hostServesTenant(hostname, tenant)) return false
 
-  return Boolean(tenant && !hostServesTenant(hostname, tenant))
+  const hostSlug = slugFromHostname(hostname)
+  const mismatchedRestaurant =
+    Boolean(hostSlug) && hostSlug !== tenant.trim().toLowerCase()
+
+  if (!isOAuthCompletionHost(hostname) && !mismatchedRestaurant) {
+    return false
+  }
+
+  return true
 }
 
 /**
- * After Google returns to www / localhost, copy the session to the restaurant
- * host via a one-time URL hash, then sign out on the platform origin.
+ * After Google returns to www / localhost / a mismatched restaurant host,
+ * copy the session to the restaurant that started OAuth.
  */
 export async function handoffOAuthSessionToTenantIfNeeded(): Promise<boolean> {
   if (typeof window === 'undefined') return false
 
   const hostname = window.location.hostname
-  if (!isOAuthCompletionHost(hostname)) return false
   if (shouldContinueGoogleOAuth(window.location.search)) return false
 
   const params = new URLSearchParams(window.location.search)
@@ -234,6 +255,16 @@ export async function handoffOAuthSessionToTenantIfNeeded(): Promise<boolean> {
 
   if (!tenant) return false
   if (hostServesTenant(hostname, tenant) && !leaveTasteOfAndhra) {
+    return false
+  }
+
+  const hostSlug = slugFromHostname(hostname)
+  const mismatchedRestaurant =
+    Boolean(hostSlug) && hostSlug !== tenant.trim().toLowerCase()
+
+  // Hop from platform callback hosts, Taste of Andhra Site URL, or the wrong
+  // `{slug}.directapp.in` (e.g. landed on Taste of Andhra after Chopsticks Google login).
+  if (!isOAuthCompletionHost(hostname) && !mismatchedRestaurant) {
     return false
   }
 

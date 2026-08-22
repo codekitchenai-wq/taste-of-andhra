@@ -32,7 +32,8 @@
               currentSlug = parts[1]
             }
           }
-          if (currentSlug) return
+          // Already on the correct restaurant host.
+          if (currentSlug && currentSlug === tenant) return
           if (host === root || host === 'www.' + root) return
           if (
             host === 'thetasteofandhra.com' ||
@@ -40,6 +41,8 @@
           ) {
             return
           }
+          // Wrong restaurant subdomain (e.g. thetasteofandhra + ?tenant=chopsticks)
+          // or any other host: send Google OAuth returns to the right storefront.
           var hasCode = params.has('code') || params.has('access_token')
           var hash = location.hash || ''
           if (
@@ -48,7 +51,7 @@
           ) {
             hasCode = true
           }
-          var path = hasCode ? '/login' : location.pathname || '/'
+          var path = hasCode || currentSlug ? '/login' : location.pathname || '/'
           location.replace(
             'https://' + tenant + '.' + root + path + location.search + hash,
           )

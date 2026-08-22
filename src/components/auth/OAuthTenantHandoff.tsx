@@ -32,17 +32,17 @@ export function OAuthTenantHandoff() {
         return
       }
 
+      // Hop to the restaurant before consuming tokens on www / Taste of Andhra.
+      const handedOff = await handoffOAuthSessionToTenantIfNeeded()
+      if (handedOff) return
+
       if (!hashApplied.current) {
         const applied = await applySessionFromUrlHash()
         if (applied) {
           hashApplied.current = true
           await refreshUser()
-          return
         }
       }
-
-      if (isLoading) return
-      await handoffOAuthSessionToTenantIfNeeded()
     }
 
     void run()

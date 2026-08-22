@@ -282,49 +282,49 @@ export default function OnamSpecialPage() {
 
   return (
     <div className="min-h-[calc(100svh-72px)] bg-[#f4f0e8]">
-      <Container as="div" className="py-5 sm:py-7 md:py-10">
-        <section className="rounded-2xl border border-[#e4d9c4] bg-surface p-5 shadow-[0_8px_30px_rgba(40,28,12,0.06)] sm:p-6">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary">
+      <Container as="div" className="py-4 md:py-6 lg:py-7">
+        <section className="rounded-xl border border-[#e4d9c4] bg-surface p-4 shadow-[0_8px_30px_rgba(40,28,12,0.06)] md:p-5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary md:text-xs">
             {ONAM_SADHYA.restaurant}
           </p>
-          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-text-secondary sm:text-base">
+          <p className="mt-1.5 max-w-3xl text-xs leading-relaxed text-text-secondary md:text-sm">
             {ONAM_SADHYA.description}
           </p>
-          <div className="mt-4 flex flex-wrap gap-2.5">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-sm font-medium text-text-primary">
-              <CalendarDays className="h-4 w-4 text-primary" />
+          <div className="mt-3 flex flex-wrap gap-2">
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-text-primary">
+              <CalendarDays className="h-3.5 w-3.5 text-primary" />
               25 &amp; 26 August
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1.5 text-sm font-medium text-success">
-              <Leaf className="h-4 w-4" />
+            <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-1 text-xs font-medium text-success">
+              <Leaf className="h-3.5 w-3.5" />
               Vegetarian sadhya
             </span>
           </div>
         </section>
 
-        <div className="mt-5 grid gap-5 md:mt-6 md:gap-6 lg:grid-cols-2 lg:items-stretch">
-          <aside className="order-1 flex h-full flex-col overflow-hidden rounded-2xl border border-[#e4d9c4] bg-surface shadow-[0_8px_30px_rgba(40,28,12,0.06)] lg:order-2">
-            <div className="border-b border-[#efe6d6] bg-gradient-to-br from-primary/[0.08] via-surface to-surface px-5 py-4 sm:px-6">
-              <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="mt-4 grid gap-4 md:mt-5 md:gap-5 lg:grid-cols-2 lg:items-stretch">
+          <aside className="order-1 flex h-full flex-col overflow-hidden rounded-xl border border-[#e4d9c4] bg-surface shadow-[0_8px_30px_rgba(40,28,12,0.06)] lg:order-2">
+            <div className="border-b border-[#efe6d6] bg-gradient-to-br from-primary/[0.08] via-surface to-surface px-4 py-3 md:px-5">
+              <div className="flex flex-wrap items-end justify-between gap-2">
                 <div>
-                  <h1 className="font-heading text-2xl font-bold tracking-tight text-text-primary sm:text-3xl">
+                  <h1 className="font-heading text-xl font-bold tracking-tight text-text-primary md:text-[1.35rem]">
                     Pre-book now
                   </h1>
-                  <p className="mt-1 text-sm text-text-secondary">
+                  <p className="mt-0.5 text-xs text-text-secondary">
                     Parcel / delivery · prices per plate + tax
                   </p>
                 </div>
-                <p className="font-heading text-2xl font-bold text-primary sm:text-3xl">
+                <p className="font-heading text-xl font-bold text-primary md:text-[1.35rem]">
                   {formatPrice(service.price)}
-                  <span className="ml-1.5 font-body text-xs font-medium text-text-secondary">
+                  <span className="ml-1 font-body text-[11px] font-medium text-text-secondary">
                     / plate
                   </span>
                 </p>
               </div>
             </div>
 
-            <div className="flex flex-1 flex-col gap-4 px-5 py-5 sm:px-6 sm:py-5">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+            <div className="flex flex-1 flex-col gap-3 px-4 py-4 md:gap-3.5 md:px-5 md:py-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Select
                   compact
                   label="Celebration date"
@@ -339,13 +339,13 @@ export default function OnamSpecialPage() {
                   <p className="mb-0.5 text-xs font-medium text-text-primary">
                     Pickup / delivery date
                   </p>
-                  <div className="flex h-9 items-center rounded-[var(--radius-input)] border border-gray-200 bg-background/80 px-2.5 text-sm text-text-primary">
+                  <div className="flex h-9 items-center rounded-[var(--radius-input)] border border-gray-200 bg-background/80 px-2.5 text-xs text-text-primary md:text-sm">
                     {onamDateLabel(prebook.date)}
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Select
                   compact
                   label="Time slot"
@@ -372,7 +372,7 @@ export default function OnamSpecialPage() {
                     >
                       <Minus className="h-3.5 w-3.5" />
                     </button>
-                    <span className="min-w-8 text-center text-base font-semibold tabular-nums">
+                    <span className="min-w-8 text-center text-sm font-semibold tabular-nums">
                       {prebook.plates}
                     </span>
                     <button
@@ -397,7 +397,7 @@ export default function OnamSpecialPage() {
                 placeholder="Gate code, allergies, spice preference…"
                 value={prebook.comments}
                 onChange={(event) => update({ comments: event.target.value })}
-                className="min-h-[64px] resize-y"
+                className="min-h-[56px] resize-y text-xs md:text-sm"
               />
 
               {isAuthenticated ? (
@@ -408,13 +408,13 @@ export default function OnamSpecialPage() {
                   requestAddAddress={requestAddAddress}
                 />
               ) : !isAuthLoading ? (
-                <p className="rounded-[var(--radius-button)] bg-background px-3 py-2.5 text-sm leading-relaxed text-text-secondary">
+                <p className="rounded-[var(--radius-button)] bg-background px-3 py-2 text-xs leading-relaxed text-text-secondary md:text-sm">
                   Sign in to confirm delivery address, then place your order.
                 </p>
               ) : null}
 
-              <div className="mt-auto space-y-3 pt-1">
-                <div className="flex items-center justify-between rounded-[var(--radius-button)] bg-[#f7f1e3] px-4 py-2.5 text-sm">
+              <div className="mt-auto space-y-2.5 pt-1">
+                <div className="flex items-center justify-between rounded-[var(--radius-button)] bg-[#f7f1e3] px-3 py-2 text-xs md:text-sm">
                   <span className="text-text-secondary">
                     {prebook.plates} × {formatPrice(service.price)}
                   </span>
@@ -427,7 +427,7 @@ export default function OnamSpecialPage() {
                   type="button"
                   variant="primary"
                   fullWidth
-                  size="lg"
+                  size="md"
                   disabled={
                     isUpdating ||
                     isPlacingOrder ||
@@ -447,12 +447,13 @@ export default function OnamSpecialPage() {
                   type="button"
                   variant="ghost"
                   fullWidth
+                  size="sm"
                   onClick={() => void sharePage()}
                 >
-                  <Share2 className="h-4 w-4" />
+                  <Share2 className="h-3.5 w-3.5" />
                   Share this offer
                 </Button>
-                <p className="text-center text-xs leading-relaxed text-text-secondary">
+                <p className="text-center text-[11px] leading-relaxed text-text-secondary">
                   Opens WhatsApp with your order, then UPI payment on the next
                   screen.
                 </p>
@@ -460,24 +461,24 @@ export default function OnamSpecialPage() {
             </div>
           </aside>
 
-          <section className="order-2 flex h-full flex-col overflow-hidden rounded-2xl border border-[#e4d9c4] bg-surface shadow-[0_8px_30px_rgba(40,28,12,0.06)] lg:order-1">
-            <div className="border-b border-[#efe6d6] px-5 py-4 sm:px-6">
-              <h2 className="font-heading text-2xl font-bold tracking-tight text-text-primary sm:text-3xl">
+          <section className="order-2 flex h-full flex-col overflow-hidden rounded-xl border border-[#e4d9c4] bg-surface shadow-[0_8px_30px_rgba(40,28,12,0.06)] lg:order-1">
+            <div className="border-b border-[#efe6d6] px-4 py-3 md:px-5">
+              <h2 className="font-heading text-xl font-bold tracking-tight text-text-primary md:text-[1.35rem]">
                 Onam Sadhya includes
               </h2>
-              <p className="mt-1 text-sm text-text-secondary">
+              <p className="mt-0.5 text-xs text-text-secondary">
                 28 traditional items served on banana leaf
               </p>
             </div>
 
-            <ul className="grid flex-1 grid-cols-1 content-start gap-2 p-4 sm:grid-cols-2 sm:gap-2.5 sm:p-5 lg:grid-cols-2 xl:grid-cols-3">
+            <ul className="grid flex-1 grid-cols-2 content-start gap-1.5 p-3 sm:gap-2 sm:p-4 lg:grid-cols-2 xl:grid-cols-3">
               {ONAM_SADHYA.includes.map((item) => (
                 <li
                   key={item}
-                  className="flex items-start gap-2 rounded-xl bg-[#f7f1e3]/80 px-3 py-2.5 text-sm text-text-primary"
+                  className="flex items-start gap-1.5 rounded-lg bg-[#f7f1e3]/80 px-2 py-1.5 text-[11px] text-text-primary md:text-xs"
                 >
                   <Leaf
-                    className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success"
+                    className="mt-0.5 h-3 w-3 shrink-0 text-success"
                     aria-hidden
                   />
                   <span className="leading-snug">{item}</span>
