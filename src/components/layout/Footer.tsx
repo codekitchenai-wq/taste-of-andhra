@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Globe, Mail, MapPin, Phone, Share2 } from 'lucide-react'
-import { WhatsAppLink } from '@/components/ui/WhatsAppLink'
+import { ONAM_SADHYA } from '@/constants/ONAM_SADHYA'
+import { WhatsAppGlyph, WhatsAppLink } from '@/components/ui/WhatsAppLink'
 import {
   footerCustomerLinks,
   footerTestPersonaLinks,
@@ -30,6 +31,11 @@ export function Footer() {
   const showWhatsApp =
     Boolean(whatsApp.enabled && whatsApp.orderUrl) &&
     (!isLandingPage || isChopsticks)
+  const whatsappDisplayNumber = isChopsticks
+    ? `+91 ${ONAM_SADHYA.enquiryWhatsAppPhone.replace(/(\d{5})(\d{5})/, '$1 $2')}`
+    : contact.whatsappPhone?.trim() ||
+      contact.phone?.trim() ||
+      'WhatsApp'
   const socialLinks = storefrontSocialLinks(org)
   const blurb = contact.description
 
@@ -153,20 +159,14 @@ export function Footer() {
               ))}
               {showWhatsApp && whatsApp.orderUrl ? (
                 <li className="flex items-center gap-2">
-                  <WhatsAppLink
-                    href={whatsApp.orderUrl}
-                    variant="icon"
-                    className="h-8 w-8 shrink-0"
-                  >
-                    WhatsApp
-                  </WhatsAppLink>
+                  <WhatsAppGlyph className="h-4 w-4 shrink-0 text-[#25D366]" />
                   <a
                     href={whatsApp.orderUrl}
                     target="_blank"
                     rel="noreferrer"
                     className="hover:text-primary"
                   >
-                    WhatsApp
+                    {whatsappDisplayNumber}
                   </a>
                 </li>
               ) : null}
