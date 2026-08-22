@@ -1098,10 +1098,16 @@ export async function parseFssaiWithAi(input: {
     base: FssaiAiExtract,
     extra: FssaiAiExtract,
   ): FssaiAiExtract => {
-    const next = { ...base }
-    for (const key of Object.keys(empty) as (keyof typeof empty)[]) {
+    const next: FssaiAiExtract = { ...base }
+    for (const key of Object.keys(empty) as (keyof FssaiAiExtract)[]) {
       const value = extra[key]
-      if (value && !next[key]) next[key] = value
+      if (
+        value != null &&
+        value !== '' &&
+        (next[key] == null || next[key] === '')
+      ) {
+        Object.assign(next, { [key]: value })
+      }
     }
     return next
   }

@@ -35,7 +35,11 @@ describe('FoSCoS receipt PDF sample (real file)', () => {
       const content = await page.getTextContent()
       pdfText +=
         content.items
-          .map((item: { str?: string }) => item.str || '')
+          .map((item) =>
+            item && typeof item === 'object' && 'str' in item
+              ? String((item as { str?: string }).str ?? '')
+              : '',
+          )
           .join(' ') + '\n'
     }
 
