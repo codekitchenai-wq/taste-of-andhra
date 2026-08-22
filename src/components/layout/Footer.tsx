@@ -50,7 +50,7 @@ export function Footer() {
             <p className="mt-3 text-sm leading-relaxed text-text-secondary">
               {blurb}
             </p>
-            {socialLinks.length > 0 || showWhatsApp ? (
+            {socialLinks.length > 0 ? (
             <div className="mt-4 flex gap-3">
               {socialLinks.map((link) => (
               <a
@@ -68,11 +68,6 @@ export function Footer() {
                 )}
               </a>
               ))}
-              {showWhatsApp ? (
-                <WhatsAppLink href={whatsApp.orderUrl!} variant="icon" className="h-9 w-9">
-                  WhatsApp
-                </WhatsAppLink>
-              ) : null}
             </div>
             ) : null}
           </div>
