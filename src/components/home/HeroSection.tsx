@@ -48,8 +48,16 @@ export function HeroSection() {
               to={ROUTES.ONAM}
               className="inline-flex w-full shrink-0 motion-safe:animate-[onam-fade-up_0.75s_ease-out_0.15s_both] sm:w-auto"
             >
-              <Button size="lg" className="w-full sm:w-auto">
-                Pre-book Onam Sadhya
+              <Button
+                size="lg"
+                className="h-auto min-h-12 w-full py-2.5 sm:w-auto"
+              >
+                <span className="flex flex-col items-center leading-tight">
+                  <span>Pre-book Onam Sadhya</span>
+                  <span className="mt-0.5 text-[0.8em] font-normal opacity-90">
+                    ഓണം സദ്യ പ്രീ-ബുക്ക് ചെയ്യുക
+                  </span>
+                </span>
               </Button>
             </Link>
           </Container>
