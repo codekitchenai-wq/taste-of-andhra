@@ -45,6 +45,7 @@ import {
   GOOGLE_REVIEWS_WIDGET_SRC_SETTING_KEY,
   googleReviewsFromSettings,
   isPlausibleGooglePlaceId,
+  normalizeGooglePlaceRef,
   type GoogleReviewsConfig,
 } from '@/utils/googleReviews'
 import { normalizeIndianPhone } from '@/utils/phone'
@@ -703,13 +704,19 @@ export async function getGoogleReviewsSettings(): Promise<
 export async function setGoogleReviewsSettings(
   input: GoogleReviewsConfig,
 ): Promise<ServiceResponse<GoogleReviewsConfig>> {
-  const placeId = input.placeId.trim()
+  const placeId = normalizeGooglePlaceRef(input.placeId)
   const widgetSrc = input.widgetSrc.trim()
   const widgetClass = input.widgetClass.trim()
 
+  if (input.placeId.trim() && /maps\.app\.goo\.gl/i.test(input.placeId)) {
+    return createErrorResponse(
+      'Paste the full Google Maps place link (maps.google.com/place/…), not the short maps.app.goo.gl link. Open the short link once, then copy the address bar URL.',
+    )
+  }
+
   if (!isPlausibleGooglePlaceId(placeId)) {
     return createErrorResponse(
-      'Enter a valid Google Place ID (from Place ID Finder), or leave it blank.',
+      'Enter a Google Place ID (ChIJ…), a Maps place URL, or leave blank.',
     )
   }
 

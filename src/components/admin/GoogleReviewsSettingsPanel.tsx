@@ -98,23 +98,16 @@ export function GoogleReviewsSettingsPanel() {
 
       <div className="mt-4 grid max-w-xl gap-3">
         <Input
-          label="Google Place ID"
+          label="Google Place ID or Maps place URL"
           value={placeId}
           disabled={isSaving}
           onChange={(event) => setPlaceId(event.target.value)}
-          placeholder="ChIJ…"
+          placeholder="ChIJ… or https://www.google.com/maps/place/…"
         />
         <p className="text-xs text-text-secondary">
-          Find it in{' '}
-          <a
-            href="https://developers.google.com/maps/documentation/places/web-service/place-id"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium text-primary hover:text-primary-dark"
-          >
-            Google’s Place ID Finder
-          </a>
-          . Enables “Review us on Google” after orders.
+          Paste a Place ID, or open your listing in Google Maps → copy the full
+          place URL from the address bar (not a short maps.app.goo.gl link).
+          That enables “Review us on Google” after orders.
         </p>
 
         <Input

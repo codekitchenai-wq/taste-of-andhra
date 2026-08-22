@@ -320,7 +320,8 @@ async function main() {
       storefront_whatsapp_enabled: false,
       whatsapp_otp_login_enabled: false,
       // Admin → Settings → Google reviews (this restaurant only).
-      google_place_id: '',
+      // Feature id from https://maps.app.goo.gl/J4bsJuCEnAQPrmMn7
+      google_place_id: '0x3bc2c147612d2283:0x99931da5ee69218a',
       google_reviews_widget_src: '',
       google_reviews_widget_class: '',
       homepage: {
