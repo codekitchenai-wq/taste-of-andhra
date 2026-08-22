@@ -61,10 +61,10 @@ describe('google review URLs', () => {
     expect(googleWriteReviewUrl('')).toBe('')
   })
 
-  it('builds write link for Chopsticks feature id', () => {
-    expect(
-      googleWriteReviewUrl(CHOPSTICKS_SPICE_MALABAR_GOOGLE_PLACE_REF),
-    ).toContain(encodeURIComponent(CHOPSTICKS_SPICE_MALABAR_GOOGLE_PLACE_REF))
+  it('builds write link for Chopsticks feature id via Maps CID deep-link', () => {
+    const url = googleWriteReviewUrl(CHOPSTICKS_SPICE_MALABAR_GOOGLE_PLACE_REF)
+    expect(url.startsWith('https://www.google.com/maps?cid=')).toBe(true)
+    expect(url).toContain('#lrd=0x3bc2c147612d2283:0x99931da5ee69218a,3')
     expect(
       googleReadReviewsUrl(CHOPSTICKS_SPICE_MALABAR_GOOGLE_PLACE_REF),
     ).toContain('cid=')

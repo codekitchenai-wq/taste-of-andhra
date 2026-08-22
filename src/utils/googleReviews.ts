@@ -113,14 +113,35 @@ export function shouldShowGoogleReviewsSection(
 export function googleWriteReviewUrl(placeId: string): string {
   const id = normalizeGooglePlaceRef(placeId)
   if (!id) return ''
+
+  // `writereview?placeid=` only accepts Place IDs (ChIJ…). Feature ids from
+  // Maps share links need the Maps CID + LRD write deep-link (action 3).
+  if (FEATURE_ID_RE.test(id)) {
+    const cid = featureIdToCidDecimal(id)
+    if (!cid) return ''
+    return `https://www.google.com/maps?cid=${cid}#lrd=${id},3`
+  }
+
   return `https://search.google.com/local/writereview?placeid=${encodeURIComponent(id)}`
+}
+
+function featureIdToCidDecimal(featureId: string): string {
+  const hex = featureId.split(':')[1]
+  if (!hex) return ''
+  try {
+    return BigInt(hex).toString(10)
+  } catch {
+    return ''
+  }
 }
 
 export function googleReadReviewsUrl(placeId: string): string {
   const id = normalizeGooglePlaceRef(placeId)
   if (!id) return ''
   if (FEATURE_ID_RE.test(id)) {
-    return `https://www.google.com/maps?cid=${BigInt(id.split(':')[1]).toString(10)}`
+    const cid = featureIdToCidDecimal(id)
+    if (!cid) return ''
+    return `https://www.google.com/maps?cid=${cid}`
   }
   return `https://search.google.com/local/reviews?placeid=${encodeURIComponent(id)}`
 }
