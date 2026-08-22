@@ -13,6 +13,7 @@ import {
   showStorefrontQaHelpers,
   storefrontContact,
   storefrontSocialLinks,
+  isSpiceMalabarStorefront,
 } from '@/utils/storefrontCopy'
 import { useStorefrontWhatsApp } from '@/hooks/useStorefrontWhatsApp'
 import { useIsLandingPage } from '@/hooks/useIsLandingPage'
@@ -24,7 +25,11 @@ export function Footer() {
   const quickLinks = storefrontFooterQuickLinks(org)
   const whatsApp = useStorefrontWhatsApp()
   const isLandingPage = useIsLandingPage()
-  const showWhatsApp = whatsApp.enabled && whatsApp.orderUrl && !isLandingPage
+  const isChopsticks = isSpiceMalabarStorefront(org)
+  // Chopsticks keeps the Onam enquiry WhatsApp icon on the homepage footer.
+  const showWhatsApp =
+    Boolean(whatsApp.enabled && whatsApp.orderUrl) &&
+    (!isLandingPage || isChopsticks)
   const socialLinks = storefrontSocialLinks(org)
   const blurb = contact.description
 
@@ -146,11 +151,23 @@ export function Footer() {
                   </a>
                 </li>
               ))}
-              {showWhatsApp ? (
-                <li>
-                  <WhatsAppLink href={whatsApp.orderUrl!} variant="inline">
-                    Order on WhatsApp
+              {showWhatsApp && whatsApp.orderUrl ? (
+                <li className="flex items-center gap-2">
+                  <WhatsAppLink
+                    href={whatsApp.orderUrl}
+                    variant="icon"
+                    className="h-8 w-8 shrink-0"
+                  >
+                    WhatsApp
                   </WhatsAppLink>
+                  <a
+                    href={whatsApp.orderUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="hover:text-primary"
+                  >
+                    WhatsApp
+                  </a>
                 </li>
               ) : null}
               {contact.email ? (

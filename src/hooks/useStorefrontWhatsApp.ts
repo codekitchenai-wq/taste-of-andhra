@@ -1,27 +1,53 @@
 import { useOrganization } from '@/contexts/OrganizationContext'
+import { ONAM_SADHYA } from '@/constants/ONAM_SADHYA'
 import type { CartWithItems } from '@/types/Cart'
-import { storefrontContact } from '@/utils/storefrontCopy'
+import {
+  isSpiceMalabarStorefront,
+  storefrontContact,
+} from '@/utils/storefrontCopy'
 import {
   cartWhatsAppUrl,
   generalOrderWhatsAppUrl,
   storefrontWhatsAppPhone,
   storefrontWhatsAppUrl,
 } from '@/utils/storefrontWhatsApp'
+import { buildWhatsAppDeepLink } from '@/utils/websiteStarter'
 
 /** Customer-facing WhatsApp CTAs for the current tenant only. */
 export function useStorefrontWhatsApp() {
   const org = useOrganization()
   const contact = storefrontContact(org)
+  const isChopsticks = isSpiceMalabarStorefront(org)
+
+  // Chopsticks Onam enquiry: fixed number + bilingual pre-fill (footer icon).
+  const onamEnquiryUrl = isChopsticks
+    ? buildWhatsAppDeepLink(
+        ONAM_SADHYA.enquiryWhatsAppPhone,
+        ONAM_SADHYA.enquiryWhatsAppMessage,
+      )
+    : null
+
   const enabled =
-    org.storefrontWhatsAppEnabled && Boolean(storefrontWhatsAppPhone(contact))
+    Boolean(onamEnquiryUrl) ||
+    (org.storefrontWhatsAppEnabled && Boolean(storefrontWhatsAppPhone(contact)))
+
+  const orderUrl = onamEnquiryUrl
+    ? onamEnquiryUrl
+    : enabled
+      ? generalOrderWhatsAppUrl(contact)
+      : null
 
   return {
     enabled,
     contact,
-    orderUrl: enabled ? generalOrderWhatsAppUrl(contact) : null,
-    cartUrl: (cart: CartWithItems | null | undefined) =>
-      enabled && cart ? cartWhatsAppUrl(contact, cart) : null,
-    messageUrl: (message: string) =>
-      enabled ? storefrontWhatsAppUrl(contact, message) : null,
+    orderUrl,
+    cartUrl: (cart: CartWithItems | null | undefined) => {
+      if (onamEnquiryUrl) return onamEnquiryUrl
+      return enabled && cart ? cartWhatsAppUrl(contact, cart) : null
+    },
+    messageUrl: (message: string) => {
+      if (onamEnquiryUrl) return onamEnquiryUrl
+      return enabled ? storefrontWhatsAppUrl(contact, message) : null
+    },
   }
 }

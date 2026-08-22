@@ -10,31 +10,6 @@ import {
   isSpiceMalabarStorefront,
 } from '@/utils/storefrontCopy'
 import { formatPrice } from '@/utils/format'
-import { buildWhatsAppDeepLink } from '@/utils/websiteStarter'
-
-function BilingualCtaLabel({
-  english,
-  malayalam,
-  detail,
-}: {
-  english: string
-  malayalam: string
-  detail?: string
-}) {
-  return (
-    <span className="flex flex-col items-center leading-tight">
-      <span>{english}</span>
-      <span className="mt-0.5 text-[0.8em] font-normal opacity-90">
-        {malayalam}
-      </span>
-      {detail ? (
-        <span className="mt-0.5 text-[0.72em] font-normal opacity-80">
-          {detail}
-        </span>
-      ) : null}
-    </span>
-  )
-}
 
 export function HeroSection() {
   const org = useOrganization()
@@ -44,10 +19,6 @@ export function HeroSection() {
   if (isSpiceMalabar) {
     const dineIn = ONAM_SADHYA.services.dine_in.price
     const parcel = ONAM_SADHYA.services.parcel.price
-    const whatsappHref = buildWhatsAppDeepLink(
-      ONAM_SADHYA.enquiryWhatsAppPhone,
-      ONAM_SADHYA.enquiryWhatsAppMessage,
-    )
 
     return (
       <section className="bg-[#f3ead8]">
@@ -68,47 +39,19 @@ export function HeroSection() {
               <p className="font-heading text-lg font-semibold text-[#e8d5a3] sm:text-xl">
                 Pre-book {ONAM_SADHYA.title}
               </p>
-              <p className="mt-0.5 text-sm text-[#e8d5a3]/85">
-                ഓണം സദ്യ പ്രീ-ബുക്ക് ചെയ്യുക
-              </p>
               <p className="mt-1 text-sm text-white/80 sm:text-base">
                 25 &amp; 26 August · Dine-in {formatPrice(dineIn)} · Parcel{' '}
                 {formatPrice(parcel)}
               </p>
             </div>
-            <div className="flex w-full flex-col gap-3 motion-safe:animate-[onam-fade-up_0.75s_ease-out_0.15s_both] sm:w-auto sm:flex-row sm:items-stretch">
-              <Link to={ROUTES.ONAM} className="inline-flex w-full sm:w-auto">
-                <Button
-                  size="lg"
-                  className="h-auto min-h-12 w-full py-2.5 sm:w-auto"
-                >
-                  <BilingualCtaLabel
-                    english="Pre-book Onam Sadhya"
-                    malayalam="ഓണം സദ്യ പ്രീ-ബുക്ക് ചെയ്യുക"
-                  />
-                </Button>
-              </Link>
-              {whatsappHref ? (
-                <a
-                  href={whatsappHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex w-full sm:w-auto"
-                >
-                  <Button
-                    size="lg"
-                    variant="secondary"
-                    className="h-auto min-h-12 w-full border-[#e8d5a3] bg-transparent py-2.5 text-[#e8d5a3] hover:bg-[#e8d5a3]/10 sm:w-auto"
-                  >
-                    <BilingualCtaLabel
-                      english="Chat on WhatsApp"
-                      malayalam="വാട്ട്‌സ്ആപ്പിൽ ചോദിക്കുക"
-                      detail="+91 89289 45888"
-                    />
-                  </Button>
-                </a>
-              ) : null}
-            </div>
+            <Link
+              to={ROUTES.ONAM}
+              className="inline-flex w-full shrink-0 motion-safe:animate-[onam-fade-up_0.75s_ease-out_0.15s_both] sm:w-auto"
+            >
+              <Button size="lg" className="w-full sm:w-auto">
+                Pre-book Onam Sadhya
+              </Button>
+            </Link>
           </Container>
         </div>
       </section>
