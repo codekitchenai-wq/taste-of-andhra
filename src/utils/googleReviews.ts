@@ -15,6 +15,35 @@ export interface GoogleReviewsConfig {
   widgetClass: string
 }
 
+/** Parsed homepage widget mount target (class + optional SociableKIT embed id). */
+export interface GoogleReviewsWidgetMount {
+  className: string
+  embedId: string
+}
+
+/**
+ * Widget container field formats:
+ * - Elfsight: `elfsight-app-xxxxxxxx`
+ * - SociableKIT: `sk-ww-google-reviews|12345678` (class|embed-id)
+ * - Class only: `my-widget-class`
+ */
+export function parseGoogleReviewsWidgetMount(
+  widgetClass: string,
+): GoogleReviewsWidgetMount | null {
+  const trimmed = widgetClass.trim()
+  if (!trimmed) return null
+
+  const pipe = trimmed.indexOf('|')
+  if (pipe > 0) {
+    const className = trimmed.slice(0, pipe).trim()
+    const embedId = trimmed.slice(pipe + 1).trim()
+    if (!className) return null
+    return { className, embedId }
+  }
+
+  return { className: trimmed, embedId: '' }
+}
+
 function settingString(
   settings: Record<string, unknown> | null | undefined,
   key: string,

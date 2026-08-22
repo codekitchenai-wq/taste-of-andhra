@@ -8,6 +8,7 @@ import {
   isGoogleReviewsWidgetConfigured,
   isPlausibleGooglePlaceId,
   normalizeGooglePlaceRef,
+  parseGoogleReviewsWidgetMount,
   shouldShowGoogleReviewsSection,
 } from './googleReviews'
 
@@ -68,6 +69,24 @@ describe('google review URLs', () => {
     expect(
       googleReadReviewsUrl(CHOPSTICKS_SPICE_MALABAR_GOOGLE_PLACE_REF),
     ).toContain('cid=')
+  })
+})
+
+describe('parseGoogleReviewsWidgetMount', () => {
+  it('parses SociableKIT class|embed-id', () => {
+    expect(parseGoogleReviewsWidgetMount('sk-ww-google-reviews|25512345')).toEqual(
+      {
+        className: 'sk-ww-google-reviews',
+        embedId: '25512345',
+      },
+    )
+  })
+
+  it('parses class-only mounts', () => {
+    expect(parseGoogleReviewsWidgetMount('elfsight-app-abc')).toEqual({
+      className: 'elfsight-app-abc',
+      embedId: '',
+    })
   })
 })
 

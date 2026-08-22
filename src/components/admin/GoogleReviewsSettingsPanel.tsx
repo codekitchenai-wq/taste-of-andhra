@@ -115,11 +115,11 @@ export function GoogleReviewsSettingsPanel() {
           value={widgetSrc}
           disabled={isSaving}
           onChange={(event) => setWidgetSrc(event.target.value)}
-          placeholder="https://cdn.trustindex.io/loader.js?…"
+          placeholder="https://widgets.sociablekit.com/google-reviews/widget.js"
         />
         <p className="text-xs text-text-secondary">
-          From Elfsight, Trustindex, or similar. When set, the homepage embeds
-          live Google reviews for this restaurant.
+          SociableKIT: use their widget.js URL. Trustindex: their loader.js URL.
+          When set, the homepage embeds live Google reviews for this restaurant.
         </p>
 
         <Input
@@ -127,8 +127,15 @@ export function GoogleReviewsSettingsPanel() {
           value={widgetClass}
           disabled={isSaving}
           onChange={(event) => setWidgetClass(event.target.value)}
-          placeholder="elfsight-app-…"
+          placeholder="sk-ww-google-reviews|12345678"
         />
+        <p className="text-xs text-text-secondary">
+          SociableKIT free: paste{' '}
+          <code className="text-xs">sk-ww-google-reviews</code>
+          then <code className="text-xs">|</code> then your embed ID (from their
+          embed code’s <code className="text-xs">data-embed-id</code>). Elfsight:
+          paste only their <code className="text-xs">elfsight-app-…</code> class.
+        </p>
       </div>
 
       {previewWriteUrl ? (

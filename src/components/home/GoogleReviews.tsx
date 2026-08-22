@@ -10,6 +10,7 @@ import {
   googleWriteReviewUrl,
   isGooglePlaceConfigured,
   isGoogleReviewsWidgetConfigured,
+  parseGoogleReviewsWidgetMount,
   shouldShowGoogleReviewsSection,
 } from '@/utils/googleReviews'
 
@@ -50,6 +51,7 @@ export function GoogleReviews() {
 
   const writeUrl = googleWriteReviewUrl(config.placeId)
   const readUrl = googleReadReviewsUrl(config.placeId)
+  const widgetMount = parseGoogleReviewsWidgetMount(config.widgetClass)
 
   return (
     <section className="bg-surface py-12 md:py-16 lg:py-20">
@@ -61,8 +63,13 @@ export function GoogleReviews() {
 
         {showWidget ? (
           <div className="mt-10">
-            {config.widgetClass ? (
-              <div className={config.widgetClass} />
+            {widgetMount ? (
+              <div
+                className={widgetMount.className}
+                {...(widgetMount.embedId
+                  ? { 'data-embed-id': widgetMount.embedId }
+                  : {})}
+              />
             ) : null}
             <div ref={containerRef} />
           </div>
