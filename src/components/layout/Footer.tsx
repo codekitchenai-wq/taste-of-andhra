@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Globe, Mail, MapPin, Phone, Share2 } from 'lucide-react'
 import { ONAM_SADHYA } from '@/constants/ONAM_SADHYA'
-import { WhatsAppGlyph, WhatsAppLink } from '@/components/ui/WhatsAppLink'
+import { WhatsAppGlyph } from '@/components/ui/WhatsAppLink'
 import {
   footerCustomerLinks,
   footerTestPersonaLinks,
