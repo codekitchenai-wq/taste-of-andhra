@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  bridgeOAuthReturnFromTasteOfAndhraUrl,
   disabledTasteOfAndhraRedirectUrl,
   pendingOAuthTenantHandoff,
   recoverOAuthTenantHostIfNeeded,
@@ -240,5 +241,40 @@ describe('disabledTasteOfAndhraRedirectUrl', () => {
         hash: '#access_token=abc&refresh_token=def',
       }),
     ).toBe('https://www.directapp.in/login#access_token=abc&refresh_token=def')
+  })
+})
+
+describe('bridgeOAuthReturnFromTasteOfAndhraUrl', () => {
+  it('moves Google hash returns from Site URL onto www.directapp.in', () => {
+    expect(
+      bridgeOAuthReturnFromTasteOfAndhraUrl({
+        hostname: 'www.thetasteofandhra.com',
+        pathname: '/login',
+        search: '',
+        hash: '#access_token=abc&refresh_token=def',
+      }),
+    ).toBe('https://www.directapp.in/login#access_token=abc&refresh_token=def')
+  })
+
+  it('moves PKCE code returns from Site URL onto www.directapp.in', () => {
+    expect(
+      bridgeOAuthReturnFromTasteOfAndhraUrl({
+        hostname: 'thetasteofandhra.com',
+        pathname: '/login',
+        search: '?code=pkce-code',
+        hash: '',
+      }),
+    ).toBe('https://www.directapp.in/login?code=pkce-code')
+  })
+
+  it('does not bounce normal Taste of Andhra browsing', () => {
+    expect(
+      bridgeOAuthReturnFromTasteOfAndhraUrl({
+        hostname: 'www.thetasteofandhra.com',
+        pathname: '/login',
+        search: '',
+        hash: '',
+      }),
+    ).toBeNull()
   })
 })

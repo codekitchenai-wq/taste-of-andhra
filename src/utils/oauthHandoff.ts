@@ -86,9 +86,38 @@ export function disabledTasteOfAndhraRedirectUrl(location: {
   return `${PLATFORM_WWW_URL}${path}${location.search ?? ''}${location.hash ?? ''}`
 }
 
+/**
+ * Google often returns to the Taste of Andhra Site URL (*.thetasteofandhra.com).
+ * The oauth tenant cookie lives on `.directapp.in`, so move the return to www
+ * before the session is applied — even when the custom domain is enabled.
+ */
+export function bridgeOAuthReturnFromTasteOfAndhraUrl(location: {
+  hostname: string
+  pathname: string
+  search?: string
+  hash?: string
+}): string | null {
+  if (!isTasteOfAndhraCustomHost(location.hostname)) return null
+  if (!isGoogleOAuthReturn(location.search ?? '', location.hash ?? '')) {
+    return null
+  }
+
+  const path = location.pathname || '/login'
+  return `${PLATFORM_WWW_URL}${path}${location.search ?? ''}${location.hash ?? ''}`
+}
+
 export function redirectDisabledTasteOfAndhraHost(): boolean {
   if (typeof window === 'undefined') return false
   const url = disabledTasteOfAndhraRedirectUrl(window.location)
+  if (!url) return false
+  window.location.replace(url)
+  return true
+}
+
+/** Hop Google returns off thetasteofandhra.com onto www.directapp.in (cookie domain). */
+export function redirectOAuthReturnFromTasteOfAndhraHost(): boolean {
+  if (typeof window === 'undefined') return false
+  const url = bridgeOAuthReturnFromTasteOfAndhraUrl(window.location)
   if (!url) return false
   window.location.replace(url)
   return true
@@ -161,8 +190,15 @@ function shouldApplySessionHashOnThisHost(): boolean {
     return false
   }
 
-  // Restaurant subdomain with no oauth tenant: apply for that restaurant.
-  return Boolean(slugFromHostname(hostname))
+  const hostSlug = slugFromHostname(hostname)
+  // Taste of Andhra is the common Supabase Site URL host — never keep another
+  // restaurant's Google session here when the oauth tenant cookie/query is missing.
+  if (isTasteOfAndhraSlug(hostSlug)) {
+    return false
+  }
+
+  // Other restaurant subdomains with no oauth tenant: apply for that restaurant.
+  return Boolean(hostSlug)
 }
 
 /** Apply `#access_token` tokens on the restaurant host (PKCE does not auto-set them). */

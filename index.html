@@ -39,6 +39,19 @@
             host === 'thetasteofandhra.com' ||
             host === 'www.thetasteofandhra.com'
           ) {
+            // Google Site URL returns here; tenant cookie is on .directapp.in only.
+            var oauthReturn =
+              params.has('code') ||
+              params.has('error') ||
+              (location.hash || '').indexOf('access_token') !== -1
+            if (oauthReturn) {
+              location.replace(
+                'https://www.directapp.in' +
+                  (location.pathname || '/login') +
+                  location.search +
+                  location.hash,
+              )
+            }
             return
           }
           // Wrong restaurant subdomain (e.g. thetasteofandhra + ?tenant=chopsticks)
