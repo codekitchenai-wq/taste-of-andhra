@@ -41,4 +41,30 @@ describe('parseFssaiCertificateText', () => {
     expect(parsed.fssaiValidUntil).toBe('2026-12-28')
     expect(parsed.issuedOn).toBe('2023-12-29')
   })
+
+  it('fills fields from FoSCoS payment receipt (no licence number yet)', () => {
+    const receipt = `
+Government of Karnataka Food Safety and Standards Authority of India
+Food Safety Compliance System (FoSCoS) Receipt
+Reference No: 30251122122276946 Date: 22-11-2025
+Name of Company/ Organization: KORADA DEVI C/O The Taste Of Andhra
+Category of License: Registration [Karnataka] [New Registration]
+Premises Address: D 304 Harsha Pride, 6 Cross Kaggadaspura, CV Raman Nagar, K R Puram, B.B.M.P East, , Karnataka, 560093
+Kind of Business: Food Services - Petty Retailer of snacks/tea shops, Trade/Retail - Retailer
+Mode of Payment: Razorpay Registration Fee Rs 100 (1 Year(s)) Total Fee Paid: Rs 100.00
+`
+    const parsed = parseFssaiCertificateText(receipt)
+    expect(parsed.fssaiLicense).toBeNull()
+    expect(parsed.legalName?.toLowerCase()).toContain('taste of andhra')
+    expect(parsed.proprietorName?.toUpperCase()).toContain('KORADA')
+    expect(parsed.address?.toLowerCase()).toContain('harsha pride')
+    expect(parsed.state?.toLowerCase()).toContain('karnataka')
+    expect(parsed.pincode).toBe('560093')
+    expect(parsed.city?.toLowerCase()).toContain('bengaluru')
+    expect(parsed.issuedOn).toBe('2025-11-22')
+    expect(parsed.kindOfBusiness?.toLowerCase()).toContain('petty retailer')
+    // Registration Fee (1 Year(s)) → issued + 1 year
+    expect(parsed.fssaiValidUntil).toBe('2026-11-22')
+    expect(countParsedFields(parsed)).toBeGreaterThanOrEqual(6)
+  })
 })

@@ -6,22 +6,18 @@ import {
 } from '@/constants/ARCHITECTURE_GATES'
 import { ROUTES } from '@/constants/ROUTES'
 import {
-  approveStarterGoLive,
   checkOrganizationSlugAvailable,
   findFssaiDuplicates,
   FSSAI_EXTRACT_PATH_LABELS,
   hashCertificateFile,
   intakeWebsiteStarter,
-  listPendingStarterOrgs,
   parseFssaiWithAi,
   proposeAvailableSlug,
-  rejectStarterGoLive,
   uploadIntakeCertificate,
   uploadOrgMedia,
   type FssaiDuplicateMatch,
   type FssaiExtractPath,
   type StarterIntakeResult,
-  type StarterOrgSummary,
 } from '@/services/websiteStarterService'
 import { generateSlug } from '@/utils/slug'
 import { proposeDisplayName, proposeSlugBase } from '@/utils/websiteStarter'
@@ -52,7 +48,6 @@ export default function MasterStarterIntakePage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [created, setCreated] = useState<StarterIntakeResult | null>(null)
-  const [pending, setPending] = useState<StarterOrgSummary[]>([])
   const [certFile, setCertFile] = useState<File | null>(null)
   const [certPreviewUrl, setCertPreviewUrl] = useState<string | null>(null)
   const [extractNote, setExtractNote] = useState<string | null>(null)
@@ -129,15 +124,6 @@ export default function MasterStarterIntakePage() {
       window.clearTimeout(timer)
     }
   }, [slug])
-
-  async function refreshPending() {
-    const result = await listPendingStarterOrgs()
-    if (result.success) setPending(result.data)
-  }
-
-  useEffect(() => {
-    void refreshPending()
-  }, [])
 
   useEffect(() => {
     if (!certFile || !certFile.type.startsWith('image/')) {
@@ -294,7 +280,7 @@ export default function MasterStarterIntakePage() {
 
     const missingCore = [
       !d.legalName && 'legal name',
-      !d.fssaiLicense && 'licence',
+      !d.fssaiLicense && 'licence number (on Registration Certificate, not payment receipt)',
       !d.fssaiValidUntil && 'valid until',
     ].filter(Boolean) as string[]
 
@@ -302,11 +288,15 @@ export default function MasterStarterIntakePage() {
       setExtractNote(d.note)
     } else if (filled === 0) {
       setExtractNote(
-        'No fields detected. Use a sharper full-page photo, FoSCoS PDF, or enter details manually.',
+        'No fields detected. Prefer FoSCoS PDF (certificate or receipt), or enter details manually.',
+      )
+    } else if (missingCore.length && !d.legalName) {
+      setExtractNote(
+        `Filled ${filled} field(s). Still missing ${missingCore.join(', ')} — check those manually.`,
       )
     } else if (missingCore.length) {
       setExtractNote(
-        `Filled ${filled} field(s). Still missing ${missingCore.join(', ')} — check those manually.`,
+        `Filled ${filled} field(s). Optional next: ${missingCore.join(', ')}.`,
       )
     } else {
       setExtractNote(
@@ -330,6 +320,13 @@ export default function MasterStarterIntakePage() {
     if (slugAvailable === false) {
       setBusy(false)
       setError(`Slug “${chosenSlug}” is already taken. Choose another.`)
+      return
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fssaiValidUntil.trim())) {
+      setBusy(false)
+      setError(
+        'FSSAI valid until is required. Extract from the PDF or enter the date manually.',
+      )
       return
     }
 
@@ -395,7 +392,6 @@ export default function MasterStarterIntakePage() {
 
     setCreated(result.data)
     setBusy(false)
-    void refreshPending()
   }
 
   async function intakePatchCert(
@@ -406,33 +402,14 @@ export default function MasterStarterIntakePage() {
     const { updateStarterProfile } = await import(
       '@/services/websiteStarterService'
     )
-    await updateStarterProfile(organizationId, {
-      fssaiCertificateUrl: url,
-      fssaiCertificateHash: hash || undefined,
-    })
-  }
-
-  async function onApprove(orgId: string) {
-    setBusy(true)
-    const result = await approveStarterGoLive(orgId)
-    setBusy(false)
-    if (!result.success) {
-      setError(result.message)
-      return
-    }
-    void refreshPending()
-  }
-
-  async function onReject(orgId: string) {
-    const note = window.prompt('Optional note for the restaurant:') || undefined
-    setBusy(true)
-    const result = await rejectStarterGoLive(orgId, note)
-    setBusy(false)
-    if (!result.success) {
-      setError(result.message)
-      return
-    }
-    void refreshPending()
+    await updateStarterProfile(
+      organizationId,
+      {
+        fssaiCertificateUrl: url,
+        fssaiCertificateHash: hash || undefined,
+      },
+      { allowFssaiUpdate: true },
+    )
   }
 
   return (
@@ -443,9 +420,17 @@ export default function MasterStarterIntakePage() {
         </h1>
         <p className="mt-1 text-sm text-text-secondary">
           New restaurants only — does not change Taste of Andhra or Chopsticks.
-          Upload FSSAI, extract fields, create invite. Extra fields are optional.
+          Prefer FoSCoS PDF upload to prefill fields. FSSAI stays internal (not
+          on the public site). Go-live reviews live under Approvals. Owners can
+          also self-request at /starter (FSSAI required).
         </p>
-        <p className="mt-2 text-sm">
+        <p className="mt-2 flex flex-wrap gap-3 text-sm">
+          <Link
+            className="font-medium text-primary hover:underline"
+            to={ROUTES.MASTER.APPROVALS}
+          >
+            Open Approvals
+          </Link>
           <Link className="text-primary hover:underline" to={ROUTES.MASTER.ONBOARD}>
             Classic Growth onboard (CSV)
           </Link>
@@ -520,448 +505,377 @@ export default function MasterStarterIntakePage() {
         </div>
       )}
 
-      <form onSubmit={onSubmit} className="space-y-4 rounded border border-black/10 bg-surface p-4">
-        <h2 className="font-heading text-lg font-semibold">New intake</h2>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-2 rounded border border-black/10 bg-black/[0.02] p-3 sm:col-span-2">
-            <p className="text-sm font-medium">FSSAI certificate</p>
-            <p className="text-xs text-text-secondary">
-              <strong>Most accurate (recommended):</strong> upload the official
-              FoSCoS PDF (Download from foscos.fssai.gov.in) — we read the PDF
-              text for free. Phone photos of paper/screenshots are less reliable.
-              On a phone you can still <strong>Take photo</strong>; review every
-              field. Certificate file is saved for later reference.
-            </p>
-
-            <input
-              ref={cameraInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="sr-only"
-              aria-hidden
-              tabIndex={-1}
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (file) void onSelectCert(file, { autoExtract: true })
-              }}
-            />
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,application/pdf"
-              className="sr-only"
-              aria-hidden
-              tabIndex={-1}
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (file) void onSelectCert(file, { autoExtract: true })
-              }}
-            />
-
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => fileInputRef.current?.click()}
-                className="min-h-11 rounded bg-primary px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-              >
-                Choose FoSCoS PDF / file
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => cameraInputRef.current?.click()}
-                className="min-h-11 rounded border border-black/20 bg-white px-4 py-2.5 text-sm font-medium disabled:opacity-50"
-              >
-                Take photo
-              </button>
-            </div>
-
-            {certFile && (
-              <div className="flex flex-wrap items-center gap-3 rounded border border-black/10 bg-white p-2 text-sm">
-                {certPreviewUrl ? (
-                  <img
-                    src={certPreviewUrl}
-                    alt="FSSAI preview"
-                    className="h-20 w-20 rounded object-cover"
-                  />
-                ) : (
-                  <span className="rounded bg-black/5 px-2 py-1 text-xs">PDF</span>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{certFile.name}</p>
-                  <p className="text-xs text-text-secondary">
-                    {(certFile.size / 1024).toFixed(0)} KB
-                    {fssaiCertificateHash
-                      ? ` · hash ${fssaiCertificateHash.slice(0, 10)}…`
-                      : ''}
-                  </p>
-                  {fssaiCertificateUrl.startsWith('http') && (
-                    <a
-                      className="text-xs text-primary hover:underline"
-                      href={fssaiCertificateUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Saved for reference — open certificate
-                    </a>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  className="rounded border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50"
-                  onClick={clearCertificate}
-                >
-                  Remove file
-                </button>
-              </div>
-            )}
-            <label className="block text-sm">
-              Or public https URL
-              <input
-                className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-                value={
-                  fssaiCertificateUrl.includes(':\\')
-                    ? ''
-                    : fssaiCertificateUrl
-                }
-                onChange={(e) => setFssaiCertificateUrl(e.target.value)}
-                placeholder="https://…"
-              />
-            </label>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                disabled={busy || !canAiExtract}
-                onClick={() => void onAiExtract()}
-                className="rounded border border-primary/40 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary disabled:opacity-50"
-              >
-                {busy ? 'Extracting…' : 'Extract details'}
-              </button>
-              {!canAiExtract && (
-                <span className="text-xs text-text-secondary">
-                  Take a photo or choose a file first
-                </span>
-              )}
-            </div>
-            {extractNote && (
-              <p
-                className={
-                  /could not|error|failed|found no|little text|manually/i.test(
-                    extractNote,
-                  )
-                    ? 'text-xs text-amber-800'
-                    : 'text-xs text-emerald-800'
-                }
-              >
-                {extractNote}
-              </p>
-            )}
-            {SHOW_FSSAI_EXTRACT_PATH &&
-              (extractPath || extractAttempts.length > 0) && (
-                <div className="rounded border border-dashed border-black/20 bg-black/[0.03] p-3 text-xs text-text-secondary">
-                  <p className="font-semibold text-text-primary">
-                    Extract path (debug)
-                  </p>
-                  <p className="mt-1">
-                    Used:{' '}
-                    <span className="font-medium text-text-primary">
-                      {extractPath
-                        ? FSSAI_EXTRACT_PATH_LABELS[extractPath]
-                        : '—'}
-                    </span>
-                    {extractPath ? (
-                      <code className="ml-1 text-[10px] opacity-70">
-                        ({extractPath})
-                      </code>
-                    ) : null}
-                  </p>
-                  {extractAttempts.length > 0 && (
-                    <ol className="mt-2 list-inside list-decimal space-y-0.5 font-mono text-[11px]">
-                      {extractAttempts.map((step, index) => (
-                        <li key={`${index}-${step}`}>{step}</li>
-                      ))}
-                    </ol>
-                  )}
-                  <p className="mt-2 text-[10px] opacity-70">
-                    Hide later with VITE_SHOW_FSSAI_EXTRACT_PATH=false
-                  </p>
-                </div>
-              )}
-            {duplicates.length > 0 && (
-              <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
-                <p className="font-medium">Possible duplicate FSSAI</p>
-                <ul className="mt-1 list-inside list-disc text-xs">
-                  {duplicates.map((d) => (
-                    <li key={d.id}>
-                      {d.name} ({d.slug}) — match: {d.match}
-                      {d.fssai_license ? ` · ${d.fssai_license}` : ''}
-                    </li>
-                  ))}
-                </ul>
-                <label className="mt-2 flex items-center gap-2 text-xs">
-                  <input
-                    type="checkbox"
-                    checked={allowDuplicateFssai}
-                    onChange={(e) => setAllowDuplicateFssai(e.target.checked)}
-                  />
-                  Create anyway (override duplicate check)
-                </label>
-              </div>
-            )}
-          </div>
-
-          <label className="block text-sm sm:col-span-2">
-            Legal name (FSSAI) — locked after create
-            <input
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-              value={legalName}
-              onChange={(e) => setLegalName(e.target.value)}
-              placeholder="Filled from certificate when possible"
-            />
-          </label>
-          <label className="block text-sm">
-            Preferred store / display name
-            <input
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-              value={preferredStoreName}
-              onChange={(e) => setPreferredStoreName(e.target.value)}
-              placeholder="Shown on website"
-            />
-          </label>
-          <label className="block text-sm">
-            Proposed slug (editable)
-            <input
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2 font-mono text-sm"
-              value={slug}
-              onChange={(e) => {
-                setSlugTouched(true)
-                setSlug(generateSlug(e.target.value))
-              }}
-              placeholder="black-heaven-cafe"
-              autoComplete="off"
-              spellCheck={false}
-            />
-            <span className="mt-1 block text-xs text-text-secondary">
-              Site:{' '}
-              <span className="font-mono">{homepagePreview || '—'}</span>
-              {slugChecking && ' · checking…'}
-              {!slugChecking && slugAvailable === true && (
-                <span className="text-emerald-700"> · available</span>
-              )}
-              {!slugChecking && slugAvailable === false && (
-                <span className="text-red-700"> · taken — change slug</span>
-              )}
-            </span>
-          </label>
-          <label className="block text-sm">
-            FSSAI licence number
-            <input
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-              value={fssaiLicense}
-              onChange={(e) => setFssaiLicense(e.target.value)}
-            />
-          </label>
-          <label className="block text-sm">
-            FSSAI issued on
-            <input
-              type="date"
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-              value={fssaiIssuedOn}
-              onChange={(e) => setFssaiIssuedOn(e.target.value)}
-            />
-          </label>
-          <label className="block text-sm">
-            FSSAI valid until
-            <input
-              type="date"
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-              value={fssaiValidUntil}
-              onChange={(e) => setFssaiValidUntil(e.target.value)}
-            />
-          </label>
-          <label className="block text-sm sm:col-span-2">
-            Address (from FSSAI)
-            <input
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-              value={addressFromFssai}
-              onChange={(e) => setAddressFromFssai(e.target.value)}
-            />
-          </label>
-          <label className="block text-sm">
-            City
-            <input
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-            />
-          </label>
-          <label className="block text-sm">
-            State
-            <input
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-              value={state}
-              onChange={(e) => setState(e.target.value)}
-            />
-          </label>
-          <label className="block text-sm">
-            PIN code
-            <input
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-              value={pincode}
-              onChange={(e) => setPincode(e.target.value)}
-              inputMode="numeric"
-              maxLength={6}
-            />
-          </label>
-          <label className="block text-sm">
-            Proprietor / owner name
-            <input
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-              value={ownerName}
-              onChange={(e) => setOwnerName(e.target.value)}
-            />
-          </label>
-          <label className="block text-sm">
-            Owner email
-            <input
-              type="email"
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-              value={ownerEmail}
-              onChange={(e) => setOwnerEmail(e.target.value)}
-              placeholder="Optional — placeholder used if empty"
-            />
-          </label>
-          <label className="block text-sm">
-            Owner WhatsApp
-            <input
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-              value={ownerPhone}
-              onChange={(e) => setOwnerPhone(e.target.value)}
-              placeholder="Optional — needed for WhatsApp invite"
-            />
-          </label>
-          <label className="block text-sm sm:col-span-2">
-            Kind of business / cuisine
-            <input
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-              value={cuisineType}
-              onChange={(e) => setCuisineType(e.target.value)}
-              placeholder="From FSSAI Kind of Business, or cuisine type"
-            />
-          </label>
-          <label className="block text-sm sm:col-span-2">
-            Google Maps link
-            <input
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-              value={googleMapsUrl}
-              onChange={(e) => setGoogleMapsUrl(e.target.value)}
-            />
-          </label>
+      <form
+        onSubmit={onSubmit}
+        className="space-y-8 rounded border border-black/10 bg-surface p-5 sm:p-6"
+      >
+        <div>
+          <h2 className="font-heading text-lg font-semibold tracking-tight">
+            New intake
+          </h2>
+          <p className="mt-1 text-sm text-text-secondary">
+            Upload FoSCoS PDF first. Details below fill automatically when
+            possible — review, then add website invite fields.
+          </p>
         </div>
 
-        <button
-          type="submit"
-          disabled={busy || (duplicates.length > 0 && !allowDuplicateFssai) || slugAvailable === false}
-          className="rounded bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-        >
-          {busy ? 'Creating…' : 'Create Website Starter + invite'}
-        </button>
-        {duplicates.length > 0 && !allowDuplicateFssai && (
-          <p className="text-xs text-amber-800">
-            Enable “Create anyway” above to proceed with a duplicate FSSAI.
+        {/* Upload */}
+        <section className="space-y-3 border-b border-black/10 pb-6">
+          <h3 className="text-sm font-semibold text-text-primary">
+            1. FoSCoS document
+          </h3>
+          <p className="text-xs text-text-secondary">
+            Prefer the <strong>Registration Certificate</strong> PDF (has the
+            14-digit licence). A <strong>payment receipt</strong> still fills
+            name and address; add the licence number later. Not shown on the
+            public site.
           </p>
-        )}
+
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="sr-only"
+            aria-hidden
+            tabIndex={-1}
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) void onSelectCert(file, { autoExtract: true })
+            }}
+          />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/pdf,image/jpeg,image/png,image/webp"
+            className="sr-only"
+            aria-hidden
+            tabIndex={-1}
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) void onSelectCert(file, { autoExtract: true })
+            }}
+          />
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => fileInputRef.current?.click()}
+              className="min-h-11 rounded bg-primary px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              Upload FoSCoS PDF
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => cameraInputRef.current?.click()}
+              className="min-h-11 rounded border border-black/15 bg-white px-4 py-2.5 text-sm text-text-secondary disabled:opacity-50"
+            >
+              Photo fallback
+            </button>
+            <button
+              type="button"
+              disabled={busy || !canAiExtract}
+              onClick={() => void onAiExtract()}
+              className="min-h-11 rounded border border-black/15 px-4 py-2.5 text-sm font-medium disabled:opacity-50"
+            >
+              {busy ? 'Extracting…' : 'Re-extract'}
+            </button>
+          </div>
+
+          {certFile && (
+            <div className="flex flex-wrap items-center gap-3 rounded border border-black/10 bg-black/[0.02] p-3 text-sm">
+              {certPreviewUrl ? (
+                <img
+                  src={certPreviewUrl}
+                  alt=""
+                  className="h-16 w-16 rounded object-cover"
+                />
+              ) : (
+                <span className="rounded bg-black/5 px-2 py-1 text-xs">PDF</span>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium">{certFile.name}</p>
+                <p className="text-xs text-text-secondary">
+                  {(certFile.size / 1024).toFixed(0)} KB
+                </p>
+                {fssaiCertificateUrl.startsWith('http') && (
+                  <a
+                    className="text-xs text-primary hover:underline"
+                    href={fssaiCertificateUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open saved file
+                  </a>
+                )}
+              </div>
+              <button
+                type="button"
+                className="text-xs text-red-700 hover:underline"
+                onClick={clearCertificate}
+              >
+                Remove
+              </button>
+            </div>
+          )}
+
+          {extractNote && (
+            <p
+              className={
+                /could not|error|failed|found no|little text|manually|not this receipt/i.test(
+                  extractNote,
+                )
+                  ? 'text-sm text-amber-900'
+                  : 'text-sm text-emerald-800'
+              }
+            >
+              {extractNote}
+            </p>
+          )}
+
+          {SHOW_FSSAI_EXTRACT_PATH &&
+            (extractPath || extractAttempts.length > 0) && (
+              <details className="text-xs text-text-secondary">
+                <summary className="cursor-pointer font-medium">
+                  Extract debug
+                  {extractPath
+                    ? ` — ${FSSAI_EXTRACT_PATH_LABELS[extractPath]}`
+                    : ''}
+                </summary>
+                <ol className="mt-2 list-inside list-decimal space-y-0.5 font-mono">
+                  {extractAttempts.map((step, index) => (
+                    <li key={`${index}-${step}`}>{step}</li>
+                  ))}
+                </ol>
+              </details>
+            )}
+
+          {duplicates.length > 0 && (
+            <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+              <p className="font-medium">Possible duplicate FSSAI</p>
+              <ul className="mt-1 list-inside list-disc text-xs">
+                {duplicates.map((d) => (
+                  <li key={d.id}>
+                    {d.name} ({d.slug}) — {d.match}
+                    {d.fssai_license ? ` · ${d.fssai_license}` : ''}
+                  </li>
+                ))}
+              </ul>
+              <label className="mt-2 flex items-center gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  checked={allowDuplicateFssai}
+                  onChange={(e) => setAllowDuplicateFssai(e.target.checked)}
+                />
+                Create anyway
+              </label>
+            </div>
+          )}
+        </section>
+
+        {/* FSSAI fields first */}
+        <section className="space-y-4 border-b border-black/10 pb-6">
+          <h3 className="text-sm font-semibold text-text-primary">
+            2. Details from FSSAI
+          </h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block text-sm sm:col-span-2">
+              Legal name of FBO
+              <input
+                className="mt-1.5 w-full rounded border border-black/15 px-3 py-2"
+                value={legalName}
+                onChange={(e) => setLegalName(e.target.value)}
+                placeholder="Locked after create"
+              />
+            </label>
+            <label className="block text-sm sm:col-span-2">
+              Registration / Licence number
+              <input
+                className="mt-1.5 w-full rounded border border-black/15 px-3 py-2 font-mono"
+                value={fssaiLicense}
+                onChange={(e) => setFssaiLicense(e.target.value)}
+                placeholder="14 digits — blank on payment receipts"
+              />
+            </label>
+            <label className="block text-sm sm:col-span-2">
+              Premises address
+              <textarea
+                className="mt-1.5 w-full rounded border border-black/15 px-3 py-2"
+                rows={2}
+                value={addressFromFssai}
+                onChange={(e) => setAddressFromFssai(e.target.value)}
+              />
+            </label>
+            <label className="block text-sm">
+              City
+              <input
+                className="mt-1.5 w-full rounded border border-black/15 px-3 py-2"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+              />
+            </label>
+            <label className="block text-sm">
+              State
+              <input
+                className="mt-1.5 w-full rounded border border-black/15 px-3 py-2"
+                value={state}
+                onChange={(e) => setState(e.target.value)}
+              />
+            </label>
+            <label className="block text-sm">
+              Pincode
+              <input
+                className="mt-1.5 w-full rounded border border-black/15 px-3 py-2"
+                value={pincode}
+                onChange={(e) => setPincode(e.target.value)}
+                inputMode="numeric"
+                maxLength={6}
+              />
+            </label>
+            <label className="block text-sm">
+              Kind of business
+              <input
+                className="mt-1.5 w-full rounded border border-black/15 px-3 py-2"
+                value={cuisineType}
+                onChange={(e) => setCuisineType(e.target.value)}
+              />
+            </label>
+            <label className="block text-sm">
+              Issued on
+              <input
+                type="date"
+                className="mt-1.5 w-full rounded border border-black/15 px-3 py-2"
+                value={fssaiIssuedOn}
+                onChange={(e) => setFssaiIssuedOn(e.target.value)}
+              />
+            </label>
+            <label className="block text-sm">
+              Valid until (required)
+              <input
+                type="date"
+                required
+                className="mt-1.5 w-full rounded border border-black/15 px-3 py-2"
+                value={fssaiValidUntil}
+                onChange={(e) => setFssaiValidUntil(e.target.value)}
+              />
+              <span className="mt-1 block text-xs text-text-secondary">
+                From certificate “Valid Upto”, or receipt fee years from issue
+                date (e.g. 1 Year → +1 year). Used to pause the store when
+                expired.
+              </span>
+            </label>
+            <label className="block text-sm sm:col-span-2">
+              Proprietor / authorised person
+              <input
+                className="mt-1.5 w-full rounded border border-black/15 px-3 py-2"
+                value={ownerName}
+                onChange={(e) => setOwnerName(e.target.value)}
+              />
+            </label>
+          </div>
+        </section>
+
+        {/* Website & invite later */}
+        <section className="space-y-4">
+          <h3 className="text-sm font-semibold text-text-primary">
+            3. Website &amp; invite
+          </h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block text-sm">
+              Store / display name
+              <input
+                className="mt-1.5 w-full rounded border border-black/15 px-3 py-2"
+                value={preferredStoreName}
+                onChange={(e) => setPreferredStoreName(e.target.value)}
+                placeholder="Shown on the public site"
+              />
+            </label>
+            <label className="block text-sm">
+              URL slug
+              <input
+                className="mt-1.5 w-full rounded border border-black/15 px-3 py-2 font-mono text-sm"
+                value={slug}
+                onChange={(e) => {
+                  setSlugTouched(true)
+                  setSlug(generateSlug(e.target.value))
+                }}
+                placeholder="taste-of-andhra"
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <span className="mt-1 block text-xs text-text-secondary">
+                {homepagePreview || '—'}
+                {slugChecking && ' · checking…'}
+                {!slugChecking && slugAvailable === true && (
+                  <span className="text-emerald-700"> · available</span>
+                )}
+                {!slugChecking && slugAvailable === false && (
+                  <span className="text-red-700"> · taken</span>
+                )}
+              </span>
+            </label>
+            <label className="block text-sm">
+              Owner login email
+              <input
+                type="email"
+                className="mt-1.5 w-full rounded border border-black/15 px-3 py-2"
+                value={ownerEmail}
+                onChange={(e) => setOwnerEmail(e.target.value)}
+                required
+              />
+            </label>
+            <label className="block text-sm">
+              Owner WhatsApp / phone
+              <input
+                className="mt-1.5 w-full rounded border border-black/15 px-3 py-2"
+                value={ownerPhone}
+                onChange={(e) => setOwnerPhone(e.target.value)}
+              />
+            </label>
+            <label className="block text-sm sm:col-span-2">
+              Google Maps link
+              <input
+                className="mt-1.5 w-full rounded border border-black/15 px-3 py-2"
+                value={googleMapsUrl}
+                onChange={(e) => setGoogleMapsUrl(e.target.value)}
+                placeholder="Optional"
+              />
+            </label>
+          </div>
+        </section>
+
+        <div className="flex flex-wrap items-center gap-3 pt-2">
+          <button
+            type="submit"
+            disabled={
+              busy ||
+              (duplicates.length > 0 && !allowDuplicateFssai) ||
+              slugAvailable === false
+            }
+            className="rounded bg-primary px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {busy ? 'Creating…' : 'Create Website Starter + invite'}
+          </button>
+          {duplicates.length > 0 && !allowDuplicateFssai && (
+            <p className="text-xs text-amber-800">
+              Enable “Create anyway” above to proceed with a duplicate FSSAI.
+            </p>
+          )}
+        </div>
       </form>
 
-      <section className="space-y-3">
-        <h2 className="font-heading text-lg font-semibold">
-          Pending review / setup
-        </h2>
-        {pending.length === 0 ? (
-          <p className="text-sm text-text-secondary">No pending Website Starter tenants.</p>
-        ) : (
-          <div className="overflow-x-auto rounded border border-black/10">
-            <table className="min-w-full text-left text-sm">
-              <thead className="bg-black/5 text-xs uppercase tracking-wide text-text-secondary">
-                <tr>
-                  <th className="px-3 py-2">Restaurant</th>
-                  <th className="px-3 py-2">Onboarding</th>
-                  <th className="px-3 py-2">FSSAI</th>
-                  <th className="px-3 py-2">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pending.map((org) => (
-                  <tr key={org.id} className="border-t border-black/10">
-                    <td className="px-3 py-2">
-                      <div className="font-medium">{org.name}</div>
-                      <div className="font-mono text-xs text-text-secondary">
-                        {org.slug}
-                      </div>
-                      <div className="text-xs text-text-secondary">
-                        Legal: {org.legal_name || '—'}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2">{org.onboarding_status}</td>
-                    <td className="px-3 py-2 text-xs">
-                      {org.fssai_license || '—'}
-                      <br />
-                      {org.fssai_valid_until || 'no expiry'}
-                    </td>
-                    <td className="px-3 py-2 space-x-2">
-                      <Link
-                        className="text-primary hover:underline"
-                        to={ROUTES.MASTER.tenant(org.id)}
-                      >
-                        Open
-                      </Link>
-                      <Link
-                        className="text-primary hover:underline"
-                        to={ROUTES.MASTER.starterSetup(org.id)}
-                      >
-                        Continue setup
-                      </Link>
-                      {org.homepage_url && (
-                        <a
-                          className="text-primary hover:underline"
-                          href={org.homepage_url}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Site
-                        </a>
-                      )}
-                      {org.onboarding_status === 'pending_review' && (
-                        <>
-                          <button
-                            type="button"
-                            disabled={busy}
-                            className="text-emerald-700 hover:underline"
-                            onClick={() => void onApprove(org.id)}
-                          >
-                            Approve
-                          </button>
-                          <button
-                            type="button"
-                            disabled={busy}
-                            className="text-red-700 hover:underline"
-                            onClick={() => void onReject(org.id)}
-                          >
-                            Reject
-                          </button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      <p className="text-sm text-text-secondary">
+        After create, review go-live in{' '}
+        <Link
+          className="font-medium text-primary hover:underline"
+          to={ROUTES.MASTER.APPROVALS}
+        >
+          Approvals
+        </Link>
+        . Licence details stay internal.
+      </p>
     </div>
   )
 }

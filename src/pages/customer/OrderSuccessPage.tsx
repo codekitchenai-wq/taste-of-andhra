@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Container } from '@/components/ui/Container'
+import { GoogleReviewPrompt } from '@/components/orders/GoogleReviewPrompt'
 import { OrderNumberDisplay } from '@/components/orders/OrderNumberDisplay'
 import { ROUTES } from '@/constants/ROUTES'
 import * as paymentShareService from '@/services/paymentShareService'
@@ -158,6 +159,10 @@ export default function OrderSuccessPage() {
               Continue Shopping
             </Button>
           </Link>
+        </div>
+
+        <div className="mt-8 text-left">
+          <GoogleReviewPrompt />
         </div>
       </div>
     </Container>

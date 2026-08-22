@@ -33,6 +33,7 @@ import {
   PRODUCT_TRACK_SETTING_KEY,
   buildStarterWhatsAppInvite,
   galleryFromSettings,
+  normalizeFssaiLicense,
   proposeDisplayName,
   proposeSlugBase,
 } from '@/utils/websiteStarter'
@@ -257,7 +258,14 @@ export async function intakeWebsiteStarter(
     )
   }
 
-  const license = input.fssaiLicense?.trim() || ''
+  const fssaiValidUntil = input.fssaiValidUntil?.trim() || ''
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fssaiValidUntil)) {
+    return createErrorResponse(
+      'FSSAI valid until is required (YYYY-MM-DD). On payment receipts it is usually fee years from the receipt date — extract again or enter manually.',
+    )
+  }
+
+  const license = normalizeFssaiLicense(input.fssaiLicense)
   const hash = input.fssaiCertificateHash?.trim() || ''
   if ((license || hash) && !input.allowDuplicateFssai) {
     const dupes = await findFssaiDuplicates({ license, hash })
@@ -322,7 +330,7 @@ export async function intakeWebsiteStarter(
     ...baseInsert,
     legal_name: legalName || displayName,
     fssai_license: license || null,
-    fssai_valid_until: input.fssaiValidUntil?.trim() || null,
+    fssai_valid_until: fssaiValidUntil,
     fssai_certificate_url: input.fssaiCertificateUrl?.trim() || null,
     fssai_certificate_hash: hash || null,
     onboarding_status: 'pending_setup',
@@ -463,7 +471,7 @@ export async function intakeWebsiteStarter(
     setupUrl,
     ownerEmail,
     temporaryPassword: existingUser ? null : temporaryPassword,
-    fssaiValidUntil: input.fssaiValidUntil?.trim() || null,
+    fssaiValidUntil,
   })
 
   return createSuccessResponse({
@@ -575,6 +583,16 @@ export async function updateStarterProfile(
     fssaiValidUntil?: string
     fssaiCertificateUrl?: string
     fssaiCertificateHash?: string
+    /** Master-only: legal name from FSSAI certificate. */
+    legalName?: string
+    fssaiIssuedOn?: string
+  },
+  options?: {
+    /**
+     * Restaurant setup cannot change FSSAI fields. Master Approvals must
+     * pass true to apply licence / validity / certificate / legal name.
+     */
+    allowFssaiUpdate?: boolean
   },
 ): Promise<ServiceResponse<true>> {
   const { data: current, error: loadError } = await supabase
@@ -636,17 +654,26 @@ export async function updateStarterProfile(
   if (patch.address !== undefined) update.address = patch.address
   if (patch.tagline !== undefined) update.tagline = patch.tagline
   if (patch.description !== undefined) update.description = patch.description
-  if (patch.fssaiLicense !== undefined) {
-    update.fssai_license = patch.fssaiLicense
-  }
-  if (patch.fssaiValidUntil !== undefined) {
-    update.fssai_valid_until = patch.fssaiValidUntil || null
-  }
-  if (patch.fssaiCertificateUrl !== undefined) {
-    update.fssai_certificate_url = patch.fssaiCertificateUrl || null
-  }
-  if (patch.fssaiCertificateHash !== undefined) {
-    update.fssai_certificate_hash = patch.fssaiCertificateHash || null
+
+  // FSSAI / legal compliance — Master only (never public storefront fields)
+  if (options?.allowFssaiUpdate) {
+    if (patch.legalName?.trim()) update.legal_name = patch.legalName.trim()
+    if (patch.fssaiLicense !== undefined) {
+      update.fssai_license = normalizeFssaiLicense(patch.fssaiLicense) || null
+    }
+    if (patch.fssaiValidUntil !== undefined) {
+      update.fssai_valid_until = patch.fssaiValidUntil || null
+    }
+    if (patch.fssaiCertificateUrl !== undefined) {
+      update.fssai_certificate_url = patch.fssaiCertificateUrl || null
+    }
+    if (patch.fssaiCertificateHash !== undefined) {
+      update.fssai_certificate_hash = patch.fssaiCertificateHash || null
+    }
+    if (patch.fssaiIssuedOn !== undefined) {
+      settings.fssai_issued_on = patch.fssaiIssuedOn || null
+      update.settings = settings
+    }
   }
 
   const { error } = await supabase
@@ -683,6 +710,22 @@ export async function submitStarterForReview(
 export async function approveStarterGoLive(
   organizationId: string,
 ): Promise<ServiceResponse<true>> {
+  const { data: org, error: loadError } = await supabase
+    .from('organizations')
+    .select('fssai_valid_until')
+    .eq('id', organizationId)
+    .maybeSingle()
+
+  if (loadError) return createErrorResponse(loadError.message)
+  const until = org?.fssai_valid_until
+    ? String(org.fssai_valid_until).slice(0, 10)
+    : ''
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(until)) {
+    return createErrorResponse(
+      'Set FSSAI valid until before approving go-live (required for expiry tracking).',
+    )
+  }
+
   const { error } = await supabase
     .from('organizations')
     .update({
@@ -817,7 +860,7 @@ export async function findFssaiDuplicates(input: {
   hash?: string
   excludeOrganizationId?: string
 }): Promise<ServiceResponse<FssaiDuplicateMatch[]>> {
-  const license = input.license?.trim() || ''
+  const license = normalizeFssaiLicense(input.license)
   const hash = input.hash?.trim() || ''
   if (!license && !hash) return createSuccessResponse([])
 
@@ -978,7 +1021,8 @@ export async function parseFssaiWithAi(input: {
   }
 
   // 2) Official FoSCoS PDF (text layer) — most effective free path
-  if (input.file?.type === 'application/pdf') {
+  const { isPdfFile } = await import('@/utils/extractFssaiFromPdf')
+  if (input.file && isPdfFile(input.file)) {
     attempts.push('try: foscos_pdf_text')
     try {
       const { extractFssaiFromPdf } = await import('@/utils/extractFssaiFromPdf')
@@ -1015,7 +1059,7 @@ export async function parseFssaiWithAi(input: {
     }
   }
 
-  // 3) Photos / public URL — Gemini Flash first (core fields required to accept)
+  // 3) Photos / public URL — local OCR first (works offline), then Gemini Flash
   const { countParsedFields } = await import(
     '@/utils/parseFssaiCertificateText'
   )
@@ -1046,6 +1090,22 @@ export async function parseFssaiWithAi(input: {
         (fields.fssaiLicense && String(fields.fssaiLicense).trim()),
     )
 
+  /** Enough to prefill the form when Gemini is down (dates/address/etc.). */
+  const hasUsablePartial = (fields: FssaiAiExtract) =>
+    hasCore(fields) || countParsedFields(fields) >= 2
+
+  const mergeExtract = (
+    base: FssaiAiExtract,
+    extra: FssaiAiExtract,
+  ): FssaiAiExtract => {
+    const next = { ...base }
+    for (const key of Object.keys(empty) as (keyof typeof empty)[]) {
+      const value = extra[key]
+      if (value && !next[key]) next[key] = value
+    }
+    return next
+  }
+
   const mapCloud = (payload: CloudPayload): FssaiAiExtract => ({
     ...empty,
     legalName: payload.legalName ?? null,
@@ -1073,23 +1133,36 @@ export async function parseFssaiWithAi(input: {
     error: string | null
   }> {
     const invoke = await supabase.functions.invoke('fssai-ai-parse', { body })
-    const payload = (invoke.data ?? {}) as CloudPayload
+    let payload = (invoke.data ?? {}) as CloudPayload
+
+    // Non-2xx responses often put the real body on error.context
+    if (invoke.error && (!payload.error || Object.keys(payload).length === 0)) {
+      try {
+        const ctx = (
+          invoke.error as { context?: { json?: () => Promise<unknown> } }
+        ).context
+        if (ctx && typeof ctx.json === 'function') {
+          payload = (await ctx.json()) as CloudPayload
+        }
+      } catch {
+        // keep payload as-is
+      }
+    }
+
     const errorText =
       payload.error ||
-      (invoke.error ? invoke.error.message : null) ||
-      (/GEMINI_API_KEY not configured|OPENAI_API_KEY not configured/i.test(
-        String(payload.note ?? ''),
-      )
-        ? String(payload.note)
-        : null)
+      payload.note ||
+      (invoke.error ? invoke.error.message : null)
 
-    if (errorText) {
+    const blocked = /GEMINI_API_KEY not configured|OPENAI_API_KEY not configured|API_KEY_INVALID|API key not valid|not configured/i.test(
+      String(errorText ?? ''),
+    )
+
+    if (errorText && (blocked || payload.error || invoke.error)) {
       return {
         fields: mapCloud(payload),
-        blocked: /GEMINI_API_KEY not configured|OPENAI_API_KEY not configured|not configured/i.test(
-          errorText,
-        ),
-        error: errorText,
+        blocked,
+        error: String(errorText).slice(0, 400),
       }
     }
 
@@ -1110,6 +1183,42 @@ export async function parseFssaiWithAi(input: {
 
   let lastGeminiError: string | null = null
   let lastGeminiFields: FssaiAiExtract | null = null
+  let lastLocalFields: FssaiAiExtract | null = null
+
+  // Free offline path first — does not need Edge Functions
+  if (input.file?.type.startsWith('image/')) {
+    attempts.push('try: local_ocr')
+    try {
+      const { extractFssaiLocalFromFile } = await import(
+        '@/utils/extractFssaiLocal'
+      )
+      const local = await extractFssaiLocalFromFile(input.file)
+      const localExtract: FssaiAiExtract = {
+        ...empty,
+        ...local.fields,
+        certificateUrl: certificateUrl ?? null,
+        note: local.note,
+      }
+      lastLocalFields = localExtract
+      if (hasCore(localExtract)) {
+        attempts.push('ok: local_ocr (core fields)')
+        return createSuccessResponse(withPath(localExtract, 'local_ocr'))
+      }
+      if (hasUsablePartial(localExtract)) {
+        attempts.push(
+          `partial: local_ocr (${countParsedFields(localExtract)} fields)`,
+        )
+      } else {
+        attempts.push(
+          `skip: local_ocr (${countParsedFields(localExtract)} fields)`,
+        )
+      }
+    } catch (error) {
+      attempts.push(
+        `fail: local_ocr (${error instanceof Error ? error.message : 'error'})`,
+      )
+    }
+  }
 
   // Prefer already-uploaded HTTPS URL (reliable; avoids huge data-URL payloads)
   if (certificateUrl?.startsWith('http')) {
@@ -1121,8 +1230,11 @@ export async function parseFssaiWithAi(input: {
       attempts.push(`fail: gemini_https_url (${gemini.error.slice(0, 100)})`)
     } else if (hasCore(gemini.fields)) {
       attempts.push('ok: gemini_https_url (core fields)')
+      const merged = lastLocalFields
+        ? mergeExtract(gemini.fields, lastLocalFields)
+        : gemini.fields
       return createSuccessResponse(
-        withPath(gemini.fields, 'gemini_https_url'),
+        withPath(merged, 'gemini_https_url'),
       )
     } else {
       attempts.push(
@@ -1146,43 +1258,16 @@ export async function parseFssaiWithAi(input: {
       attempts.push(`fail: gemini_data_url (${gemini.error.slice(0, 100)})`)
     } else if (hasCore(gemini.fields)) {
       attempts.push('ok: gemini_data_url (core fields)')
-      return createSuccessResponse(withPath(gemini.fields, 'gemini_data_url'))
+      const merged = lastLocalFields
+        ? mergeExtract(gemini.fields, lastLocalFields)
+        : gemini.fields
+      return createSuccessResponse(withPath(merged, 'gemini_data_url'))
     } else {
       attempts.push(
         `partial: gemini_data_url (${countParsedFields(gemini.fields)} fields, no core)`,
       )
     }
-
-    // Local OCR only when it finds licence or legal name (avoid junk partials)
-    attempts.push('try: local_ocr')
-    try {
-      const { extractFssaiLocalFromFile } = await import(
-        '@/utils/extractFssaiLocal'
-      )
-      const local = await extractFssaiLocalFromFile(input.file)
-      if (hasCore(local.fields)) {
-        attempts.push('ok: local_ocr (core fields)')
-        return createSuccessResponse(
-          withPath(
-            {
-              ...empty,
-              ...local.fields,
-              certificateUrl: certificateUrl ?? null,
-              note: `${local.note} (Gemini did not return core fields${lastGeminiError ? `: ${lastGeminiError.slice(0, 120)}` : ''}).`,
-            },
-            'local_ocr',
-          ),
-        )
-      }
-      attempts.push(
-        `skip: local_ocr (${countParsedFields(local.fields)} fields, no core)`,
-      )
-    } catch (error) {
-      attempts.push(
-        `fail: local_ocr (${error instanceof Error ? error.message : 'error'})`,
-      )
-    }
-  } else if (input.file && input.file.type !== 'application/pdf') {
+  } else if (input.file && !isPdfFile(input.file)) {
     const uploaded = await uploadIntakeCertificate(input.file)
     if (!uploaded.success) return uploaded
     certificateUrl = uploaded.data
@@ -1202,17 +1287,49 @@ export async function parseFssaiWithAi(input: {
     }
   }
 
-  if (lastGeminiFields && countParsedFields(lastGeminiFields) >= 1) {
-    attempts.push('result: gemini_partial')
+  // Prefer the richest available partial (local OCR often wins when Edge Function is down)
+  const bestPartial = (() => {
+    const localCount = lastLocalFields
+      ? countParsedFields(lastLocalFields)
+      : 0
+    const geminiCount = lastGeminiFields
+      ? countParsedFields(lastGeminiFields)
+      : 0
+    if (localCount === 0 && geminiCount === 0) return null
+    if (localCount >= geminiCount && lastLocalFields) {
+      return mergeExtract(
+        lastLocalFields,
+        lastGeminiFields ?? empty,
+      )
+    }
+    if (lastGeminiFields) {
+      return mergeExtract(lastGeminiFields, lastLocalFields ?? empty)
+    }
+    return lastLocalFields
+  })()
+
+  if (bestPartial && hasUsablePartial(bestPartial)) {
+    const source =
+      lastLocalFields &&
+      countParsedFields(lastLocalFields) >=
+        countParsedFields(lastGeminiFields ?? empty)
+        ? 'local_ocr'
+        : lastGeminiError
+          ? 'gemini_partial'
+          : 'gemini_partial'
+    attempts.push(`result: ${source}_partial`)
     return createSuccessResponse(
       withPath(
         {
-          ...lastGeminiFields,
+          ...bestPartial,
+          certificateUrl: certificateUrl ?? bestPartial.certificateUrl ?? null,
           note:
-            lastGeminiFields.note ||
-            'Gemini returned partial fields — enter legal name / licence manually if blank.',
+            lastGeminiError && source === 'local_ocr'
+              ? `Filled ${countParsedFields(bestPartial)} field(s) from on-device OCR (Gemini unavailable: ${lastGeminiError.slice(0, 100)}). Add legal name / licence if blank.`
+              : bestPartial.note ||
+                `Filled ${countParsedFields(bestPartial)} field(s) — enter legal name / licence manually if blank.`,
         },
-        'gemini_partial',
+        source === 'local_ocr' ? 'local_ocr' : 'gemini_partial',
       ),
     )
   }
@@ -1224,7 +1341,7 @@ export async function parseFssaiWithAi(input: {
         {
           ...empty,
           certificateUrl: certificateUrl ?? null,
-          note: `Gemini extract failed: ${lastGeminiError.slice(0, 220)}. Use a clearer photo, FoSCoS PDF, or enter fields manually.`,
+          note: `Gemini extract failed: ${lastGeminiError.slice(0, 220)}. Prefer FoSCoS PDF upload, or enter fields manually. (Edge Function must be reachable for photo AI.)`,
         },
         'gemini_failed',
       ),

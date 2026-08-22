@@ -38,6 +38,36 @@ function normalizeDate(raw: string | null | undefined): string | null {
   return null
 }
 
+/** Add whole years to YYYY-MM-DD (calendar anniversary). */
+export function addYearsToIsoDate(
+  isoDate: string,
+  years: number,
+): string | null {
+  if (!years || years < 1 || years > 10) return null
+  const m = isoDate.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!m) return null
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])))
+  if (Number.isNaN(d.getTime())) return null
+  d.setUTCFullYear(d.getUTCFullYear() + years)
+  const y = d.getUTCFullYear()
+  const mo = String(d.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(d.getUTCDate()).padStart(2, '0')
+  return `${y}-${mo}-${day}`
+}
+
+/** FoSCoS receipt: "Registration Fee Rs 100 (1 Year(s))" */
+export function parseRegistrationFeeYears(raw: string): number | null {
+  const m =
+    raw.match(
+      /Registration\s*Fee[^()]{0,80}\(\s*(\d{1,2})\s*Year/i,
+    ) ||
+    raw.match(/\(\s*(\d{1,2})\s*Years?\s*\)/i)
+  if (!m) return null
+  const n = Number(m[1])
+  if (!Number.isFinite(n) || n < 1 || n > 10) return null
+  return n
+}
+
 function cleanLine(line: string): string {
   return line.replace(/\s+/g, ' ').trim()
 }
@@ -50,7 +80,7 @@ function fixOcrBusinessName(name: string): string {
       .replace(/\bCAFE\b/gi, 'CAFE')
       .replace(/\bFocd\b/gi, '')
       .replace(/\bFood\b/gi, '')
-      .replace(/[^A-Za-z0-9 &.'-]/g, ' '),
+      .replace(/[^A-Za-z0-9 &.'/-]/g, ' '),
   )
 }
 
@@ -65,34 +95,58 @@ function afterLabel(text: string, labels: RegExp): string | null {
 const INDIAN_STATES =
   /Andhra Pradesh|Arunachal Pradesh|Assam|Bihar|Chhattisgarh|Goa|Gujarat|Haryana|Himachal Pradesh|Jharkhand|Karnataka|Kerala|Madhya Pradesh|Maharashtra|Manipur|Meghalaya|Mizoram|Nagaland|Odisha|Punjab|Rajasthan|Sikkim|Tamil Nadu|Telangana|Tripura|Uttar Pradesh|Uttarakhand|West Bengal|Delhi|Jammu and Kashmir|Ladakh|Puducherry|Chandigarh/i
 
+/** True for FoSCoS payment / application receipts (not the Registration Certificate). */
+export function isFoscosReceiptText(raw: string): boolean {
+  return (
+    /\bReceipt\b/i.test(raw) &&
+    (/Reference\s*No/i.test(raw) ||
+      /Mode of Payment/i.test(raw) ||
+      /Total Fee Paid/i.test(raw))
+  )
+}
+
+function sliceUntil(text: string, stop: RegExp): string {
+  const m = text.match(stop)
+  if (!m || m.index == null) return cleanLine(text)
+  return cleanLine(text.slice(0, m.index))
+}
+
 export function parseFssaiCertificateText(raw: string): ParsedFssaiFields {
   const text = raw.replace(/\r/g, '\n')
   const compact = text.replace(/[ \t]+/g, ' ')
+  const isReceipt = isFoscosReceiptText(compact)
 
   let fssaiLicense: string | null = null
-  const licenseLabeled =
-    compact.match(
-      /Registration\s*Number[^0-9]{0,40}([12]\d{13})/i,
-    ) ||
-    compact.match(
-      /Hegarranon\s*Number[^0-9]{0,40}([12]\d{13})/i,
-    ) ||
-    compact.match(/Number[,:\s|]+([12]\d{13})/i)
-  if (licenseLabeled) fssaiLicense = licenseLabeled[1]
-  // OCR often splits digits or drops spaces: "22223020000424" / "22223 028000424"
-  if (!fssaiLicense) {
-    const digitBlob = compact.replace(/[^\d]/g, ' ')
-    const loose = digitBlob.match(/\b([12]\d{13})\b/)
-    if (loose) fssaiLicense = loose[1]
-  }
-  if (!fssaiLicense) {
-    // Allow one OCR gap inside a 14-digit licence near "Number"
-    const gappy = compact.match(
-      /Number[^0-9]{0,30}([12]\d{4,6})\D{0,2}(\d{7,10})/i,
-    )
-    if (gappy) {
-      const joined = `${gappy[1]}${gappy[2]}`.replace(/\D/g, '')
-      if (joined.length === 14) fssaiLicense = joined
+  // Never treat FoSCoS application / payment Reference No (often 17 digits, starts with 3)
+  // as the 14-digit FSSAI licence.
+  if (!isReceipt) {
+    const licenseLabeled =
+      compact.match(
+        /Registration\s*Number[^0-9]{0,40}([12]\d{13})/i,
+      ) ||
+      compact.match(
+        /Licence?\s*Number[^0-9]{0,40}([12]\d{13})/i,
+      ) ||
+      compact.match(
+        /Hegarranon\s*Number[^0-9]{0,40}([12]\d{13})/i,
+      ) ||
+      compact.match(/Number[,:\s|]+([12]\d{13})/i)
+    if (licenseLabeled) fssaiLicense = licenseLabeled[1]
+    // OCR often splits digits or drops spaces: "22223020000424" / "22223 028000424"
+    if (!fssaiLicense) {
+      const digitBlob = compact.replace(/[^\d]/g, ' ')
+      const loose = digitBlob.match(/\b([12]\d{13})\b/)
+      if (loose) fssaiLicense = loose[1]
+    }
+    if (!fssaiLicense) {
+      // Allow one OCR gap inside a 14-digit licence near "Number"
+      const gappy = compact.match(
+        /Number[^0-9]{0,30}([12]\d{4,6})\D{0,2}(\d{7,10})/i,
+      )
+      if (gappy) {
+        const joined = `${gappy[1]}${gappy[2]}`.replace(/\D/g, '')
+        if (joined.length === 14 && /^[12]/.test(joined)) fssaiLicense = joined
+      }
     }
   }
 
@@ -109,7 +163,7 @@ export function parseFssaiCertificateText(raw: string): ParsedFssaiFields {
     compact.match(
       /Valid\s*Upto[^0-9]{0,40}(\d{8})/i,
     )
-  const issuedOn =
+  let issuedOn =
     compact.match(
       /Issued\s*On[^0-9]{0,40}(\d{1,2}\s*[\/\-.\s]\s*\d{1,2}\s*[\/\-.\s]\s*\d{4})/i,
     ) ||
@@ -117,9 +171,21 @@ export function parseFssaiCertificateText(raw: string): ParsedFssaiFields {
     compact.match(
       /License\s*Issued\s*On[:\s]*(\d{1,2}\s*[\/\-.\s]\s*\d{1,2}\s*[\/\-.\s]\s*\d{4}|\d{8})/i,
     )
+  // FoSCoS receipt uses "Date:" for the payment / application date
+  if (!issuedOn) {
+    issuedOn = compact.match(
+      /(?:^|[\s|])Date[:\s]+(\d{1,2}\s*[\/\-.\s]\s*\d{1,2}\s*[\/\-.\s]\s*\d{4})/i,
+    )
+  }
 
   let kindOfBusiness =
     afterLabel(compact, /Kind\s*of\s*Business[:\s|]*/i) || null
+  if (kindOfBusiness) {
+    kindOfBusiness = sliceUntil(
+      kindOfBusiness,
+      /Mode of Payment|Registration Fee|Total Fee Paid|Photo\s*Identity|Registration\s*Validity/i,
+    )
+  }
   if (!kindOfBusiness) {
     const petty = compact.match(
       /Pet(?:ty|ry)\s*Ret(?:ailer|ader)[\s\S]{0,60}/i,
@@ -132,16 +198,11 @@ export function parseFssaiCertificateText(raw: string): ParsedFssaiFields {
       .replace(/Registration\s*Validity.*/i, '')
       .replace(/^[\s|]+/, '')
       .trim()
-    if (kindOfBusiness.length > 160) {
-      kindOfBusiness = kindOfBusiness.slice(0, 160).trim()
-    }
-    // Prefer readable English fragment when OCR mixed scripts
-    const english =
-      kindOfBusiness.match(/Petty\s*Retailer[\s\S]{0,80}/i) ||
-      kindOfBusiness.match(/Petry\s*Retader[\s\S]{0,80}/i)
-    if (english) {
+    // OCR-only repair; keep clean FoSCoS receipt / certificate wording intact
+    const ocrGarbled = kindOfBusiness.match(/Petry\s*Retader[\s\S]{0,80}/i)
+    if (ocrGarbled) {
       kindOfBusiness = cleanLine(
-        english[0]
+        ocrGarbled[0]
           .replace(/Petry/gi, 'Petty')
           .replace(/Retader/gi, 'Retailer')
           .replace(/snaces/gi, 'snacks')
@@ -149,25 +210,39 @@ export function parseFssaiCertificateText(raw: string): ParsedFssaiFields {
           .replace(/Foot/gi, 'Food'),
       )
     }
+    if (kindOfBusiness.length > 200) {
+      kindOfBusiness = kindOfBusiness.slice(0, 200).trim()
+    }
   }
 
   const emailMatch = compact.match(
     /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i,
   )
+  // Ignore FoSCoS helpdesk addresses printed on receipts / certificates
+  const email =
+    emailMatch && !/fssai\.gov\.in$/i.test(emailMatch[0])
+      ? emailMatch[0]
+      : null
   const phoneMatch = compact.match(/(?:\+91[\s-]?)?[6-9]\d{9}\b/)
 
   const stateMatch = compact.match(INDIAN_STATES)
   const state = stateMatch ? stateMatch[0] : null
 
   const pinMatch =
-    compact.match(/Rajasthan[-\s]*([1-9]\d{5})/i) ||
-    compact.match(/\b([1-9]\d{5})\b/)
+    compact.match(
+      /(?:Rajasthan|Karnataka|Maharashtra|Kerala|Tamil Nadu|Gujarat|Delhi|Telangana|Andhra Pradesh)[-\s,]*([1-9]\d{5})\b/i,
+    ) || compact.match(/\b([1-9]\d{5})\b/)
   let pincode = pinMatch?.[1] ?? null
-  // Prefer Rajasthan PIN range (3xxxxx) when OCR also invents a wrong 1xxxxx
-  if (state && /rajasthan/i.test(state)) {
+  // Prefer state-typical PIN ranges when multiple 6-digit numbers appear
+  if (state) {
     const pins = [...compact.matchAll(/\b([1-9]\d{5})\b/g)].map((m) => m[1])
-    const rajasthanPin = pins.find((p) => p.startsWith('3'))
-    if (rajasthanPin) pincode = rajasthanPin
+    if (/rajasthan/i.test(state)) {
+      const hit = pins.find((p) => p.startsWith('3'))
+      if (hit) pincode = hit
+    } else if (/karnataka/i.test(state)) {
+      const hit = pins.find((p) => p.startsWith('5'))
+      if (hit) pincode = hit
+    }
   }
 
   let city: string | null = null
@@ -186,15 +261,19 @@ export function parseFssaiCertificateText(raw: string): ParsedFssaiFields {
     city = 'Chittaurgarh'
   }
 
-  // Prefer premises address (field 2), else FBO address (field 1).
+  // Prefer premises address (field 2), else FBO address (field 1), else receipt label.
   let address: string | null = null
+  const premisesLabeled = compact.match(
+    /Premises\s*Address[:\s|]+([\s\S]+?)(?=Kind of Business|Mode of Payment|Registration Fee|Category of License|$)/i,
+  )
   const premises = compact.match(
     /Address of location where food business is to be conducted[\s\S]{0,40}?[:\n]\s*([^\n]{20,280})/i,
   )
   const fboAddress = compact.match(
     /Food Business Operator[\s\S]{0,80}?[:\n]\s*([^\n]{10,120})\n+([^\n]{20,280})/i,
   )
-  if (premises) address = cleanLine(premises[1])
+  if (premisesLabeled) address = cleanLine(premisesLabeled[1])
+  else if (premises) address = cleanLine(premises[1])
   else if (fboAddress) {
     address = cleanLine(`${fboAddress[1]}, ${fboAddress[2]}`)
   } else {
@@ -214,23 +293,35 @@ export function parseFssaiCertificateText(raw: string): ParsedFssaiFields {
   if (address && !city) {
     const parts = address.split(',').map((p) => p.trim()).filter(Boolean)
     const maybe = parts.find((p) =>
-      /chittorgarh|chittaurgarh|bangalore|bengaluru|mumbai|chennai|hyderabad|kochi|jaipur/i.test(
+      /chittorgarh|chittaurgarh|bangalore|bengaluru|mumbai|chennai|hyderabad|kochi|jaipur|pune|mysuru|mysore/i.test(
         p,
       ),
     )
     if (maybe) city = maybe.replace(/\d{6}/g, '').trim()
-    else if (parts.length >= 2) {
-      const candidate = parts[parts.length - 2]?.replace(/\d{6}/g, '').trim()
-      if (candidate && candidate.length > 2 && !INDIAN_STATES.test(candidate)) {
-        city = candidate
-      }
-    }
   }
 
   let legalName: string | null = null
   let proprietorName: string | null = null
 
-  if (fboAddress) {
+  // FoSCoS payment receipt: "Name of Company/ Organization:"
+  const companyOrg = compact.match(
+    /Name of Company\s*\/?\s*Organization[:\s|]+([\s\S]+?)(?=Category of License|Premises Address|Kind of Business|$)/i,
+  )
+  if (companyOrg) {
+    const rawName = cleanLine(companyOrg[1])
+    const co = rawName.match(
+      /^([A-Za-z][A-Za-z .']{1,60}?)\s+C\s*\/\s*O\s+(.+)$/i,
+    )
+    if (co) {
+      proprietorName = cleanLine(co[1])
+      const afterCo = fixOcrBusinessName(co[2])
+      legalName = afterCo.length >= 3 ? afterCo : fixOcrBusinessName(rawName)
+    } else {
+      legalName = fixOcrBusinessName(rawName)
+    }
+  }
+
+  if (fboAddress && !legalName) {
     const first = fixOcrBusinessName(fboAddress[1])
     const second = cleanLine(fboAddress[2])
     if (
@@ -241,7 +332,7 @@ export function parseFssaiCertificateText(raw: string): ParsedFssaiFields {
       const person = second.match(
         /^([A-Z][A-Za-z.]*(?:\s+[A-Z][A-Za-z.]*){0,3})\s*,/,
       )
-      if (person) proprietorName = person[1]
+      if (person && !proprietorName) proprietorName = person[1]
     } else {
       legalName = first
     }
@@ -289,18 +380,38 @@ export function parseFssaiCertificateText(raw: string): ParsedFssaiFields {
     }
   }
 
+  if (
+    !city &&
+    state &&
+    /karnataka/i.test(state) &&
+    pincode &&
+    pincode.startsWith('56')
+  ) {
+    city = 'Bengaluru'
+  }
+
+  const issuedIso = normalizeDate(issuedOn?.[1])
+  let validUntilIso = normalizeDate(validUpto?.[1])
+  // Payment receipts often have no Valid Upto — derive from Registration Fee (N Year(s))
+  if (!validUntilIso && issuedIso) {
+    const years = parseRegistrationFeeYears(compact)
+    if (years) {
+      validUntilIso = addYearsToIsoDate(issuedIso, years)
+    }
+  }
+
   return {
     legalName,
     fssaiLicense,
-    fssaiValidUntil: normalizeDate(validUpto?.[1]),
-    issuedOn: normalizeDate(issuedOn?.[1]),
+    fssaiValidUntil: validUntilIso,
+    issuedOn: issuedIso,
     address,
     city,
     state,
     pincode,
     proprietorName,
     phone: phoneMatch?.[0] ?? null,
-    email: emailMatch?.[0] ?? null,
+    email,
     kindOfBusiness,
   }
 }

@@ -1,5 +1,3 @@
-import { Link } from 'react-router-dom'
-import { ROUTES } from '@/constants/ROUTES'
 import type { StorefrontAccessReason } from '@/utils/websiteStarter'
 
 const COPY: Record<
@@ -19,8 +17,8 @@ const COPY: Record<
     body: 'Please contact DirectApp support or complete the requested changes.',
   },
   fssai_expired: {
-    title: 'FSSAI licence expired',
-    body: 'This restaurant site is temporarily unavailable until a valid FSSAI certificate is uploaded.',
+    title: 'Restaurant temporarily unavailable',
+    body: 'This site is paused while compliance details are updated. Please check back soon.',
   },
   suspended: {
     title: 'Restaurant unavailable',
@@ -41,14 +39,6 @@ export function StorefrontAccessGate({
           {copy.title}
         </h1>
         <p className="mt-3 text-text-secondary">{copy.body}</p>
-        {reason === 'fssai_expired' && (
-          <p className="mt-4 text-sm">
-            Restaurant admin:{' '}
-            <Link className="text-primary underline" to={ROUTES.ADMIN.SETUP}>
-              renew FSSAI in setup
-            </Link>
-          </p>
-        )}
       </div>
     </div>
   )

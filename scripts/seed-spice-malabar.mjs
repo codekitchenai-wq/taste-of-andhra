@@ -319,6 +319,10 @@ async function main() {
       city: tenant.city || 'Pune',
       storefront_whatsapp_enabled: false,
       whatsapp_otp_login_enabled: false,
+      // Admin → Settings → Google reviews (this restaurant only).
+      google_place_id: '',
+      google_reviews_widget_src: '',
+      google_reviews_widget_class: '',
       homepage: {
         mode: 'platform_subdomain',
         custom_domain: null,
@@ -499,7 +503,19 @@ async function main() {
     branch_id: null,
     provider: 'own',
     is_enabled: true,
-    service_pincodes: ['411014', '411006', '411001', '411032'],
+    // CV Raman Nagar / east Bangalore (not Pune — prior seed wrongly used 411xxx)
+    service_pincodes: [
+      '560093',
+      '560075',
+      '560038',
+      '560008',
+      '560071',
+      '560047',
+      '560017',
+      '560037',
+      '560016',
+      '560043',
+    ],
     max_distance_km: 8,
     require_location_pin: false,
     fallback_charge: 49,

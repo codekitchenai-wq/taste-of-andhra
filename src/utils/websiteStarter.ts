@@ -68,6 +68,62 @@ export function proposeSlugBase(displayName: string): string {
   return generateSlug(displayName) || 'restaurant'
 }
 
+/**
+ * Normalize FSSAI licence for storage and duplicate checks.
+ * Keeps letters/digits only (uppercased) so spacing variants match.
+ */
+export function normalizeFssaiLicense(value: string | null | undefined): string {
+  return String(value ?? '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+}
+
+/** Digits-only phone for wa.me (Indian 10-digit → 91…). */
+export function whatsappE164Digits(phone: string): string {
+  const digits = phone.replace(/\D/g, '')
+  if (digits.length === 10) return `91${digits}`
+  if (digits.startsWith('0') && digits.length === 11) {
+    return `91${digits.slice(1)}`
+  }
+  return digits
+}
+
+export function buildWhatsAppDeepLink(phone: string, message: string): string {
+  const e164 = whatsappE164Digits(phone)
+  if (!e164) return ''
+  return `https://wa.me/${e164}?text=${encodeURIComponent(message)}`
+}
+
+export function buildStarterEmailInvite(input: {
+  displayName: string
+  setupUrl: string
+  ownerEmail: string
+  temporaryPassword?: string | null
+}): { subject: string; body: string; mailtoHref: string } {
+  const subject = `DirectApp setup — ${input.displayName}`
+  const passwordBlock = input.temporaryPassword
+    ? `Login email: ${input.ownerEmail}\nTemporary password: ${input.temporaryPassword}\n(Change it after first login.)`
+    : `Login email: ${input.ownerEmail}\nOpen the setup link below to continue.`
+  const body = `Welcome to DirectApp
+
+Your restaurant website draft: ${input.displayName}
+
+Complete setup here (site stays private until we approve):
+${input.setupUrl}
+
+${passwordBlock}
+
+In the setup form, please add:
+1) FSSAI certificate if not already on file
+2) Three photos — shop front, interior, food
+3) Menu (photo/PDF or dish list)
+4) Opening hours and public phone
+
+Questions? Reply to this email or WhatsApp us.`
+  const mailtoHref = `mailto:${encodeURIComponent(input.ownerEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+  return { subject, body, mailtoHref }
+}
+
 export function isFssaiExpired(validUntil: string | null | undefined): boolean {
   if (!validUntil) return false
   const end = new Date(`${validUntil}T23:59:59`)
@@ -144,12 +200,18 @@ Legal name (FSSAI): *${input.legalName}*
 Your website name: *${input.displayName}*
 URL: ${input.homepageUrl}${fssaiLine}
 
-Complete your setup (photos + menu):
+Complete your setup (site stays private until we approve):
 ${input.setupUrl}
 
 ${passwordBlock}
 
-Please send 3 photos — (1) shop front, (2) interior, (3) food — plus your menu photo or PDF if you have not already.`
+In the setup form, please add:
+1) FSSAI certificate if not already on file
+2) 3 photos — shop front, interior, food
+3) Menu (photo/PDF or dish list)
+4) Opening hours + public phone
+
+Reply here if you need help.`
 }
 
 export function buildGoogleSetupChecklist(input: {

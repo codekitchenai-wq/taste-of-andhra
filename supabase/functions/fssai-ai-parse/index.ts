@@ -262,9 +262,13 @@ Deno.serve(async (request) => {
 
     return jsonResponse(mapExtract(parsed))
   } catch (error) {
-    return errorResponse(
-      error instanceof Error ? error.message : 'FSSAI parse failed.',
-      500,
-    )
+    const message =
+      error instanceof Error ? error.message : 'FSSAI parse failed.'
+    // Return 200 so the browser client can read the real Gemini/OpenAI message
+    // (supabase.functions.invoke hides non-2xx bodies as a generic error).
+    return jsonResponse({
+      ...emptyExtract(message),
+      error: message,
+    })
   }
 })

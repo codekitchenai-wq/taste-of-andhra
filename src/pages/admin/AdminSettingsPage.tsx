@@ -5,6 +5,7 @@ import { PrinterSettingsPanel } from '@/components/admin/PrinterSettingsPanel'
 import { StoreTimingsPanel } from '@/components/admin/StoreTimingsPanel'
 import { OrderNumberSequencePanel } from '@/components/admin/OrderNumberSequencePanel'
 import { GstSettingsPanel } from '@/components/admin/GstSettingsPanel'
+import { GoogleReviewsSettingsPanel } from '@/components/admin/GoogleReviewsSettingsPanel'
 import { WhatsAppSettingsPanel } from '@/components/admin/WhatsAppSettingsPanel'
 import { ConfigBanner } from '@/components/ui/ConfigBanner'
 import { Button } from '@/components/ui/Button'
@@ -191,6 +192,8 @@ export default function AdminSettingsPage() {
       <OrderNumberSequencePanel />
 
       <GstSettingsPanel />
+
+      <GoogleReviewsSettingsPanel />
 
       <section className="rounded-[var(--radius-card)] bg-surface p-6 shadow-md">
         <h3 className="text-lg font-semibold text-text-primary">

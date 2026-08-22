@@ -1,12 +1,13 @@
 import {
   countParsedFields,
+  isFoscosReceiptText,
   parseFssaiCertificateText,
   type ParsedFssaiFields,
 } from '@/utils/parseFssaiCertificateText'
 
 /**
  * Extract FoSCoS/FSSAI fields from an official PDF (text layer).
- * Much more reliable than photo OCR — prefer downloading the PDF from FoSCoS.
+ * Handles Registration Certificates and FoSCoS payment receipts.
  */
 export async function extractFssaiFromPdf(
   file: File,
@@ -37,13 +38,30 @@ export async function extractFssaiFromPdf(
   const pdfText = chunks.join('\n')
   const fields = parseFssaiCertificateText(pdfText)
   const n = countParsedFields(fields)
+  const receipt = isFoscosReceiptText(pdfText)
+
+  let note: string
+  if (n > 0 && receipt) {
+    note = fields.fssaiLicense
+      ? `Filled ${n} field(s) from FoSCoS receipt PDF — review before creating.`
+      : `Filled ${n} field(s) from FoSCoS payment receipt. Licence number is on the Registration Certificate PDF (not this receipt) — add it when you have that file.`
+  } else if (n > 0) {
+    note = `Filled ${n} field(s) from FSSAI PDF text — review before creating.`
+  } else {
+    note =
+      'PDF had little readable text. Prefer FoSCoS Registration Certificate or payment receipt PDF (not a scanned photo saved as PDF).'
+  }
 
   return {
     fields,
     pdfText,
-    note:
-      n > 0
-        ? `Filled ${n} field(s) from FSSAI PDF text (free, accurate) — review before creating.`
-        : 'PDF had little readable text. Use the official FoSCoS download PDF (not a scanned photo saved as PDF).',
+    note,
   }
+}
+
+/** Windows / some browsers leave File.type empty — also trust .pdf name. */
+export function isPdfFile(file: File): boolean {
+  if (file.type === 'application/pdf') return true
+  if (/\.pdf$/i.test(file.name)) return true
+  return false
 }

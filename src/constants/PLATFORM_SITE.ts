@@ -35,7 +35,7 @@ export const PLATFORM_SITE = {
     headline: 'Help every neighbourhood business go digital',
     supporting:
       'DirectApp gives restaurants and small & medium industries a ready platform to take orders, manage operations, and grow — so local enterprise can scale and strengthen the nation.',
-    primaryCta: { label: 'Request a demo', href: '/demo' },
+    primaryCta: { label: 'Get your website', href: '/starter' },
     secondaryCta: { label: 'Explore live demo', href: 'https://thetasteofandhra.directapp.in' },
   },
 

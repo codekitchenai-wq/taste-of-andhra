@@ -243,8 +243,7 @@ export default function StarterSetupWizardPage() {
       logoUrl: logoUrl || undefined,
       heroUrl: gallery.front || undefined,
       gallery,
-      fssaiLicense,
-      fssaiValidUntil,
+      // FSSAI fields are Master-only — intentionally omitted
     })
     setBusy(false)
     if (!result.success) {
@@ -615,23 +614,27 @@ export default function StarterSetupWizardPage() {
                   />
                 </label>
                 <label className="block text-sm">
-                  FSSAI number
+                  FSSAI number (Master only)
                   <input
-                    className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-                    value={fssaiLicense}
-                    onChange={(e) => setFssaiLicense(e.target.value)}
+                    readOnly
+                    className="mt-1 w-full rounded border border-black/10 bg-black/5 px-3 py-2 font-mono"
+                    value={fssaiLicense || 'Set by DirectApp Master'}
                   />
                 </label>
                 <label className="block text-sm">
-                  FSSAI valid until
+                  FSSAI valid until (Master only)
                   <input
-                    type="date"
-                    className="mt-1 w-full rounded border border-black/15 px-3 py-2"
-                    value={fssaiValidUntil}
-                    onChange={(e) => setFssaiValidUntil(e.target.value)}
+                    readOnly
+                    className="mt-1 w-full rounded border border-black/10 bg-black/5 px-3 py-2"
+                    value={fssaiValidUntil || 'Set by DirectApp Master'}
                   />
                 </label>
               </div>
+              <p className="text-xs text-text-secondary">
+                Licence details are not shown on your public website. To correct
+                them, ask DirectApp Master — they update fields in Approvals
+                after reviewing your certificate.
+              </p>
               <button
                 type="button"
                 disabled={busy}
@@ -875,8 +878,8 @@ export default function StarterSetupWizardPage() {
                 Submit for go-live
               </h2>
               <p className="text-sm text-text-secondary">
-                Master will review FSSAI, photos, and menu before the public site
-                goes live.
+                Master will review compliance, photos, and menu before the
+                public site goes live. FSSAI licence numbers stay internal.
               </p>
               <button
                 type="button"

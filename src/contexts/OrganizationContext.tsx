@@ -51,6 +51,8 @@ export interface OrganizationContextValue {
     email?: string | null
     whatsappPhone?: string | null
   }) => void
+  /** Merge keys into organization.settings after admin saves (e.g. Google Place ID). */
+  patchOrganizationSettings: (patch: Record<string, unknown>) => void
   /** True when host resolution is on and a non-default host was mapped. */
   resolvedFromHost: boolean
   isLoading: boolean
@@ -62,6 +64,7 @@ type ResolvedOrganization = Omit<
   | 'setStorefrontWhatsAppEnabled'
   | 'setWhatsAppOtpLoginEnabled'
   | 'patchRestaurantContact'
+  | 'patchOrganizationSettings'
 >
 
 const OrganizationContext = createContext<OrganizationContextValue | null>(null)
@@ -411,6 +414,27 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     [],
   )
 
+  const patchOrganizationSettings = useCallback(
+    (patch: Record<string, unknown>) => {
+      setSettings((prev) => {
+        const next = { ...prev }
+        for (const [key, value] of Object.entries(patch)) {
+          if (
+            value === null ||
+            value === undefined ||
+            (typeof value === 'string' && !value.trim())
+          ) {
+            delete next[key]
+          } else {
+            next[key] = value
+          }
+        }
+        return next
+      })
+    },
+    [],
+  )
+
   const value = useMemo<OrganizationContextValue>(
     () => ({
       organizationId,
@@ -431,6 +455,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       whatsappOtpLoginEnabled,
       setWhatsAppOtpLoginEnabled,
       patchRestaurantContact,
+      patchOrganizationSettings,
       resolvedFromHost,
       isLoading,
     }),
@@ -451,6 +476,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       storefrontWhatsAppEnabled,
       whatsappOtpLoginEnabled,
       patchRestaurantContact,
+      patchOrganizationSettings,
       resolvedFromHost,
       isLoading,
     ],
@@ -491,6 +517,7 @@ export function useOrganization(): OrganizationContextValue {
       ),
       setWhatsAppOtpLoginEnabled: () => undefined,
       patchRestaurantContact: () => undefined,
+      patchOrganizationSettings: () => undefined,
       resolvedFromHost: false,
       isLoading: false,
     }
