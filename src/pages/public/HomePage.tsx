@@ -3,6 +3,7 @@ import { FeaturedCategories } from '@/components/home/FeaturedCategories'
 import { FeaturedDishes } from '@/components/home/FeaturedDishes'
 import { GoogleReviews } from '@/components/home/GoogleReviews'
 import { HeroSection } from '@/components/home/HeroSection'
+import { OnamReelSection } from '@/components/home/OnamReelSection'
 import { OnamSpecialBanner } from '@/components/home/OnamSpecialBanner'
 import { WhyChooseUs } from '@/components/home/WhyChooseUs'
 import { LoadingState } from '@/components/ui/LoadingState'
@@ -34,11 +35,12 @@ export default function HomePage() {
     }
   }, [org.organizationId, org.settings])
 
-  // Chopsticks: Onam-focused landing + optional Google reviews for this org only.
+  // Chopsticks: Onam-focused landing + reel + optional Google reviews for this org only.
   if (isChopsticks) {
     return (
       <>
         <HeroSection />
+        <OnamReelSection />
         {showGoogleReviews ? <GoogleReviews /> : null}
       </>
     )
