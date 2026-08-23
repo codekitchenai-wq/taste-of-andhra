@@ -6,8 +6,10 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { LocationPicker } from '@/components/checkout/LocationPicker'
+import { ONAM_SADHYA } from '@/constants/ONAM_SADHYA'
 import { useAuth } from '@/hooks/useAuth'
 import { useDeliverySettings } from '@/hooks/useDeliverySettings'
+import { useOrganization } from '@/contexts/OrganizationContext'
 import type { CreateAddressInput } from '@/services/addressService'
 import * as addressService from '@/services/addressService'
 import type { Address } from '@/types/Address'
@@ -19,6 +21,8 @@ import {
   NEARBY_DELIVERY_MAX_KM,
   type RestaurantLocation,
 } from '@/utils/nearbyAddress'
+import { onamDeliveryOutOfRangeMessage } from '@/utils/onamDeliveryCopy'
+import { isSpiceMalabarStorefront } from '@/utils/storefrontCopy'
 import { calculateRateCardAmount } from '@/utils/deliveryRateCard'
 import { formatPrice } from '@/utils/format'
 
@@ -43,6 +47,9 @@ interface AddressFormModalProps {
   restaurantLocation?: RestaurantLocation | null
   branchId?: string | null
   subtotal?: number
+  /** Prefill city/state when adding a new address (e.g. Chopsticks Onam → Pune). */
+  defaultCity?: string
+  defaultState?: string
 }
 
 const emptyValues: AddressFormValues = {
@@ -87,8 +94,12 @@ export function AddressFormModal({
   restaurantLocation = null,
   branchId = null,
   subtotal = 0,
+  defaultCity = '',
+  defaultState = '',
 }: AddressFormModalProps) {
   const isEditing = Boolean(addressToEdit)
+  const org = useOrganization()
+  const isChopsticks = isSpiceMalabarStorefront(org)
   const { user } = useAuth()
   const { settings: deliverySettings } = useDeliverySettings(branchId)
 
@@ -131,8 +142,14 @@ export function AddressFormModal({
     }
 
     const registeredPhone = user?.phone?.replace(/\D/g, '').slice(-10) ?? ''
-    reset({ ...emptyValues, fullName: user?.full_name ?? '', phone: registeredPhone })
-  }, [isOpen, addressToEdit, user, reset])
+    reset({
+      ...emptyValues,
+      fullName: user?.full_name ?? '',
+      phone: registeredPhone,
+      city: defaultCity.trim() || emptyValues.city,
+      state: defaultState.trim() || emptyValues.state,
+    })
+  }, [isOpen, addressToEdit, user, reset, defaultCity, defaultState])
 
   const handleMapChange = (place: ResolvedPlace) => {
     const coords = { latitude: place.latitude, longitude: place.longitude }
@@ -159,11 +176,23 @@ export function AddressFormModal({
       ? distanceToRestaurantKm(pinnedCoords.latitude, pinnedCoords.longitude, restaurantLocation)
       : null
 
-  const maxKm = deliverySettings?.max_distance_km ?? NEARBY_DELIVERY_MAX_KM
+  const maxKm =
+    deliverySettings?.max_distance_km ??
+    (isChopsticks ? ONAM_SADHYA.deliveryRadiusKm : NEARBY_DELIVERY_MAX_KM)
   const isOutOfRange = pinDistanceKm !== null && !isWithinNearbyDelivery(pinDistanceKm, maxKm)
+  const outOfRangeMessage = isChopsticks
+    ? onamDeliveryOutOfRangeMessage({
+        distanceKm: pinDistanceKm,
+        maxKm,
+      })
+    : `${pinDistanceKm?.toFixed(1) ?? ''} km away — outside delivery area (${maxKm} km max).`
 
+  // Chopsticks Onam: still show estimated charge when outside the usual radius
+  // (distance is FYI-only and must not block save).
   const deliveryChargePreview =
-    pinnedCoords && deliverySettings && !isOutOfRange
+    pinnedCoords &&
+    deliverySettings &&
+    (!isOutOfRange || isChopsticks)
       ? calculateRateCardAmount(deliverySettings, subtotal, pinDistanceKm)
       : null
 
@@ -233,8 +262,13 @@ export function AddressFormModal({
           <Button type="button" variant="secondary" onClick={onClose} disabled={isSubmitting} className="shrink-0">
             Cancel
           </Button>
-          <Button type="submit" form="address-form" disabled={isSubmitting} className="shrink-0">
-            {isSubmitting ? 'SavingΓÇª' : isEditing ? 'Update' : 'Save Address'}
+          <Button
+            type="submit"
+            form="address-form"
+            disabled={isSubmitting}
+            className="shrink-0"
+          >
+            {isSubmitting ? 'Saving…' : isEditing ? 'Update' : 'Save Address'}
           </Button>
         </div>
       }
@@ -253,22 +287,29 @@ export function AddressFormModal({
           {pinnedCoords && restaurantLocation && pinDistanceKm !== null && (
             <div
               className={cn(
-                'flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium',
+                'flex gap-2 rounded-lg px-3 py-2 text-xs font-medium',
+                isOutOfRange ? 'items-start' : 'items-center',
                 isOutOfRange
-                  ? 'bg-red-50 text-red-600'
+                  ? isChopsticks
+                    ? 'bg-amber-50 text-amber-950'
+                    : 'bg-red-50 text-red-700'
                   : 'bg-green-50 text-green-700',
               )}
+              role={isOutOfRange && isChopsticks ? 'status' : undefined}
             >
               {isOutOfRange ? (
-                <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <AlertCircle
+                  className={cn(
+                    'mt-0.5 h-3.5 w-3.5 shrink-0',
+                    isChopsticks ? 'text-amber-700' : undefined,
+                  )}
+                  aria-hidden="true"
+                />
               ) : (
                 <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
               )}
               {isOutOfRange ? (
-                <>
-                  {pinDistanceKm.toFixed(1)} km away ΓÇö outside delivery area ({maxKm} km max).
-                  Enter your address anyway.
-                </>
+                <span className="leading-relaxed font-normal">{outOfRangeMessage}</span>
               ) : (
                 <>
                   ~{pinDistanceKm.toFixed(1)} km from {restaurantLocation.name}

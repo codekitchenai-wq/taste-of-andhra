@@ -2,9 +2,11 @@ import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Container } from '@/components/ui/Container'
 import { LazyImage } from '@/components/ui/LazyImage'
+import { WhatsAppGlyph } from '@/components/ui/WhatsAppLink'
 import { ONAM_SADHYA } from '@/constants/ONAM_SADHYA'
 import { useOrganization } from '@/contexts/OrganizationContext'
 import { ROUTES } from '@/constants/ROUTES'
+import { useStorefrontWhatsApp } from '@/hooks/useStorefrontWhatsApp'
 import {
   storefrontHero,
   isSpiceMalabarStorefront,
@@ -15,6 +17,7 @@ export function HeroSection() {
   const org = useOrganization()
   const hero = storefrontHero(org)
   const isSpiceMalabar = isSpiceMalabarStorefront(org)
+  const whatsApp = useStorefrontWhatsApp()
 
   if (isSpiceMalabar) {
     const dineIn = ONAM_SADHYA.services.dine_in.price
@@ -22,15 +25,48 @@ export function HeroSection() {
 
     return (
       <section className="bg-[#f3ead8]">
-        {/* Full poster — contain so food, title, and Mahabali stay visible */}
-        <div className="mx-auto flex max-w-[1280px] items-center justify-center px-3 pt-4 sm:px-6 sm:pt-6 lg:px-8">
-          <LazyImage
-            src={ONAM_SADHYA.imageUrl}
-            alt={`${ONAM_SADHYA.title} — ${ONAM_SADHYA.headline}`}
-            eager
-            imageWidth={1600}
-            className="h-auto max-h-[min(68svh,720px)] w-auto max-w-full rounded-sm object-contain shadow-[0_12px_40px_rgba(40,28,12,0.18)] motion-safe:animate-[onam-fade-up_0.7s_ease-out_both]"
-          />
+        <Link
+          to={ROUTES.ONAM}
+          className="block bg-[#13261c] px-4 py-2.5 text-center transition-colors hover:bg-[#1a3226] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#e8d5a3]"
+        >
+          <span className="font-heading text-xs font-semibold uppercase tracking-[0.14em] text-[#e8d5a3] sm:text-sm">
+            {ONAM_SADHYA.launchBadge}
+          </span>
+          <span className="mx-2 text-white/40" aria-hidden>
+            ·
+          </span>
+          <span className="text-xs text-white/90 sm:text-sm">
+            Pre-book {ONAM_SADHYA.title} for 25 &amp; 26 August →
+          </span>
+        </Link>
+
+        <Container className="pt-6 text-center sm:pt-8">
+          <p className="font-heading text-2xl font-bold tracking-tight text-[#13261c] motion-safe:animate-[onam-fade-up_0.65s_ease-out_both] sm:text-3xl md:text-4xl">
+            {ONAM_SADHYA.restaurant}
+          </p>
+          <h1 className="mt-3 font-heading text-xl font-semibold text-[#3d3220] motion-safe:animate-[onam-fade-up_0.7s_ease-out_0.05s_both] sm:text-2xl md:text-3xl">
+            {ONAM_SADHYA.launchHeadline}
+          </h1>
+          <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-[#3d3220]/80 motion-safe:animate-[onam-fade-up_0.7s_ease-out_0.1s_both] sm:text-base">
+            {ONAM_SADHYA.launchSupport}
+          </p>
+        </Container>
+
+        {/* Full poster — tap opens Onam pre-book */}
+        <div className="mx-auto flex max-w-[1280px] items-center justify-center px-3 pt-5 sm:px-6 sm:pt-6 lg:px-8">
+          <Link
+            to={ROUTES.ONAM}
+            className="group block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#13261c]"
+            aria-label={`Pre-book ${ONAM_SADHYA.title}`}
+          >
+            <LazyImage
+              src={ONAM_SADHYA.imageUrl}
+              alt={`${ONAM_SADHYA.title} — ${ONAM_SADHYA.headline}`}
+              eager
+              imageWidth={1600}
+              className="h-auto max-h-[min(58svh,640px)] w-auto max-w-full rounded-sm object-contain shadow-[0_12px_40px_rgba(40,28,12,0.18)] transition-transform duration-500 motion-safe:animate-[onam-fade-up_0.7s_ease-out_0.12s_both] motion-safe:group-hover:scale-[1.015]"
+            />
+          </Link>
         </div>
 
         <div className="mt-4 border-t border-[#d4c4a8]/80 bg-[#13261c] sm:mt-6">
@@ -44,22 +80,35 @@ export function HeroSection() {
                 {formatPrice(parcel)}
               </p>
             </div>
-            <Link
-              to={ROUTES.ONAM}
-              className="inline-flex w-full shrink-0 motion-safe:animate-[onam-fade-up_0.75s_ease-out_0.15s_both] sm:w-auto"
-            >
-              <Button
-                size="lg"
-                className="h-auto min-h-12 w-full py-2.5 sm:w-auto"
+            <div className="flex w-full flex-col gap-3 motion-safe:animate-[onam-fade-up_0.75s_ease-out_0.15s_both] sm:w-auto sm:flex-row sm:items-center">
+              <Link
+                to={ROUTES.ONAM}
+                className="inline-flex w-full shrink-0 sm:w-auto"
               >
-                <span className="flex flex-col items-center leading-tight">
-                  <span>Pre-book Onam Sadhya</span>
-                  <span className="mt-0.5 text-[0.8em] font-normal opacity-90">
-                    ഓണം സദ്യ പ്രീ-ബുക്ക് ചെയ്യുക
+                <Button
+                  size="lg"
+                  className="h-auto min-h-12 w-full py-2.5 sm:w-auto"
+                >
+                  <span className="flex flex-col items-center leading-tight">
+                    <span>{ONAM_SADHYA.launchCtaPrimary}</span>
+                    <span className="mt-0.5 text-[0.8em] font-normal opacity-90">
+                      {ONAM_SADHYA.launchCtaPrimaryMl}
+                    </span>
                   </span>
-                </span>
-              </Button>
-            </Link>
+                </Button>
+              </Link>
+              {whatsApp.orderUrl ? (
+                <a
+                  href={whatsApp.orderUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex h-auto min-h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-button)] border border-[#e8d5a3]/50 bg-transparent px-5 py-2.5 text-sm font-medium text-[#e8d5a3] transition-colors hover:border-[#e8d5a3] hover:bg-white/5 sm:w-auto"
+                >
+                  <WhatsAppGlyph className="h-5 w-5" />
+                  {ONAM_SADHYA.launchCtaWhatsApp}
+                </a>
+              ) : null}
+            </div>
           </Container>
         </div>
       </section>

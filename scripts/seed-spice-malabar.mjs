@@ -504,20 +504,10 @@ async function main() {
     branch_id: null,
     provider: 'own',
     is_enabled: true,
-    // CV Raman Nagar / east Bangalore (not Pune — prior seed wrongly used 411xxx)
-    service_pincodes: [
-      '560093',
-      '560075',
-      '560038',
-      '560008',
-      '560071',
-      '560047',
-      '560017',
-      '560037',
-      '560016',
-      '560043',
-    ],
-    max_distance_km: 8,
+    // Onam season: no pincode allowlist / max-distance block (FYI radius is
+    // client-side only via ONAM_SADHYA.deliveryRadiusKm).
+    service_pincodes: [],
+    max_distance_km: null,
     require_location_pin: false,
     fallback_charge: 49,
     per_km_charge: 0,

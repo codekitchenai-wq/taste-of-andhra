@@ -8,6 +8,8 @@ interface UseDeliveryQuoteInput {
   branchId?: string | null
   subtotal: number
   itemCount: number
+  /** Chopsticks Onam: do not mark quotes unserviceable for area rules. */
+  allowOutsideServiceArea?: boolean
 }
 
 /**
@@ -20,6 +22,7 @@ export function useDeliveryQuote({
   branchId,
   subtotal,
   itemCount,
+  allowOutsideServiceArea = false,
 }: UseDeliveryQuoteInput) {
   const [quote, setQuote] = useState<DeliveryQuote | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -45,6 +48,7 @@ export function useDeliveryQuote({
         branchId,
         subtotal,
         itemCount,
+        allowOutsideServiceArea,
       })
 
       if (requestIdRef.current !== requestId) return
@@ -55,7 +59,7 @@ export function useDeliveryQuote({
         setIsLoading(false)
       }
     }
-  }, [address, branchId, subtotal, itemCount])
+  }, [address, branchId, subtotal, itemCount, allowOutsideServiceArea])
 
   useEffect(() => {
     const timer = setTimeout(() => void fetchQuote(), 250)

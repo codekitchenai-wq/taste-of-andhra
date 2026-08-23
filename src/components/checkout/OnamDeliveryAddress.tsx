@@ -1,15 +1,24 @@
 import { useEffect, useState } from 'react'
-import { MapPin, Pencil, Plus } from 'lucide-react'
+import { AlertCircle, MapPin, Pencil, Plus } from 'lucide-react'
 import { AddressCard } from '@/components/checkout/AddressCard'
 import { AddressFormModal } from '@/components/checkout/AddressFormModal'
 import { Button } from '@/components/ui/Button'
-import { useAddresses } from '@/hooks/useAddresses'
+import { ONAM_SADHYA } from '@/constants/ONAM_SADHYA'
+import { useDeliverySettings } from '@/hooks/useDeliverySettings'
 import { useSelectedBranch } from '@/hooks/useSelectedBranch'
 import type { Address } from '@/types/Address'
 import { formatAddressLine } from '@/utils/mapAddress'
-import { restaurantLocationFromBranch } from '@/utils/nearbyAddress'
+import {
+  distanceToRestaurantKm,
+  isWithinNearbyDelivery,
+  restaurantLocationFromBranch,
+} from '@/utils/nearbyAddress'
+import { onamDeliveryOutOfRangeMessage } from '@/utils/onamDeliveryCopy'
 
 interface OnamDeliveryAddressProps {
+  addresses: Address[]
+  isLoading: boolean
+  onRefetch: () => void | Promise<void>
   selectedAddressId: string | null
   onSelect: (addressId: string | null) => void
   onLoadingChange?: (isLoading: boolean) => void
@@ -17,19 +26,42 @@ interface OnamDeliveryAddressProps {
 }
 
 export function OnamDeliveryAddress({
+  addresses,
+  isLoading,
+  onRefetch,
   selectedAddressId,
   onSelect,
   onLoadingChange,
   requestAddAddress,
 }: OnamDeliveryAddressProps) {
-  const { addresses, isLoading, refetch } = useAddresses()
   const { selectedBranch } = useSelectedBranch()
+  const { settings: deliverySettings } = useDeliverySettings(
+    selectedBranch?.id ?? null,
+  )
+  const restaurantLocation = restaurantLocationFromBranch(selectedBranch)
   const [isChanging, setIsChanging] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [addressToEdit, setAddressToEdit] = useState<Address | null>(null)
 
   const selected =
     addresses.find((address) => address.id === selectedAddressId) ?? null
+
+  const maxKm =
+    deliverySettings?.max_distance_km ?? ONAM_SADHYA.deliveryRadiusKm
+  const selectedDistanceKm =
+    selected &&
+    restaurantLocation &&
+    selected.latitude != null &&
+    selected.longitude != null
+      ? distanceToRestaurantKm(
+          selected.latitude,
+          selected.longitude,
+          restaurantLocation,
+        )
+      : null
+  const selectedOutOfRange =
+    selectedDistanceKm != null &&
+    !isWithinNearbyDelivery(selectedDistanceKm, maxKm)
 
   useEffect(() => {
     onLoadingChange?.(isLoading)
@@ -156,13 +188,33 @@ export function OnamDeliveryAddress({
               Edit
             </Button>
           </div>
+          {selectedOutOfRange ? (
+            <div
+              className="mt-3 flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2.5 text-xs leading-relaxed text-amber-950"
+              role="status"
+            >
+              <AlertCircle
+                className="mt-0.5 h-4 w-4 shrink-0 text-amber-700"
+                aria-hidden="true"
+              />
+              <p>
+                {onamDeliveryOutOfRangeMessage({
+                  distanceKm: selectedDistanceKm,
+                  maxKm,
+                })}
+              </p>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
       <AddressFormModal
         isOpen={isModalOpen}
         addressToEdit={addressToEdit}
-        restaurantLocation={restaurantLocationFromBranch(selectedBranch)}
+        restaurantLocation={restaurantLocation}
+        branchId={selectedBranch?.id ?? null}
+        defaultCity={ONAM_SADHYA.defaultCity}
+        defaultState={ONAM_SADHYA.defaultState}
         onClose={() => {
           setIsModalOpen(false)
           setAddressToEdit(null)
@@ -172,7 +224,7 @@ export function OnamDeliveryAddress({
           setAddressToEdit(null)
           onSelect(addressId)
           setIsChanging(false)
-          void refetch()
+          void onRefetch()
         }}
       />
     </div>

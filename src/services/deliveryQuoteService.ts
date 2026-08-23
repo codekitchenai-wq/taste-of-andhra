@@ -20,6 +20,12 @@ export interface QuoteRequestInput {
   branchId?: string | null
   subtotal: number
   itemCount: number
+  /**
+   * Chopsticks Onam: still return a rate-card price when the address fails
+   * pincode/distance checks so checkout is not blocked. Distance stays on the
+   * quote for FYI messaging.
+   */
+  allowOutsideServiceArea?: boolean
 }
 
 export interface GuestDeliveryAddressInput {
@@ -66,12 +72,13 @@ export function buildRateCardQuote(
   subtotal: number,
   settings: DeliverySettings,
   area: ServiceAreaCheck | null,
+  options?: { allowOutsideServiceArea?: boolean },
 ): DeliveryQuote {
   const isOutsideArea = area
     ? !area.isServiceable
     : !deliverySettingsService.isPincodeServiceable(address.pincode, settings)
 
-  if (isOutsideArea) {
+  if (isOutsideArea && !options?.allowOutsideServiceArea) {
     return {
       quoteId: null,
       provider: 'own',
@@ -97,7 +104,9 @@ export function buildRateCardQuote(
     ),
     etaMinutes: null,
     distanceKm: area?.distanceKm ?? null,
-    unserviceableReason: null,
+    unserviceableReason: options?.allowOutsideServiceArea
+      ? (area?.reason ?? null)
+      : null,
     expiresAt: null,
     isEstimate: true,
   }
@@ -131,8 +140,33 @@ export async function getDeliveryQuote(
       : deliverySettingsService.DEFAULT_DELIVERY_SETTINGS
 
     return createSuccessResponse(
-      buildRateCardQuote(input.address, input.subtotal, settings, area),
+      buildRateCardQuote(input.address, input.subtotal, settings, area, {
+        allowOutsideServiceArea: input.allowOutsideServiceArea,
+      }),
     )
+  }
+
+  if (!data.is_serviceable && input.allowOutsideServiceArea) {
+    const settingsResult = await deliverySettingsService.getDeliverySettings(
+      input.branchId,
+    )
+    const settings = settingsResult.success
+      ? settingsResult.data
+      : deliverySettingsService.DEFAULT_DELIVERY_SETTINGS
+    const distanceKm =
+      data.distance_km != null ? Number(data.distance_km) : null
+
+    return createSuccessResponse({
+      quoteId: null,
+      provider: 'own',
+      isServiceable: true,
+      amount: calculateRateCardAmount(settings, input.subtotal, distanceKm),
+      etaMinutes: null,
+      distanceKm,
+      unserviceableReason: data.unserviceable_reason,
+      expiresAt: null,
+      isEstimate: true,
+    })
   }
 
   return createSuccessResponse({
@@ -208,7 +242,7 @@ export async function getGuestDeliveryQuote(input: {
         amount: 0,
         etaMinutes: null,
         distanceKm,
-        unserviceableReason: `This address is about ${distanceKm.toFixed(1)} km away (max ${settings.max_distance_km} km).`,
+        unserviceableReason: `We're sorry — this address is about ${distanceKm.toFixed(1)} km from our kitchen. We deliver within ${settings.max_distance_km} km only.`,
         expiresAt: null,
         isEstimate: true,
       })

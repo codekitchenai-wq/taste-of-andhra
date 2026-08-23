@@ -19,6 +19,8 @@ interface LocationPickerProps {
   onChange: (place: ResolvedPlace) => void
   required?: boolean
   error?: string
+  /** When true, request GPS once the map is ready and fill the pin + address. */
+  autoLocateOnMount?: boolean
 }
 
 // Centred on India so the first view is useful before a pin is dropped.
@@ -32,16 +34,19 @@ export function LocationPicker({
   onChange,
   required = false,
   error,
+  autoLocateOnMount = false,
 }: LocationPickerProps) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const searchInputRef = useRef<HTMLInputElement | null>(null)
   const mapRef = useRef<google.maps.Map | null>(null)
   const markerRef = useRef<google.maps.Marker | null>(null)
   const mapsRef = useRef<typeof google.maps | null>(null)
+  const didAutoLocateRef = useRef(false)
 
   const [loadError, setLoadError] = useState<string | null>(null)
   const [isLocating, setIsLocating] = useState(false)
   const [isLookingUp, setIsLookingUp] = useState(false)
+  const [mapReady, setMapReady] = useState(false)
 
   // Held in refs so the map's listeners, registered once, never read stale
   // props. Re-creating the map on every render would drop the user's pin.
@@ -137,6 +142,7 @@ export function LocationPicker({
 
         mapRef.current = map
         markerRef.current = marker
+        setMapReady(true)
 
         marker.addListener('dragend', () => {
           const position = marker.getPosition()
@@ -201,6 +207,7 @@ export function LocationPicker({
 
     return () => {
       cancelled = true
+      setMapReady(false)
       markerRef.current = null
       mapRef.current = null
       mapsRef.current = null
@@ -304,6 +311,16 @@ export function LocationPicker({
       { enableHighAccuracy: true, timeout: 10000 },
     )
   }
+
+  useEffect(() => {
+    if (!autoLocateOnMount || !mapReady || didAutoLocateRef.current) return
+    // Editing an existing pin — do not overwrite with GPS.
+    if (latitude !== null && longitude !== null) return
+    didAutoLocateRef.current = true
+    handleUseMyLocation()
+    // Intentionally once when the map becomes ready for a new address.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- auto-locate once on open
+  }, [autoLocateOnMount, mapReady, latitude, longitude])
 
   if (!isGoogleMapsConfigured) {
     return (

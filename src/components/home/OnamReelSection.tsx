@@ -27,7 +27,7 @@ export function OnamReelSection() {
       <Container as="div">
         <SectionHeader
           title="Celebrate Onam with us"
-          subtitle="A glimpse inside Chopsticks Spice Malabar this Onam season."
+          subtitle="Watch a glimpse of Chopsticks Spice Malabar — then pre-book Sadhya on our new website."
         />
 
         <div className="mx-auto mt-10 flex max-w-[320px] justify-center motion-safe:animate-[onam-fade-up_0.7s_ease-out_both] sm:max-w-[360px]">

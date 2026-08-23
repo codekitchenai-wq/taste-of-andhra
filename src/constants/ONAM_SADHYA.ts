@@ -5,6 +5,14 @@ export const ONAM_SADHYA = {
   headline: 'Celebrate Onam with a traditional Kerala Sadhya',
   description:
     'Pre-book banana-leaf sadhya for 25 & 26 August. Choose plates and a delivery slot, then message the restaurant or place your order.',
+  /** Homepage launch + Onam marketing copy (Chopsticks storefront). */
+  launchBadge: 'Our new website is live',
+  launchHeadline: 'Onam Sadhya — pre-book online in minutes',
+  launchSupport:
+    'Traditional Kerala sadhya for 25 & 26 August. Dine-in or parcel — book here, or message us on WhatsApp.',
+  launchCtaPrimary: 'Pre-book Onam Sadhya',
+  launchCtaPrimaryMl: 'ഓണം സദ്യ പ്രീ-ബുക്ക് ചെയ്യുക',
+  launchCtaWhatsApp: 'Ask on WhatsApp',
   imageUrl: '/images/tenants/spice-malabar-onam.png',
   bookingPhone: '7841822215',
   /** Homepage WhatsApp enquiry number (opens chat with bilingual pre-fill). */
@@ -20,6 +28,12 @@ export const ONAM_SADHYA = {
     'ഓണം സദ്യ ഓഗസ്റ്റ് 25 അല്ലെങ്കിൽ 26-ന് പ്രീ-ബുക്ക് ചെയ്യാൻ താൽപ്പര്യമുണ്ട്.',
     'ഡൈൻ-ഇൻ / പാർസൽ ലഭ്യതയും ബുക്കിംഗ് വിവരങ്ങളും അറിയിക്കാമോ?',
   ].join('\n'),
+  /** Default delivery address locality for Onam parcel orders (Viman Nagar). */
+  defaultCity: 'Pune',
+  defaultState: 'Maharashtra',
+  /** Own-delivery radius from the Viman Nagar kitchen. */
+  deliveryRadiusKm: 8,
+  deliveryAreaName: 'Viman Nagar',
   hoursLabel: '11:00 AM – 9:00 PM',
   slotStartHour: 11,
   slotEndHour: 21,

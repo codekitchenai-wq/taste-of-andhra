@@ -27,13 +27,18 @@ import {
   LOYALTY_REDEEM_POINTS,
   LOYALTY_REDEEM_VALUE,
 } from '@/constants/LOYALTY'
+import { ONAM_SADHYA } from '@/constants/ONAM_SADHYA'
 import {
   ONLINE_PAYMENT_CHANNELS,
   type OnlinePaymentChannel,
 } from '@/constants/PAYMENT_METHOD'
 import { ROUTES } from '@/constants/ROUTES'
 import { useOrganization } from '@/contexts/OrganizationContext'
-import { storefrontContact } from '@/utils/storefrontCopy'
+import {
+  isSpiceMalabarStorefront,
+  storefrontContact,
+} from '@/utils/storefrontCopy'
+import { onamDeliveryOutOfRangeMessage } from '@/utils/onamDeliveryCopy'
 import { useAddresses } from '@/hooks/useAddresses'
 import { useAuth } from '@/hooks/useAuth'
 import { useCart } from '@/hooks/useCart'
@@ -119,6 +124,14 @@ export default function CheckoutPage() {
     ? onamScheduledAt(onamPrebook.date, onamPrebook.slot)
     : null
   const isOnamPrebook = isFutureOnamSchedule(onamSchedule)
+  const isChopsticksOnam =
+    isOnamPrebook && isSpiceMalabarStorefront(org)
+  const chopsticksOnamDefaults = isChopsticksOnam
+    ? {
+        defaultCity: ONAM_SADHYA.defaultCity,
+        defaultState: ONAM_SADHYA.defaultState,
+      }
+    : {}
 
   const isAwaitingPayment = Boolean(pendingOrder) || isPaymentOpen
   const shouldStayOnCheckout =
@@ -201,6 +214,7 @@ export default function CheckoutPage() {
     branchId: selectedBranch?.id ?? null,
     subtotal: cart?.subtotal ?? 0,
     itemCount,
+    allowOutsideServiceArea: isChopsticksOnam,
   })
 
   const { settings: deliverySettings } = useDeliverySettings(
@@ -223,14 +237,32 @@ export default function CheckoutPage() {
       calculateOrderTotals(
         cart?.subtotal ?? 0,
         discountAmount,
-        deliveryQuote?.isServiceable ? deliveryQuote.amount : undefined,
+        deliveryQuote?.isServiceable
+          ? deliveryQuote.amount
+          : isChopsticksOnam
+            ? (deliveryQuote?.amount ?? undefined)
+            : undefined,
         effectiveOrderTaxRate(gstSettings.enabled),
       ),
-    [cart?.subtotal, discountAmount, deliveryQuote, gstSettings.enabled],
+    [
+      cart?.subtotal,
+      discountAmount,
+      deliveryQuote,
+      gstSettings.enabled,
+      isChopsticksOnam,
+    ],
   )
 
   const isUnserviceable = deliveryQuote?.isServiceable === false
-  const showUnserviceable = isUnserviceable
+  /** Hard block for other tenants; Chopsticks Onam only shows FYI. */
+  const showUnserviceable = isUnserviceable && !isChopsticksOnam
+  const showOnamDeliveryFyi =
+    isChopsticksOnam &&
+    Boolean(
+      deliveryQuote?.unserviceableReason ||
+        (deliveryQuote?.distanceKm != null &&
+          deliveryQuote.distanceKm > ONAM_SADHYA.deliveryRadiusKm),
+    )
 
   const needsAddress = addresses.length === 0 || !selectedAddressId
 
@@ -349,7 +381,7 @@ export default function CheckoutPage() {
       return
     }
 
-    if (isUnserviceable) {
+    if (isUnserviceable && !isChopsticksOnam) {
       toast.error(
         deliveryQuote?.unserviceableReason ??
           'We do not deliver to this address yet.',
@@ -556,6 +588,29 @@ export default function CheckoutPage() {
               </div>
             ) : null}
 
+            {showOnamDeliveryFyi ? (
+              <div
+                className="flex items-start gap-3 rounded-[var(--radius-card)] border border-amber-200 bg-amber-50 p-4"
+                role="status"
+              >
+                <MapPin
+                  className="mt-0.5 h-5 w-5 shrink-0 text-amber-700"
+                  aria-hidden="true"
+                />
+                <div className="text-sm">
+                  <p className="font-medium text-text-primary">
+                    Delivery area note
+                  </p>
+                  <p className="mt-1 text-text-secondary">
+                    {onamDeliveryOutOfRangeMessage({
+                      distanceKm: deliveryQuote?.distanceKm,
+                      maxKm: ONAM_SADHYA.deliveryRadiusKm,
+                    })}
+                  </p>
+                </div>
+              </div>
+            ) : null}
+
             {!isOnamPrebook &&
               !isStoreStatusLoading &&
               storeStatus &&
@@ -734,6 +789,7 @@ export default function CheckoutPage() {
         restaurantLocation={restaurantLocationFromBranch(selectedBranch)}
         branchId={selectedBranch?.id ?? null}
         subtotal={cart?.subtotal ?? 0}
+        {...chopsticksOnamDefaults}
         onClose={() => {
           setIsAddressModalOpen(false)
           setAddressToEdit(null)

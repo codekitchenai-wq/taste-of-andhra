@@ -52,13 +52,13 @@ export default function OnamSpecialPage() {
   const [searchParams] = useSearchParams()
   const { isAuthenticated, isLoading: isAuthLoading, user } = useAuth()
   const { isUpdating, addItem, clearCart } = useCart()
-  const { addresses } = useAddresses()
+  const { addresses, isLoading: addressesLoading, refetch: refetchAddresses } =
+    useAddresses()
   const [prebook, setPrebook] = useState<OnamPrebook>(defaultOnamPrebook)
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
     null,
   )
   const [requestAddAddress, setRequestAddAddress] = useState(0)
-  const [isAddressLoading, setIsAddressLoading] = useState(false)
   const [isPlacingOrder, setIsPlacingOrder] = useState(false)
   const promptedCheckoutRef = useRef(false)
 
@@ -193,6 +193,7 @@ export default function OnamSpecialPage() {
         address: selectedAddress,
         subtotal: lineSubtotal,
         itemCount: booking.plates,
+        allowOutsideServiceArea: isSpiceMalabarStorefront(org),
       })
 
       if (!quoteResult.success) {
@@ -200,19 +201,13 @@ export default function OnamSpecialPage() {
         return
       }
 
-      if (!quoteResult.data.isServiceable) {
-        toast.error(
-          quoteResult.data.unserviceableReason ??
-            'We do not deliver to this address yet.',
-        )
-        return
-      }
-
       const orderResult = await orderService.createOrder({
         addressId: selectedAddressId,
         paymentMethod: 'pay_later',
         specialInstructions: onamOrderNote(booking),
-        deliveryQuoteId: quoteResult.data.quoteId ?? null,
+        deliveryQuoteId: quoteResult.data.isServiceable
+          ? (quoteResult.data.quoteId ?? null)
+          : null,
         scheduledFor: onamScheduledAt(booking.date, booking.slot),
         whatsappUpdatesOptIn: org.storefrontWhatsAppEnabled,
       })
@@ -402,9 +397,11 @@ export default function OnamSpecialPage() {
 
               {isAuthenticated ? (
                 <OnamDeliveryAddress
+                  addresses={addresses}
+                  isLoading={addressesLoading}
+                  onRefetch={refetchAddresses}
                   selectedAddressId={selectedAddressId}
                   onSelect={setSelectedAddressId}
-                  onLoadingChange={setIsAddressLoading}
                   requestAddAddress={requestAddAddress}
                 />
               ) : !isAuthLoading ? (
@@ -431,7 +428,7 @@ export default function OnamSpecialPage() {
                   disabled={
                     isUpdating ||
                     isPlacingOrder ||
-                    (isAuthenticated && isAddressLoading)
+                    (isAuthenticated && addressesLoading)
                   }
                   onClick={() => void placeOnamWhatsAppOrder(true)}
                 >
@@ -439,7 +436,7 @@ export default function OnamSpecialPage() {
                     ? 'Placing order…'
                     : isUpdating
                       ? 'Preparing details…'
-                      : isAuthenticated && isAddressLoading
+                      : isAuthenticated && addressesLoading
                         ? 'Loading address…'
                         : 'Send order on WhatsApp'}
                 </Button>

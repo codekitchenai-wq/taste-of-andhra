@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { ChopsticksLaunchSection } from '@/components/home/ChopsticksLaunchSection'
 import { FeaturedCategories } from '@/components/home/FeaturedCategories'
 import { FeaturedDishes } from '@/components/home/FeaturedDishes'
 import { GoogleReviews } from '@/components/home/GoogleReviews'
@@ -35,11 +36,12 @@ export default function HomePage() {
     }
   }, [org.organizationId, org.settings])
 
-  // Chopsticks: Onam-focused landing + reel + optional Google reviews for this org only.
+  // Chopsticks: website launch + Onam landing + reel + optional Google reviews.
   if (isChopsticks) {
     return (
       <>
         <HeroSection />
+        <ChopsticksLaunchSection />
         <OnamReelSection />
         {showGoogleReviews ? <GoogleReviews /> : null}
       </>
