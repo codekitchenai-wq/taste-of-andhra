@@ -35,7 +35,6 @@ import {
 import { writeCheckoutAddressId } from '@/utils/checkoutAddress'
 import { formatAddressLine } from '@/utils/mapAddress'
 import { isSpiceMalabarStorefront } from '@/utils/storefrontCopy'
-import { useStorefrontWhatsApp } from '@/hooks/useStorefrontWhatsApp'
 import * as deliveryQuoteService from '@/services/deliveryQuoteService'
 import * as dishService from '@/services/dishService'
 import * as orderService from '@/services/orderService'
@@ -47,7 +46,6 @@ import {
 
 export default function OnamSpecialPage() {
   const org = useOrganization()
-  const whatsApp = useStorefrontWhatsApp()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { isAuthenticated, isLoading: isAuthLoading, user } = useAuth()
@@ -94,9 +92,13 @@ export default function OnamSpecialPage() {
       selectedAddress?.full_name ||
       user?.full_name ||
       'Customer'
+    const customerPhone =
+      selectedAddress?.phone?.trim() ||
+      user?.phone?.trim() ||
+      ''
     const lines = [
-      `Hi ${customerName},`,
-      `Your Onam Sadhya order at ${whatsApp.contact.name} is confirmed.`,
+      `Hi ${ONAM_SADHYA.restaurant}!`,
+      `New Onam Sadhya order from ${customerName}.`,
       '',
       `Order number: ${orderNumber}`,
       '',
@@ -108,22 +110,14 @@ export default function OnamSpecialPage() {
       `• Amount: ${formatPrice(subtotal)} + tax`,
       `• Delivery: ${selectedAddress ? formatAddressLine(selectedAddress) : ''}`,
     ]
+    if (customerPhone) {
+      lines.push(`• Customer phone: ${customerPhone}`)
+    }
     if (booking.comments.trim()) {
       lines.push(`• Comments: ${booking.comments.trim()}`)
     }
-    lines.push(
-      '',
-      'Complete UPI payment on the next screen to confirm your booking.',
-    )
+    lines.push('', 'Please confirm. Customer will complete UPI on the next screen.')
     return lines.join('\n')
-  }
-
-  const customerWhatsAppPhone = (): string | null => {
-    const raw =
-      selectedAddress?.phone?.trim() ||
-      user?.phone?.trim() ||
-      ''
-    return normalizeIndianPhone(raw)
   }
 
   const placeOnamWhatsAppOrder = async (fromForm = false) => {
@@ -155,13 +149,8 @@ export default function OnamSpecialPage() {
 
     writeCheckoutAddressId(selectedAddressId)
 
-    const customerPhone = customerWhatsAppPhone()
-    if (!customerPhone) {
-      toast.error(
-        'Add a valid mobile number to your delivery address or profile to receive the order on WhatsApp.',
-      )
-      return
-    }
+    const restaurantWhatsApp =
+      normalizeIndianPhone(ONAM_SADHYA.enquiryWhatsAppPhone) ?? '8928945888'
 
     setIsPlacingOrder(true)
 
@@ -222,7 +211,7 @@ export default function OnamSpecialPage() {
         orderResult.data.order_number,
       )
       window.open(
-        whatsappShareUrl(customerPhone, message),
+        whatsappShareUrl(restaurantWhatsApp, message),
         '_blank',
         'noopener,noreferrer',
       )

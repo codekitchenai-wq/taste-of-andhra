@@ -178,7 +178,8 @@ export function onamWhatsAppMessage(prebook: OnamPrebook) {
 }
 
 export function onamWhatsAppUrl(prebook: OnamPrebook) {
-  const phone = normalizeIndianPhone(ONAM_SADHYA.bookingPhone) ?? '7841822215'
+  const phone =
+    normalizeIndianPhone(ONAM_SADHYA.enquiryWhatsAppPhone) ?? '8928945888'
   return storefrontWhatsAppUrl(
     {
       name: ONAM_SADHYA.restaurant,

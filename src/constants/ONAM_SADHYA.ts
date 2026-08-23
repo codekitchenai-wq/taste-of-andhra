@@ -14,8 +14,8 @@ export const ONAM_SADHYA = {
   launchCtaPrimaryMl: 'ഓണം സദ്യ പ്രീ-ബുക്ക് ചെയ്യുക',
   launchCtaWhatsApp: 'Ask on WhatsApp',
   imageUrl: '/images/tenants/spice-malabar-onam.png',
-  bookingPhone: '7841822215',
-  /** Homepage WhatsApp enquiry number (opens chat with bilingual pre-fill). */
+  bookingPhone: '8928945888',
+  /** All Chopsticks WhatsApp CTAs (enquiry, footer, Onam order) use this number. */
   enquiryWhatsAppPhone: '8928945888',
   enquiryWhatsAppMessage: [
     'Hi Chopsticks Spice Malabar!',

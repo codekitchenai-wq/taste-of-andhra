@@ -45,7 +45,21 @@ async function requireUserId(): Promise<ServiceResponse<string>> {
   return createSuccessResponse(user.id)
 }
 
-function validateAddressInput(input: CreateAddressInput): string | null {
+function validateAddressInput(
+  input: CreateAddressInput,
+  mode: 'strict' | 'relaxed' = 'strict',
+): string | null {
+  if (mode === 'relaxed') {
+    // Optional fields — only validate format when the customer typed something.
+    if (input.phone.trim() && !isValidPhone(input.phone)) {
+      return 'Enter a valid 10-digit phone number.'
+    }
+    if (input.pincode.trim() && !/^\d{6}$/.test(input.pincode.trim())) {
+      return 'Enter a valid 6-digit pincode.'
+    }
+    return null
+  }
+
   if (!input.fullName.trim()) return 'Full name is required.'
   if (!isValidPhone(input.phone)) return 'Enter a valid 10-digit phone number.'
   if (!input.addressLine1.trim()) return 'Address line is required.'
@@ -117,8 +131,10 @@ export async function getAddresses(): Promise<ServiceResponse<Address[]>> {
 
 export async function addAddress(
   input: CreateAddressInput,
+  options?: { validationMode?: 'strict' | 'relaxed' },
 ): Promise<ServiceResponse<Address>> {
-  const validationError = validateAddressInput(input)
+  const validationMode = options?.validationMode ?? 'strict'
+  const validationError = validateAddressInput(input, validationMode)
 
   if (validationError) {
     return createErrorResponse(validationError)
@@ -163,14 +179,17 @@ export async function addAddress(
     user_id: userId,
     organization_id: orgId,
     address_type: input.addressType.trim() || 'home',
-    full_name: input.fullName.trim(),
-    phone: input.phone.trim(),
-    address_line1: input.addressLine1.trim(),
+    // DB columns are NOT NULL — empty string is allowed when validation is relaxed.
+    full_name: input.fullName.trim() || (validationMode === 'relaxed' ? 'Customer' : ''),
+    phone: input.phone.trim() || (validationMode === 'relaxed' ? '' : ''),
+    address_line1:
+      input.addressLine1.trim() ||
+      (validationMode === 'relaxed' ? 'Location pin' : ''),
     address_line2: input.addressLine2?.trim() || null,
     landmark: input.landmark?.trim() || null,
-    city: input.city.trim(),
-    state: input.state.trim(),
-    pincode: input.pincode.trim(),
+    city: input.city.trim() || (validationMode === 'relaxed' ? '' : ''),
+    state: input.state.trim() || (validationMode === 'relaxed' ? '' : ''),
+    pincode: input.pincode.trim() || (validationMode === 'relaxed' ? '' : ''),
     latitude: input.latitude ?? null,
     longitude: input.longitude ?? null,
     distance_km: input.distanceKm ?? null,
@@ -187,6 +206,7 @@ export async function addAddress(
 export async function updateAddress(
   id: string,
   input: Partial<CreateAddressInput>,
+  options?: { validationMode?: 'strict' | 'relaxed' },
 ): Promise<ServiceResponse<Address>> {
   const userResult = await requireUserId()
 
@@ -194,6 +214,7 @@ export async function updateAddress(
     return userResult
   }
 
+  const relaxed = options?.validationMode === 'relaxed'
   const updates: Record<string, unknown> = {}
 
   if (input.addressType !== undefined) {
@@ -201,11 +222,14 @@ export async function updateAddress(
   }
 
   if (input.fullName !== undefined) {
-    updates.full_name = input.fullName.trim()
+    updates.full_name = input.fullName.trim() || (relaxed ? 'Customer' : '')
   }
 
   if (input.phone !== undefined) {
-    if (!isValidPhone(input.phone)) {
+    if (input.phone.trim() && !isValidPhone(input.phone)) {
+      return createErrorResponse('Enter a valid 10-digit phone number.')
+    }
+    if (!relaxed && !isValidPhone(input.phone)) {
       return createErrorResponse('Enter a valid 10-digit phone number.')
     }
 
@@ -213,7 +237,8 @@ export async function updateAddress(
   }
 
   if (input.addressLine1 !== undefined) {
-    updates.address_line1 = input.addressLine1.trim()
+    updates.address_line1 =
+      input.addressLine1.trim() || (relaxed ? 'Location pin' : '')
   }
 
   if (input.addressLine2 !== undefined) {
@@ -221,11 +246,11 @@ export async function updateAddress(
   }
 
   if (input.landmark !== undefined) {
-    if (!input.landmark.trim()) {
+    if (!relaxed && !input.landmark.trim()) {
       return createErrorResponse('Nearest landmark is required.')
     }
 
-    updates.landmark = input.landmark.trim()
+    updates.landmark = input.landmark.trim() || null
   }
 
   if (input.city !== undefined) {
@@ -237,7 +262,13 @@ export async function updateAddress(
   }
 
   if (input.pincode !== undefined) {
-    if (!/^\d{6}$/.test(input.pincode.trim())) {
+    if (
+      input.pincode.trim() &&
+      !/^\d{6}$/.test(input.pincode.trim())
+    ) {
+      return createErrorResponse('Enter a valid 6-digit pincode.')
+    }
+    if (!relaxed && !/^\d{6}$/.test(input.pincode.trim())) {
       return createErrorResponse('Enter a valid 6-digit pincode.')
     }
 

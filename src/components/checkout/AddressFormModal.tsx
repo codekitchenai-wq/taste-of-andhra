@@ -103,6 +103,8 @@ export function AddressFormModal({
   const { user } = useAuth()
   const { settings: deliverySettings } = useDeliverySettings(branchId)
 
+  const [locateSession, setLocateSession] = useState(0)
+
   // Coordinates from the map pin
   const coordinatesRef = useRef<{ latitude: number; longitude: number } | null>(null)
   const [pinnedCoords, setPinnedCoords] = useState<{ latitude: number; longitude: number } | null>(null)
@@ -141,6 +143,10 @@ export function AddressFormModal({
       return
     }
 
+    if (isChopsticks) {
+      setLocateSession((current) => current + 1)
+    }
+
     const registeredPhone = user?.phone?.replace(/\D/g, '').slice(-10) ?? ''
     reset({
       ...emptyValues,
@@ -149,7 +155,7 @@ export function AddressFormModal({
       city: defaultCity.trim() || emptyValues.city,
       state: defaultState.trim() || emptyValues.state,
     })
-  }, [isOpen, addressToEdit, user, reset, defaultCity, defaultState])
+  }, [isOpen, addressToEdit, user, reset, defaultCity, defaultState, isChopsticks])
 
   const handleMapChange = (place: ResolvedPlace) => {
     const coords = { latitude: place.latitude, longitude: place.longitude }
@@ -165,8 +171,12 @@ export function AddressFormModal({
     )
     setValue('addressLine2', place.addressLine2 || current.addressLine2, opts)
     setValue('landmark', place.landmark || current.landmark, opts)
-    setValue('city', place.city || current.city, opts)
-    setValue('state', place.state || current.state, opts)
+    setValue('city', place.city || current.city || defaultCity.trim() || '', opts)
+    setValue(
+      'state',
+      place.state || current.state || defaultState.trim() || '',
+      opts,
+    )
     setValue('pincode', place.pincode || current.pincode, opts)
   }
 
@@ -227,10 +237,14 @@ export function AddressFormModal({
       isDefault: values.isDefault,
     }
 
+    const validationMode = isChopsticks ? 'relaxed' : 'strict'
+
     const result =
       isEditing && addressToEdit
-        ? await addressService.updateAddress(addressToEdit.id, payload)
-        : await addressService.addAddress(payload)
+        ? await addressService.updateAddress(addressToEdit.id, payload, {
+            validationMode,
+          })
+        : await addressService.addAddress(payload, { validationMode })
 
     if (!result.success) {
       toast.error(result.message)
@@ -278,9 +292,15 @@ export function AddressFormModal({
         {/* ΓöÇΓöÇ Map pin ΓöÇΓöÇ */}
         <div className="space-y-2">
           <LocationPicker
+            key={
+              isEditing
+                ? addressToEdit?.id ?? 'edit'
+                : `locate-${locateSession}`
+            }
             latitude={pinnedCoords?.latitude ?? null}
             longitude={pinnedCoords?.longitude ?? null}
             onChange={handleMapChange}
+            autoLocateOnMount={isChopsticks && !isEditing}
           />
 
           {/* Delivery distance status badge ΓÇö only shown when pinned */}
@@ -346,85 +366,162 @@ export function AddressFormModal({
           ))}
         </div>
 
-        {/* ΓöÇΓöÇ Contact row ΓöÇΓöÇ */}
+        {/* Contact row */}
         <div className="grid gap-3 sm:grid-cols-2">
           <Input
-            label="Full Name"
+            label={isChopsticks ? 'Full Name (optional)' : 'Full Name'}
             error={errors.fullName?.message}
-            {...register('fullName', { required: 'Full name is required' })}
+            {...register(
+              'fullName',
+              isChopsticks ? undefined : { required: 'Full name is required' },
+            )}
           />
           <Input
-            label="Phone"
+            label={isChopsticks ? 'Phone (optional)' : 'Phone'}
             type="tel"
             inputMode="numeric"
             placeholder="10-digit mobile"
             error={errors.phone?.message}
-            {...register('phone', {
-              required: 'Phone is required',
-              pattern: { value: /^\d{10}$/, message: 'Enter a valid 10-digit number' },
-            })}
+            {...register(
+              'phone',
+              isChopsticks
+                ? {
+                    validate: (value) =>
+                      !value.trim() ||
+                      /^\d{10}$/.test(value) ||
+                      'Enter a valid 10-digit number',
+                  }
+                : {
+                    required: 'Phone is required',
+                    pattern: {
+                      value: /^\d{10}$/,
+                      message: 'Enter a valid 10-digit number',
+                    },
+                  },
+            )}
           />
         </div>
 
-        {/* ΓöÇΓöÇ Address line 1 ΓöÇΓöÇ */}
+        {/* Address line 1 */}
         <Input
-          label="House / Flat, Street"
+          label={
+            isChopsticks
+              ? 'House / Flat, Street (optional)'
+              : 'House / Flat, Street'
+          }
           placeholder="e.g. 12B, MG Road"
           error={errors.addressLine1?.message}
           value={addressLine1}
-          {...register('addressLine1', { required: 'Address is required' })}
-          onChange={(e) => setValue('addressLine1', e.target.value, { shouldValidate: true, shouldDirty: true })}
+          {...register(
+            'addressLine1',
+            isChopsticks ? undefined : { required: 'Address is required' },
+          )}
+          onChange={(e) =>
+            setValue('addressLine1', e.target.value, {
+              shouldValidate: true,
+              shouldDirty: true,
+            })
+          }
         />
 
-        {/* ΓöÇΓöÇ Address line 2 + Landmark row ΓöÇΓöÇ */}
+        {/* Address line 2 + Landmark */}
         <div className="grid gap-3 sm:grid-cols-2">
           <Input
             label="Floor / Area (optional)"
             placeholder="e.g. 3rd floor, Sobha Apts"
             value={addressLine2}
             {...register('addressLine2')}
-            onChange={(e) => setValue('addressLine2', e.target.value, { shouldDirty: true })}
+            onChange={(e) =>
+              setValue('addressLine2', e.target.value, { shouldDirty: true })
+            }
           />
           <Input
-            label="Landmark"
+            label={isChopsticks ? 'Landmark (optional)' : 'Landmark'}
             placeholder="Near metro / temple"
             error={errors.landmark?.message}
             value={landmark}
-            {...register('landmark', {
-              required: 'Landmark helps the delivery partner',
-              minLength: { value: 2, message: 'Enter a recognisable landmark' },
-            })}
-            onChange={(e) => setValue('landmark', e.target.value, { shouldValidate: true, shouldDirty: true })}
+            {...register(
+              'landmark',
+              isChopsticks
+                ? undefined
+                : {
+                    required: 'Landmark helps the delivery partner',
+                    minLength: {
+                      value: 2,
+                      message: 'Enter a recognisable landmark',
+                    },
+                  },
+            )}
+            onChange={(e) =>
+              setValue('landmark', e.target.value, {
+                shouldValidate: true,
+                shouldDirty: true,
+              })
+            }
           />
         </div>
 
-        {/* ΓöÇΓöÇ City / State / Pincode row ΓöÇΓöÇ */}
-        <div className="grid gap-3 grid-cols-3">
+        {/* City / State / Pincode */}
+        <div className="grid grid-cols-3 gap-3">
           <Input
-            label="City"
+            label={isChopsticks ? 'City (optional)' : 'City'}
             error={errors.city?.message}
             value={city}
-            {...register('city', { required: 'Required' })}
-            onChange={(e) => setValue('city', e.target.value, { shouldValidate: true, shouldDirty: true })}
+            {...register(
+              'city',
+              isChopsticks ? undefined : { required: 'Required' },
+            )}
+            onChange={(e) =>
+              setValue('city', e.target.value, {
+                shouldValidate: true,
+                shouldDirty: true,
+              })
+            }
           />
           <Input
-            label="State"
+            label={isChopsticks ? 'State (optional)' : 'State'}
             error={errors.state?.message}
             value={state}
-            {...register('state', { required: 'Required' })}
-            onChange={(e) => setValue('state', e.target.value, { shouldValidate: true, shouldDirty: true })}
+            {...register(
+              'state',
+              isChopsticks ? undefined : { required: 'Required' },
+            )}
+            onChange={(e) =>
+              setValue('state', e.target.value, {
+                shouldValidate: true,
+                shouldDirty: true,
+              })
+            }
           />
           <Input
-            label="Pincode"
+            label={isChopsticks ? 'Pincode (optional)' : 'Pincode'}
             placeholder="6 digits"
             inputMode="numeric"
             error={errors.pincode?.message}
             value={pincode}
-            {...register('pincode', {
-              required: 'Required',
-              pattern: { value: /^\d{6}$/, message: '6-digit pincode' },
-            })}
-            onChange={(e) => setValue('pincode', e.target.value, { shouldValidate: true, shouldDirty: true })}
+            {...register(
+              'pincode',
+              isChopsticks
+                ? {
+                    validate: (value) =>
+                      !value.trim() ||
+                      /^\d{6}$/.test(value) ||
+                      '6-digit pincode',
+                  }
+                : {
+                    required: 'Required',
+                    pattern: {
+                      value: /^\d{6}$/,
+                      message: '6-digit pincode',
+                    },
+                  },
+            )}
+            onChange={(e) =>
+              setValue('pincode', e.target.value, {
+                shouldValidate: true,
+                shouldDirty: true,
+              })
+            }
           />
         </div>
       </form>
