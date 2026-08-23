@@ -31,12 +31,13 @@ export function navigateDeferredTab(
   handle: DeferredWindowHandle | null | undefined,
   url: string,
   fallbackOpen: DeferredWindowOpener = window.open,
-): void {
+): boolean {
   if (handle && !handle.closed) {
     handle.location.href = url
-    return
+    return true
   }
-  fallbackOpen(url, '_blank', 'noopener,noreferrer')
+  const opened = fallbackOpen(url, '_blank', 'noopener,noreferrer')
+  return Boolean(opened)
 }
 
 export function closeDeferredTab(

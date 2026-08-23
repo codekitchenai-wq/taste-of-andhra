@@ -34,7 +34,16 @@ import {
 } from '@/utils/onamPrebook'
 import { writeCheckoutAddressId } from '@/utils/checkoutAddress'
 import { formatAddressLine } from '@/utils/mapAddress'
-import { isSpiceMalabarStorefront } from '@/utils/storefrontCopy'
+import {
+  isSpiceMalabarStorefront,
+  storefrontContact,
+} from '@/utils/storefrontCopy'
+import { storefrontWhatsAppPhone } from '@/utils/storefrontWhatsApp'
+import {
+  closeDeferredTab,
+  navigateDeferredTab,
+  openDeferredTab,
+} from '@/utils/deferredWindow'
 import * as deliveryQuoteService from '@/services/deliveryQuoteService'
 import * as dishService from '@/services/dishService'
 import * as orderService from '@/services/orderService'
@@ -149,14 +158,22 @@ export default function OnamSpecialPage() {
 
     writeCheckoutAddressId(selectedAddressId)
 
+    // Prefer Admin → Settings WhatsApp, then storefront phone, then Onam fallback.
     const restaurantWhatsApp =
-      normalizeIndianPhone(ONAM_SADHYA.enquiryWhatsAppPhone) ?? '8928945888'
+      storefrontWhatsAppPhone(storefrontContact(org)) ??
+      normalizeIndianPhone(ONAM_SADHYA.enquiryWhatsAppPhone) ??
+      '8928945888'
+
+    // Open the tab synchronously on click so browsers do not treat WhatsApp as a
+    // blocked popup. Close it if order creation fails (no empty WhatsApp window).
+    const whatsappTab = openDeferredTab(true)
 
     setIsPlacingOrder(true)
 
     try {
       const dishResult = await dishService.getDishBySlug(service.dishSlug)
       if (!dishResult.success) {
+        closeDeferredTab(whatsappTab)
         toast.error(
           dishResult.message === 'Dish not found.'
             ? 'Onam menu is not set up yet for this restaurant. Please try again shortly or contact the restaurant.'
@@ -167,12 +184,14 @@ export default function OnamSpecialPage() {
 
       const clearResult = await clearCart()
       if (!clearResult.success) {
+        closeDeferredTab(whatsappTab)
         toast.error(clearResult.message)
         return
       }
 
       const addResult = await addItem(dishResult.data.id, booking.plates)
       if (!addResult.success) {
+        closeDeferredTab(whatsappTab)
         toast.error(addResult.message)
         return
       }
@@ -186,6 +205,7 @@ export default function OnamSpecialPage() {
       })
 
       if (!quoteResult.success) {
+        closeDeferredTab(whatsappTab)
         toast.error(quoteResult.message)
         return
       }
@@ -202,6 +222,7 @@ export default function OnamSpecialPage() {
       })
 
       if (!orderResult.success) {
+        closeDeferredTab(whatsappTab)
         toast.error(orderResult.message)
         return
       }
@@ -210,11 +231,15 @@ export default function OnamSpecialPage() {
         booking,
         orderResult.data.order_number,
       )
-      window.open(
-        whatsappShareUrl(restaurantWhatsApp, message),
-        '_blank',
-        'noopener,noreferrer',
-      )
+      const whatsappUrl = whatsappShareUrl(restaurantWhatsApp, message)
+      const whatsappOpened = navigateDeferredTab(whatsappTab, whatsappUrl)
+
+      if (!whatsappOpened) {
+        toast.error(
+          'WhatsApp was blocked by your browser. Allow pop-ups for this site, or tap “Open WhatsApp” on the next screen.',
+          { duration: 9000 },
+        )
+      }
 
       clearOnamPrebook()
       navigate(ROUTES.ORDER_SUCCESS, {
@@ -223,8 +248,17 @@ export default function OnamSpecialPage() {
           orderNumber: orderResult.data.order_number,
           paymentMethod: orderResult.data.payment_method,
           paymentShareToken: orderResult.data.payment_share_token ?? null,
+          whatsappUrl,
+          whatsappPopupBlocked: !whatsappOpened,
         },
       })
+    } catch (error) {
+      closeDeferredTab(whatsappTab)
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Unable to open WhatsApp. Please try again.',
+      )
     } finally {
       setIsPlacingOrder(false)
     }
@@ -440,8 +474,9 @@ export default function OnamSpecialPage() {
                   Share this offer
                 </Button>
                 <p className="text-center text-[11px] leading-relaxed text-text-secondary">
-                  Opens WhatsApp with your order, then UPI payment on the next
-                  screen.
+                  Opens WhatsApp with your order — tap <strong>Send</strong> in
+                  WhatsApp. If nothing opens, allow pop-ups for this site (or use
+                  Open WhatsApp on the next screen), then complete UPI payment.
                 </p>
               </div>
             </div>

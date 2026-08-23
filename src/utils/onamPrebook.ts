@@ -177,18 +177,21 @@ export function onamWhatsAppMessage(prebook: OnamPrebook) {
   return lines.join('\n')
 }
 
-export function onamWhatsAppUrl(prebook: OnamPrebook) {
-  const phone =
-    normalizeIndianPhone(ONAM_SADHYA.enquiryWhatsAppPhone) ?? '8928945888'
+/** Optional `phone` overrides the Onam fallback (use storefront WhatsApp when known). */
+export function onamWhatsAppUrl(prebook: OnamPrebook, phone?: string | null) {
+  const resolved =
+    normalizeIndianPhone(phone ?? '') ??
+    normalizeIndianPhone(ONAM_SADHYA.enquiryWhatsAppPhone) ??
+    '8928945888'
   return storefrontWhatsAppUrl(
     {
       name: ONAM_SADHYA.restaurant,
       tagline: '',
       description: '',
-      phone: `+91 ${phone}`,
+      phone: `+91 ${resolved}`,
       alternatePhone: null,
-      phones: [`+91 ${phone}`],
-      whatsappPhone: null,
+      phones: [`+91 ${resolved}`],
+      whatsappPhone: `+91 ${resolved}`,
       email: null,
       address: '',
       mapsUrl: '',

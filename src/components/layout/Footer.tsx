@@ -16,6 +16,7 @@ import {
   storefrontSocialLinks,
   isSpiceMalabarStorefront,
 } from '@/utils/storefrontCopy'
+import { storefrontWhatsAppPhone } from '@/utils/storefrontWhatsApp'
 import { useStorefrontWhatsApp } from '@/hooks/useStorefrontWhatsApp'
 import { useIsLandingPage } from '@/hooks/useIsLandingPage'
 
@@ -32,7 +33,12 @@ export function Footer() {
     Boolean(whatsApp.enabled && whatsApp.orderUrl) &&
     (!isLandingPage || isChopsticks)
   const whatsappDisplayNumber = isChopsticks
-    ? `+91 ${ONAM_SADHYA.enquiryWhatsAppPhone.replace(/(\d{5})(\d{5})/, '$1 $2')}`
+    ? (() => {
+        const digits =
+          storefrontWhatsAppPhone(contact) ?? ONAM_SADHYA.enquiryWhatsAppPhone
+        const normalized = digits.replace(/\D/g, '').slice(-10)
+        return `+91 ${normalized.replace(/(\d{5})(\d{5})/, '$1 $2')}`
+      })()
     : contact.whatsappPhone?.trim() ||
       contact.phone?.trim() ||
       'WhatsApp'

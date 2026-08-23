@@ -15,7 +15,10 @@ export const ONAM_SADHYA = {
   launchCtaWhatsApp: 'Ask on WhatsApp',
   imageUrl: '/images/tenants/spice-malabar-onam.png',
   bookingPhone: '8928945888',
-  /** All Chopsticks WhatsApp CTAs (enquiry, footer, Onam order) use this number. */
+  /**
+   * Fallback only when Admin WhatsApp / storefront phone is unset.
+   * Live Onam “Send order on WhatsApp” prefers `restaurant_whatsapp_phone`, then org phone.
+   */
   enquiryWhatsAppPhone: '8928945888',
   enquiryWhatsAppMessage: [
     'Hi Chopsticks Spice Malabar!',

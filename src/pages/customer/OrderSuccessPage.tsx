@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Container } from '@/components/ui/Container'
 import { GoogleReviewPrompt } from '@/components/orders/GoogleReviewPrompt'
 import { OrderNumberDisplay } from '@/components/orders/OrderNumberDisplay'
+import { WhatsAppGlyph, WhatsAppLink } from '@/components/ui/WhatsAppLink'
 import { ROUTES } from '@/constants/ROUTES'
 import * as paymentShareService from '@/services/paymentShareService'
 import type { PaymentMethod } from '@/types/enums'
@@ -19,6 +20,10 @@ interface OrderSuccessState {
   orderNumber?: string
   paymentMethod?: PaymentMethod
   paymentShareToken?: string | null
+  /** Prefill WhatsApp deep link (Onam / click-to-order). */
+  whatsappUrl?: string | null
+  /** True when the browser blocked the WhatsApp tab. */
+  whatsappPopupBlocked?: boolean
 }
 
 export default function OrderSuccessPage() {
@@ -35,6 +40,8 @@ export default function OrderSuccessPage() {
 
   const isUpi =
     state.paymentMethod === 'pay_later' && Boolean(state.paymentShareToken)
+  const whatsappUrl = state.whatsappUrl?.trim() || null
+  const showWhatsAppHelp = Boolean(whatsappUrl)
 
   useEffect(() => {
     if (!isUpi || !state.paymentShareToken) return
@@ -104,6 +111,34 @@ export default function OrderSuccessPage() {
             className="text-base"
           />
         </p>
+
+        {showWhatsAppHelp && whatsappUrl ? (
+          <div
+            className={`mt-6 rounded-[var(--radius-card)] border px-4 py-4 text-left text-sm ${
+              state.whatsappPopupBlocked
+                ? 'border-amber-300 bg-amber-50 text-amber-950'
+                : 'border-[#cfe9d8] bg-[#f3fbf6] text-text-primary'
+            }`}
+            role="status"
+          >
+            <p className="font-semibold">
+              {state.whatsappPopupBlocked
+                ? 'WhatsApp pop-up was blocked'
+                : 'Send your order on WhatsApp'}
+            </p>
+            <p className="mt-1.5 text-xs leading-relaxed opacity-90">
+              {state.whatsappPopupBlocked
+                ? 'Allow pop-ups for this site, then tap the button below. In WhatsApp, tap Send so the restaurant receives your order.'
+                : 'If WhatsApp did not open, tap below. In WhatsApp, tap Send so the restaurant receives your order.'}
+            </p>
+            <div className="mt-3">
+              <WhatsAppLink href={whatsappUrl} variant="button" fullWidth>
+                <WhatsAppGlyph />
+                Open WhatsApp
+              </WhatsAppLink>
+            </div>
+          </div>
+        ) : null}
 
         {isUpi && upiPreview && (
           <div className="mt-6 rounded-[var(--radius-card)] bg-surface p-5 text-left shadow-md">

@@ -19,10 +19,13 @@ export function useStorefrontWhatsApp() {
   const contact = storefrontContact(org)
   const isChopsticks = isSpiceMalabarStorefront(org)
 
-  // Chopsticks Onam enquiry: fixed number + bilingual pre-fill (footer icon).
+  // Chopsticks Onam enquiry: bilingual pre-fill to the configured restaurant WhatsApp.
+  const chopsticksWhatsApp =
+    storefrontWhatsAppPhone(contact) ?? ONAM_SADHYA.enquiryWhatsAppPhone
+
   const onamEnquiryUrl = isChopsticks
     ? buildWhatsAppDeepLink(
-        ONAM_SADHYA.enquiryWhatsAppPhone,
+        chopsticksWhatsApp,
         ONAM_SADHYA.enquiryWhatsAppMessage,
       )
     : null

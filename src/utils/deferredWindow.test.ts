@@ -63,14 +63,26 @@ describe('navigateDeferredTab', () => {
       closed: true,
       location: { href: '' },
     }
-    const fallback = vi.fn()
+    const fallback = vi.fn(() => ({ location: { href: '' } }))
 
-    navigateDeferredTab(handle, 'https://example.com/pay', fallback)
+    const opened = navigateDeferredTab(
+      handle,
+      'https://example.com/pay',
+      fallback,
+    )
 
+    expect(opened).toBe(true)
     expect(fallback).toHaveBeenCalledWith(
       'https://example.com/pay',
       '_blank',
       'noopener,noreferrer',
     )
+  })
+
+  it('reports blocked when no reserved tab and fallback open fails', () => {
+    const fallback = vi.fn(() => null)
+    expect(
+      navigateDeferredTab(null, 'https://wa.me/919999999999', fallback),
+    ).toBe(false)
   })
 })
