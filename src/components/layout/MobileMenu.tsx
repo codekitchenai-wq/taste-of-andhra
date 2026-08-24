@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { Link } from 'react-router-dom'
 import type { NavLink } from '@/data/navigation'
+import { accountNavItems } from '@/data/accountNavigation'
 import { ROUTES } from '@/constants/ROUTES'
 import { useAuth } from '@/hooks/useAuth'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
@@ -22,7 +23,7 @@ export function MobileMenu({
   onLogout,
   whatsAppOrderHref = null,
 }: MobileMenuProps) {
-  const { isAuthenticated, user } = useAuth()
+  const { isAuthenticated } = useAuth()
   const navRef = useRef<HTMLElement>(null)
 
   useFocusTrap(navRef, isOpen)
@@ -76,20 +77,16 @@ export function MobileMenu({
           <li className="border-t border-black/5 pt-4">
             {isAuthenticated ? (
               <>
-                <Link
-                  to={ROUTES.ORDERS}
-                  onClick={onClose}
-                  className="block rounded-[var(--radius-button)] px-4 py-3 text-base font-medium text-text-primary"
-                >
-                  My Orders
-                </Link>
-                <Link
-                  to={ROUTES.PROFILE}
-                  onClick={onClose}
-                  className="block rounded-[var(--radius-button)] px-4 py-3 text-base font-medium text-text-primary"
-                >
-                  Profile ({user?.full_name})
-                </Link>
+                {accountNavItems.map((item) => (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    onClick={onClose}
+                    className="block rounded-[var(--radius-button)] px-4 py-3 text-base font-medium text-text-primary"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
                 <button
                   type="button"
                   onClick={handleLogout}

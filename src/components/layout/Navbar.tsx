@@ -1,8 +1,5 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import {
-  Bell,
-  ClipboardList,
-  Heart,
   LogOut,
   ShoppingCart,
   User,
@@ -101,32 +98,6 @@ export function Navbar() {
                 Order on WhatsApp
               </WhatsAppLink>
             ) : null}
-            {isAuthenticated && (
-              <>
-                <Link
-                  to={ROUTES.ORDERS}
-                  className="hidden h-10 w-10 items-center justify-center rounded-full text-text-primary transition-colors hover:bg-primary/10 hover:text-primary sm:flex"
-                  aria-label="My Orders"
-                  title="My Orders"
-                >
-                  <ClipboardList className="h-5 w-5" />
-                </Link>
-                <Link
-                  to={ROUTES.FAVORITES}
-                  className="hidden h-10 w-10 items-center justify-center rounded-full text-text-primary transition-colors hover:bg-primary/10 hover:text-primary sm:flex"
-                  aria-label="Favorites"
-                >
-                  <Heart className="h-5 w-5" />
-                </Link>
-                <Link
-                  to={ROUTES.NOTIFICATIONS}
-                  className="hidden h-10 w-10 items-center justify-center rounded-full text-text-primary transition-colors hover:bg-primary/10 hover:text-primary sm:flex"
-                  aria-label="Notifications"
-                >
-                  <Bell className="h-5 w-5" />
-                </Link>
-              </>
-            )}
             <Link
               to={ROUTES.CART}
               className="relative flex h-10 w-10 items-center justify-center rounded-full text-text-primary transition-colors hover:bg-primary/10 hover:text-primary"
@@ -139,13 +110,13 @@ export function Navbar() {
                 </span>
               )}
             </Link>
-
             {isAuthenticated ? (
               <>
                 <Link
-                  to={ROUTES.PROFILE}
+                  to={ROUTES.ORDERS}
                   className="hidden h-10 max-w-[140px] items-center gap-2 rounded-full px-3 text-text-primary transition-colors hover:bg-primary/10 hover:text-primary sm:flex"
-                  aria-label="View profile"
+                  aria-label="Account — My Orders"
+                  title="Account"
                 >
                   <User className="h-5 w-5 shrink-0" />
                   <span className="truncate text-sm font-medium">

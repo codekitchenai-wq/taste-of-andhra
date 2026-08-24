@@ -4,11 +4,10 @@ import { MapPin, Plus } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { AddressFormModal } from '@/components/checkout/AddressFormModal'
 import { SavedAddressCard } from '@/components/addresses/SavedAddressCard'
-import { Container } from '@/components/ui/Container'
+import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { LoadingState } from '@/components/ui/LoadingState'
-import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { useAddresses } from '@/hooks/useAddresses'
 import { useSelectedBranch } from '@/hooks/useSelectedBranch'
@@ -85,23 +84,19 @@ export default function SavedAddressesPage() {
   }
 
   return (
-    <Container as="div" className="py-8 md:py-12">
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold md:text-4xl">
-            {isSetup ? 'Finish setting up' : 'Saved Addresses'}
-          </h1>
-          <p className="mt-3 max-w-2xl text-base text-text-secondary md:text-lg">
-            {isSetup
-              ? 'Add your delivery address so we can take your next order. You can save more addresses later.'
-              : 'Save home, work, or another named place. You can add as many addresses as you need.'}
-          </p>
-        </div>
-        <Button type="button" onClick={openAddForm} className="shrink-0">
+    <>
+      <div className="mb-3 flex justify-end">
+        <Button type="button" onClick={openAddForm} size="sm">
           <Plus className="h-4 w-4" aria-hidden="true" />
           Add Address
         </Button>
       </div>
+
+      {isSetup ? (
+        <p className="mb-3 text-sm text-text-secondary">
+          Add your delivery address so we can take your next order.
+        </p>
+      ) : null}
 
       {isLoading && <LoadingState variant="inline" />}
 
@@ -124,11 +119,12 @@ export default function SavedAddressesPage() {
       )}
 
       {!isLoading && !error && addresses.length > 0 && (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           {addresses.map((address) => (
             <SavedAddressCard
               key={address.id}
               address={address}
+              compact
               isBusy={isBusy}
               onEdit={openEditForm}
               onDelete={setDeletingAddress}
@@ -187,7 +183,7 @@ export default function SavedAddressesPage() {
           </Button>
         </div>
       </Modal>
-    </Container>
+    </>
   )
 }
 

@@ -2,11 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Heart } from 'lucide-react'
 import { MenuDishCard } from '@/components/menu/MenuDishCard'
-import { Container } from '@/components/ui/Container'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { LoadingState } from '@/components/ui/LoadingState'
-import { PageHeader } from '@/components/ui/PageHeader'
 import { ROUTES } from '@/constants/ROUTES'
 import { usePublicCategories } from '@/hooks/usePublicCategories'
 import { useMenuImageFallbacks } from '@/hooks/useMenuImageFallbacks'
@@ -52,12 +50,7 @@ export default function FavoritesPage() {
   }, [refetch])
 
   return (
-    <Container as="div" className="py-8 md:py-12">
-      <PageHeader
-        title="My Favorites"
-        description="Dishes you've saved for quick ordering."
-      />
-
+    <>
       {isLoading && <LoadingState variant="grid" />}
 
       {!isLoading && error && (
@@ -75,7 +68,7 @@ export default function FavoritesPage() {
       )}
 
       {!isLoading && !error && favorites.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {favorites.map((favorite) => (
             <MenuDishCard
               key={favorite.id}
@@ -86,6 +79,6 @@ export default function FavoritesPage() {
           ))}
         </div>
       )}
-    </Container>
+    </>
   )
 }

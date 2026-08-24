@@ -18,13 +18,13 @@ export function ProfileSectionCard({
   return (
     <section
       className={cn(
-        'rounded-2xl border border-black/[0.06] bg-surface p-5 shadow-sm md:p-6',
+        'rounded-2xl border border-black/[0.06] bg-surface p-4 shadow-sm',
         className,
       )}
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h2 className="text-base font-semibold text-text-primary md:text-lg">
+          <h2 className="text-sm font-semibold text-text-primary">
             {title}
           </h2>
           {description ? (
@@ -35,7 +35,7 @@ export function ProfileSectionCard({
         </div>
         {action ? <div className="shrink-0">{action}</div> : null}
       </div>
-      <div className="mt-5">{children}</div>
+      <div className="mt-3">{children}</div>
     </section>
   )
 }

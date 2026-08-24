@@ -3,23 +3,19 @@ import { useNavigate } from 'react-router-dom'
 import { Bell, CheckCheck } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button } from '@/components/ui/Button'
-import { Container } from '@/components/ui/Container'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { LoadingState } from '@/components/ui/LoadingState'
-import { PageHeader } from '@/components/ui/PageHeader'
 import { ROUTES } from '@/constants/ROUTES'
 import * as notificationService from '@/services/notificationService'
 import type { AppNotification } from '@/types/Notification'
 import { formatDateTime } from '@/utils/format'
-import { storefrontContact } from '@/utils/storefrontCopy'
 import { useOrganization } from '@/contexts/OrganizationContext'
 import { cn } from '@/utils/cn'
 
 export default function NotificationsPage() {
   const navigate = useNavigate()
   const org = useOrganization()
-  const contact = storefrontContact(org)
   const [notifications, setNotifications] = useState<AppNotification[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -82,28 +78,21 @@ export default function NotificationsPage() {
   }
 
   return (
-    <Container as="div" className="py-8 md:py-12">
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <PageHeader
-            title="Notifications"
-            description={`Order updates and alerts from ${contact.name}.`}
-          />
-        </div>
-        {unreadCount > 0 && (
+    <>
+      {unreadCount > 0 ? (
+        <div className="mb-3 flex justify-end">
           <Button
             type="button"
             variant="secondary"
             size="sm"
             disabled={isMarkingAll}
             onClick={() => void handleMarkAllRead()}
-            className="shrink-0 sm:mt-2"
           >
             <CheckCheck className="h-4 w-4" />
             Mark all read
           </Button>
-        )}
-      </div>
+        </div>
+      ) : null}
 
       {isLoading && <LoadingState variant="inline" />}
 
@@ -127,7 +116,7 @@ export default function NotificationsPage() {
                 type="button"
                 onClick={() => void handleNotificationClick(notification)}
                 className={cn(
-                  'flex w-full flex-col gap-1 px-5 py-4 text-left transition-colors hover:bg-background/60',
+                  'flex w-full flex-col gap-0.5 px-4 py-3 text-left transition-colors hover:bg-background/60',
                   !notification.is_read && 'bg-primary/5',
                 )}
               >
@@ -153,6 +142,6 @@ export default function NotificationsPage() {
           ))}
         </ul>
       )}
-    </Container>
+    </>
   )
 }

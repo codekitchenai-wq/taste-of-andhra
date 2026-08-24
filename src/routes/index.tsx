@@ -10,6 +10,7 @@ import { ProtectedRoute } from '@/components/routing/ProtectedRoute'
 import { AdminRoute } from '@/components/routing/AdminRoute'
 import { DeliveryRoute } from '@/components/routing/DeliveryRoute'
 import { GuestRoute } from '@/components/routing/GuestRoute'
+import { AccountLayout } from '@/layouts/AccountLayout'
 import {
   MasterLayout,
   MasterRoute,
@@ -305,8 +306,16 @@ const restaurantStorefrontRoutes = [
       {
         element: <ProtectedRoute />,
         children: [
-          { path: ROUTES.PROFILE, element: <ProfilePage /> },
-          { path: ROUTES.ORDERS, element: <MyOrdersPage /> },
+          {
+            element: <AccountLayout />,
+            children: [
+              { path: ROUTES.PROFILE, element: <ProfilePage /> },
+              { path: ROUTES.ORDERS, element: <MyOrdersPage /> },
+              { path: ROUTES.ADDRESSES, element: <SavedAddressesPage /> },
+              { path: ROUTES.FAVORITES, element: <FavoritesPage /> },
+              { path: ROUTES.NOTIFICATIONS, element: <NotificationsPage /> },
+            ],
+          },
           { path: `${ROUTES.ORDERS}/:orderId`, element: <OrderDetailsPage /> },
           {
             path: `${ROUTES.ORDERS}/:orderId/invoice`,
@@ -314,9 +323,6 @@ const restaurantStorefrontRoutes = [
           },
           { path: ROUTES.CHECKOUT, element: <CheckoutPage /> },
           { path: ROUTES.ORDER_SUCCESS, element: <OrderSuccessPage /> },
-          { path: ROUTES.ADDRESSES, element: <SavedAddressesPage /> },
-          { path: ROUTES.FAVORITES, element: <FavoritesPage /> },
-          { path: ROUTES.NOTIFICATIONS, element: <NotificationsPage /> },
         ],
       },
     ],
