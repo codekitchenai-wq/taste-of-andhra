@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { AddressFormModal } from '@/components/checkout/AddressFormModal'
 import { SavedAddressCard } from '@/components/addresses/SavedAddressCard'
+import { ProfileSectionCard } from '@/components/customer/ProfileSectionCard'
 import { Button } from '@/components/ui/Button'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { LoadingState } from '@/components/ui/LoadingState'
@@ -81,56 +82,43 @@ export function ProfileAddressesSection() {
   }
 
   return (
-    <section className="mt-8 max-w-xl rounded-[var(--radius-card)] bg-surface p-6 shadow-md">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-text-primary">
-            Delivery Addresses
-          </h2>
-          <p className="mt-1 text-sm text-text-secondary">
-            Save home, work, or another named place. Add as many as you need —
-            including an address for someone else.
-          </p>
-        </div>
-        <Button
-          type="button"
-          onClick={openAddForm}
-          className="shrink-0"
-          size="sm"
-        >
+    <ProfileSectionCard
+      title="Delivery addresses"
+      description="Save home, work, or another named place — including an address for someone else."
+      action={
+        <Button type="button" onClick={openAddForm} size="sm">
           <Plus className="h-4 w-4" aria-hidden="true" />
           Add Address
         </Button>
-      </div>
+      }
+    >
+      {isLoading && <LoadingState variant="inline" />}
 
-      <div className="mt-5">
-        {isLoading && <LoadingState variant="inline" />}
+      {!isLoading && error && (
+        <ErrorState message={error} onRetry={() => void refetch()} />
+      )}
 
-        {!isLoading && error && (
-          <ErrorState message={error} onRetry={() => void refetch()} />
-        )}
+      {!isLoading && !error && addresses.length === 0 && (
+        <p className="rounded-xl border border-dashed border-black/10 bg-background px-4 py-5 text-sm text-text-secondary">
+          No saved addresses yet. Add one to use at checkout.
+        </p>
+      )}
 
-        {!isLoading && !error && addresses.length === 0 && (
-          <p className="rounded-[var(--radius-card)] border border-dashed border-black/10 px-4 py-6 text-sm text-text-secondary">
-            No saved addresses yet. Add one to use at checkout.
-          </p>
-        )}
-
-        {!isLoading && !error && addresses.length > 0 && (
-          <div className="grid gap-4">
-            {addresses.map((address) => (
-              <SavedAddressCard
-                key={address.id}
-                address={address}
-                isBusy={isBusy}
-                onEdit={openEditForm}
-                onDelete={setDeletingAddress}
-                onSetDefault={(item) => void handleSetDefault(item)}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      {!isLoading && !error && addresses.length > 0 && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {addresses.map((address) => (
+            <SavedAddressCard
+              key={address.id}
+              address={address}
+              compact
+              isBusy={isBusy}
+              onEdit={openEditForm}
+              onDelete={setDeletingAddress}
+              onSetDefault={(item) => void handleSetDefault(item)}
+            />
+          ))}
+        </div>
+      )}
 
       <AddressFormModal
         isOpen={isFormOpen}
@@ -178,6 +166,6 @@ export function ProfileAddressesSection() {
           </Button>
         </div>
       </Modal>
-    </section>
+    </ProfileSectionCard>
   )
 }

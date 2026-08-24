@@ -10,6 +10,7 @@ interface SavedAddressCardProps {
   onDelete: (address: Address) => void
   onSetDefault: (address: Address) => void
   isBusy?: boolean
+  compact?: boolean
 }
 
 export function SavedAddressCard({
@@ -18,9 +19,16 @@ export function SavedAddressCard({
   onDelete,
   onSetDefault,
   isBusy = false,
+  compact = false,
 }: SavedAddressCardProps) {
   return (
-    <article className="rounded-[var(--radius-card)] border border-black/5 bg-surface p-5 shadow-sm">
+    <article
+      className={
+        compact
+          ? 'rounded-xl border border-black/[0.06] bg-background p-4'
+          : 'rounded-[var(--radius-card)] border border-black/5 bg-surface p-5 shadow-sm'
+      }
+    >
       <div className="flex items-start gap-3">
         <MapPin className="mt-1 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
         <div className="min-w-0 flex-1">
