@@ -89,7 +89,11 @@ function toFormValues(address: Address): AddressFormValues {
   }
 }
 
-const ADDRESS_TYPE_OPTIONS = [
+const ADDRESS_TYPE_OPTIONS: {
+  value: AddressFormValues['addressType']
+  label: string
+  Icon: typeof Home
+}[] = [
   { value: 'home', label: 'Home', Icon: Home },
   { value: 'work', label: 'Work', Icon: Briefcase },
   { value: 'other', label: 'Other', Icon: MoreHorizontal },
