@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { MapPin, Package } from 'lucide-react'
+import { MapPin, Navigation2, Package } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { OrderStatusBadge } from '@/components/admin/OrderStatusBadge'
 import { OrderNumberDisplay } from '@/components/orders/OrderNumberDisplay'
@@ -13,6 +13,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { ROUTES } from '@/constants/ROUTES'
 import * as deliveryService from '@/services/deliveryService'
 import type { DeliveryWithOrder } from '@/services/deliveryService'
+import { googleMapsNavigationUrl } from '@/utils/deliveryNavigation'
 import { formatPrice } from '@/utils/format'
 
 export default function DeliveryDashboardPage() {
@@ -83,45 +84,63 @@ export default function DeliveryDashboardPage() {
 
       {!isLoading && !error && deliveries.length > 0 && (
         <div className="grid gap-4 md:grid-cols-2">
-          {deliveries.map((delivery) => (
-            <article
-              key={delivery.id}
-              className="flex flex-col rounded-[var(--radius-card)] bg-surface p-5 shadow-md"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
+          {deliveries.map((delivery) => {
+            const mapsUrl = googleMapsNavigationUrl({
+              lat: delivery.dropoff_lat,
+              lng: delivery.dropoff_lng,
+              address: delivery.delivery_address,
+            })
+
+            return (
+              <article
+                key={delivery.id}
+                className="flex flex-col rounded-[var(--radius-card)] bg-surface p-5 shadow-md"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <Link
+                      to={ROUTES.DELIVERY.ORDER(delivery.id)}
+                      className="font-semibold text-primary hover:underline"
+                    >
+                      <OrderNumberDisplay value={delivery.order_number} />
+                    </Link>
+                    <p className="mt-1 text-sm text-text-secondary">
+                      {delivery.customer_name}
+                    </p>
+                  </div>
+                  <OrderStatusBadge status={delivery.status} />
+                </div>
+
+                {delivery.delivery_address && (
+                  <p className="mt-3 flex items-start gap-2 text-sm text-text-secondary">
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
+                    {delivery.delivery_address}
+                  </p>
+                )}
+
+                <p className="mt-2 text-sm font-medium text-text-primary">
+                  {formatPrice(delivery.order_total)}
+                </p>
+
+                <div className="mt-4 flex flex-wrap gap-2">
                   <Link
                     to={ROUTES.DELIVERY.ORDER(delivery.id)}
-                    className="font-semibold text-primary hover:underline"
+                    className="inline-flex h-9 items-center justify-center rounded-[var(--radius-button)] border-2 border-primary bg-surface px-4 text-sm font-medium text-primary transition-colors hover:bg-primary/5"
                   >
-                    <OrderNumberDisplay value={delivery.order_number} />
+                    View Details
                   </Link>
-                  <p className="mt-1 text-sm text-text-secondary">
-                    {delivery.customer_name}
-                  </p>
-                </div>
-                <OrderStatusBadge status={delivery.status} />
-              </div>
-
-              {delivery.delivery_address && (
-                <p className="mt-3 flex items-start gap-2 text-sm text-text-secondary">
-                  <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
-                  {delivery.delivery_address}
-                </p>
-              )}
-
-              <p className="mt-2 text-sm font-medium text-text-primary">
-                {formatPrice(delivery.order_total)}
-              </p>
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Link
-                  to={ROUTES.DELIVERY.ORDER(delivery.id)}
-                  className="inline-flex h-9 items-center justify-center rounded-[var(--radius-button)] border-2 border-primary bg-surface px-4 text-sm font-medium text-primary transition-colors hover:bg-primary/5"
-                >
-                  View Details
-                </Link>
-                {delivery.status === 'out_for_delivery' && (
+                  {mapsUrl ? (
+                    <a
+                      href={mapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex h-9 items-center justify-center gap-2 rounded-[var(--radius-button)] border-2 border-primary bg-surface px-4 text-sm font-medium text-primary transition-colors hover:bg-primary/5"
+                    >
+                      <Navigation2 className="h-3.5 w-3.5" />
+                      Maps
+                    </a>
+                  ) : null}
+                  {delivery.status === 'out_for_delivery' && (
                     <Button
                       type="button"
                       size="sm"
@@ -133,9 +152,10 @@ export default function DeliveryDashboardPage() {
                         : 'Mark Delivered'}
                     </Button>
                   )}
-              </div>
-            </article>
-          ))}
+                </div>
+              </article>
+            )
+          })}
         </div>
       )}
     </Container>

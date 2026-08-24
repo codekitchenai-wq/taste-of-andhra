@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { MapPin, Navigation } from 'lucide-react'
+import { MapPin, Navigation, Navigation2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { OrderStatusBadge } from '@/components/admin/OrderStatusBadge'
 import { OrderNumberDisplay } from '@/components/orders/OrderNumberDisplay'
@@ -12,6 +12,7 @@ import { ROUTES } from '@/constants/ROUTES'
 import { PartnerTrackingChecklist } from '@/components/delivery/PartnerTrackingChecklist'
 import { useLiveLocationSharing } from '@/hooks/useLiveLocationSharing'
 import * as deliveryService from '@/services/deliveryService'
+import { googleMapsNavigationUrl } from '@/utils/deliveryNavigation'
 import { getPartnerEtaDisplay } from '@/utils/partnerEta'
 import type { DeliveryWithOrder } from '@/services/deliveryService'
 import { formatPrice } from '@/utils/format'
@@ -82,6 +83,14 @@ export default function DeliveryOrderPage() {
           orderStatus: delivery.status,
         })
       : null
+
+  const mapsUrl = delivery
+    ? googleMapsNavigationUrl({
+        lat: delivery.dropoff_lat,
+        lng: delivery.dropoff_lng,
+        address: delivery.delivery_address,
+      })
+    : null
 
   const handleMarkDelivered = async () => {
     if (!delivery) return
@@ -157,6 +166,23 @@ export default function DeliveryOrderPage() {
                 Address not available.
               </p>
             )}
+            {mapsUrl ? (
+              <>
+                <a
+                  href={mapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-[var(--radius-button)] border-2 border-primary bg-surface px-4 text-sm font-medium text-primary transition-colors hover:bg-primary/5"
+                >
+                  <Navigation2 className="h-4 w-4" />
+                  Open in Google Maps
+                </a>
+                <p className="mt-2 text-xs text-text-secondary">
+                  Opens turn-by-turn in Google Maps. Return to this page if you
+                  still need to share live location with the customer.
+                </p>
+              </>
+            ) : null}
           </section>
 
           <section className="rounded-[var(--radius-card)] bg-surface p-5 shadow-md">
