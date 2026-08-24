@@ -63,7 +63,11 @@ export async function getDeliveryPartners(): Promise<
     action: 'list',
   })
   if (viaFunction.success) {
-    return createSuccessResponse(viaFunction.data.map(mapDeliveryPartner))
+    return createSuccessResponse(
+      viaFunction.data.map((row) =>
+        mapDeliveryPartner(row as unknown as Record<string, unknown>),
+      ),
+    )
   }
 
   // Fallback if the edge function is not deployed yet.
