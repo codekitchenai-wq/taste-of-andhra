@@ -6,6 +6,10 @@ export interface DeliveryPartner {
   phone: string
   is_active: boolean
   notes: string | null
+  user_id: string | null
+  login_email: string | null
+  login_active: boolean | null
+  has_login: boolean
   created_at: string
   updated_at: string
 }
@@ -16,4 +20,8 @@ export interface DeliveryPartnerFormInput {
   notes?: string
   isActive?: boolean
   branchId?: string | null
+  /** Login email for /delivery. Required when creating a new partner. */
+  email?: string
+  /** Login password. Required on create; optional on edit (leave blank to keep). */
+  password?: string
 }

@@ -429,6 +429,10 @@ verify_jwt = true
 [functions.razorpay-webhook]
 verify_jwt = false
 
+# Restaurant admins manage delivery roster + Auth logins.
+[functions.admin-delivery-partner]
+verify_jwt = true
+
 [experimental.pgdelta]
 enabled = true
 # Directory under `supabase/` where declarative files are written.

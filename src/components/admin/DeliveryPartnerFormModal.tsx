@@ -5,9 +5,12 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { Select } from '@/components/ui/Select'
+import { MIN_PASSWORD_LENGTH } from '@/constants/AUTH'
+import { useOrganization } from '@/contexts/OrganizationContext'
 import * as branchService from '@/services/branchService'
 import * as deliveryPartnerService from '@/services/deliveryPartnerService'
 import type { DeliveryPartner } from '@/types/DeliveryPartner'
+import { normalizeIndianPhone } from '@/utils/phone'
 
 interface DeliveryPartnerFormValues {
   fullName: string
@@ -15,6 +18,8 @@ interface DeliveryPartnerFormValues {
   notes: string
   isActive: boolean
   branchId: string
+  email: string
+  password: string
 }
 
 interface DeliveryPartnerFormModalProps {
@@ -31,6 +36,7 @@ export function DeliveryPartnerFormModal({
   onSuccess,
 }: DeliveryPartnerFormModalProps) {
   const isEditing = Boolean(partner)
+  const org = useOrganization()
   const [branchOptions, setBranchOptions] = useState<
     { label: string; value: string }[]
   >([])
@@ -39,6 +45,8 @@ export function DeliveryPartnerFormModal({
     register,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<DeliveryPartnerFormValues>({
     defaultValues: {
@@ -47,8 +55,12 @@ export function DeliveryPartnerFormModal({
       notes: '',
       isActive: true,
       branchId: '',
+      email: '',
+      password: '',
     },
   })
+
+  const phoneValue = watch('phone')
 
   useEffect(() => {
     if (!isOpen) return
@@ -80,16 +92,32 @@ export function DeliveryPartnerFormModal({
       notes: partner?.notes ?? '',
       isActive: partner?.is_active ?? true,
       branchId: partner?.branch_id ?? '',
+      email: partner?.login_email ?? '',
+      password: '',
     })
   }, [isOpen, partner, reset])
 
+  useEffect(() => {
+    if (!isOpen || isEditing) return
+    const suggested = deliveryPartnerService.suggestedDeliveryLoginEmail(
+      phoneValue,
+      org.slug,
+    )
+    if (suggested) {
+      setValue('email', suggested, { shouldValidate: false })
+    }
+  }, [isOpen, isEditing, phoneValue, org.slug, setValue])
+
   const onSubmit = async (values: DeliveryPartnerFormValues) => {
+    const phone = normalizeIndianPhone(values.phone) ?? values.phone
     const payload = {
       fullName: values.fullName,
-      phone: values.phone,
+      phone,
       notes: values.notes || undefined,
       isActive: values.isActive,
       branchId: values.branchId || null,
+      email: values.email.trim(),
+      password: values.password || undefined,
     }
 
     const result = isEditing
@@ -101,7 +129,11 @@ export function DeliveryPartnerFormModal({
       return
     }
 
-    toast.success(isEditing ? 'Delivery partner updated' : 'Delivery partner added')
+    toast.success(
+      isEditing
+        ? 'Delivery partner updated'
+        : 'Delivery partner and login created',
+    )
     onSuccess()
     onClose()
   }
@@ -147,9 +179,63 @@ export function DeliveryPartnerFormModal({
           error={errors.notes?.message}
           {...register('notes')}
         />
+
+        <div className="rounded-[var(--radius-button)] bg-background p-3">
+          <p className="text-sm font-semibold text-text-primary">
+            Delivery login
+          </p>
+          <p className="mt-1 text-xs text-text-secondary">
+            Partners sign in at /delivery/login with this email and password.
+            Suggested email uses their mobile number.
+          </p>
+        </div>
+
+        <Input
+          label="Login Email"
+          type="email"
+          autoComplete="off"
+          placeholder="7760071234@chopsticksspicemalabar.test"
+          error={errors.email?.message}
+          {...register('email', {
+            required: isEditing
+              ? partner?.has_login
+                ? 'Login email is required'
+                : false
+              : 'Login email is required',
+            pattern: {
+              value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+              message: 'Enter a valid email address',
+            },
+          })}
+        />
+        <Input
+          label={
+            isEditing
+              ? 'New Password (leave blank to keep current)'
+              : 'Password'
+          }
+          type="password"
+          autoComplete="new-password"
+          error={errors.password?.message}
+          {...register('password', {
+            required: isEditing ? false : 'Password is required',
+            minLength: {
+              value: MIN_PASSWORD_LENGTH,
+              message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+            },
+            validate: (value) => {
+              if (!value) return true
+              return (
+                value.length >= MIN_PASSWORD_LENGTH ||
+                `Password must be at least ${MIN_PASSWORD_LENGTH} characters`
+              )
+            },
+          })}
+        />
+
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" {...register('isActive')} />
-          Active (available for assignment)
+          Active (available for assignment and can sign in)
         </label>
         <div className="flex justify-end gap-3 pt-2">
           <Button type="button" variant="secondary" onClick={onClose}>
