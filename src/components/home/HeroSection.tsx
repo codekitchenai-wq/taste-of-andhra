@@ -10,6 +10,7 @@ import { useStorefrontWhatsApp } from '@/hooks/useStorefrontWhatsApp'
 import {
   storefrontHero,
   isSpiceMalabarStorefront,
+  storefrontPublicMenuEnabled,
 } from '@/utils/storefrontCopy'
 import { formatPrice } from '@/utils/format'
 
@@ -17,6 +18,7 @@ export function HeroSection() {
   const org = useOrganization()
   const hero = storefrontHero(org)
   const isSpiceMalabar = isSpiceMalabarStorefront(org)
+  const showMenu = storefrontPublicMenuEnabled(org)
   const whatsApp = useStorefrontWhatsApp()
 
   if (isSpiceMalabar) {
@@ -97,6 +99,20 @@ export function HeroSection() {
                   </span>
                 </Button>
               </Link>
+              {showMenu ? (
+                <Link
+                  to={ROUTES.MENU}
+                  className="inline-flex w-full shrink-0 sm:w-auto"
+                >
+                  <Button
+                    size="lg"
+                    variant="secondary"
+                    className="h-auto min-h-12 w-full border-[#e8d5a3]/50 bg-transparent py-2.5 text-[#e8d5a3] hover:bg-white/5 sm:w-auto"
+                  >
+                    View Menu
+                  </Button>
+                </Link>
+              ) : null}
               {whatsApp.orderUrl ? (
                 <a
                   href={whatsApp.orderUrl}

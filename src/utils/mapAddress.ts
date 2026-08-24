@@ -46,3 +46,23 @@ export function formatAddressLine(address: Address): string {
 
   return parts.join(', ')
 }
+
+export type AddressTypeKind = 'home' | 'work' | 'other'
+
+/** Maps a stored address_type to the Home / Work / Other picker. */
+export function addressTypeKind(type: string | null | undefined): AddressTypeKind {
+  const normalized = type?.trim().toLowerCase() ?? ''
+  if (normalized === 'home') return 'home'
+  if (normalized === 'work') return 'work'
+  return 'other'
+}
+
+/** Customer-facing name for a saved place (Home, Work, or a custom label). */
+export function formatAddressLabel(type: string | null | undefined): string {
+  const kind = addressTypeKind(type)
+  if (kind === 'home') return 'Home'
+  if (kind === 'work') return 'Work'
+  const trimmed = type?.trim() ?? ''
+  if (!trimmed || trimmed.toLowerCase() === 'other') return 'Other'
+  return trimmed
+}

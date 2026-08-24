@@ -1,7 +1,7 @@
 import { MapPin, Navigation, Pencil, Star, Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { formatAddressLine } from '@/utils/mapAddress'
+import { formatAddressLabel, formatAddressLine } from '@/utils/mapAddress'
 import type { Address } from '@/types/Address'
 
 interface SavedAddressCardProps {
@@ -25,10 +25,14 @@ export function SavedAddressCard({
         <MapPin className="mt-1 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-semibold text-text-primary">{address.full_name}</h3>
-            <Badge variant="default">{address.address_type}</Badge>
+            <h3 className="font-semibold text-text-primary">
+              {formatAddressLabel(address.address_type)}
+            </h3>
             {address.is_default && <Badge variant="featured">Default</Badge>}
           </div>
+          <p className="mt-1 text-sm text-text-secondary">
+            Deliver to {address.full_name}
+          </p>
           <p className="mt-2 text-sm text-text-secondary">
             {formatAddressLine(address)}
           </p>

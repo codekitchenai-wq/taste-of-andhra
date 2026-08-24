@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
+import { ProfileAddressesSection } from '@/components/addresses/ProfileAddressesSection'
 import { Button } from '@/components/ui/Button'
 import { Container } from '@/components/ui/Container'
 import { Input } from '@/components/ui/Input'
@@ -78,7 +79,7 @@ export default function ProfilePage() {
     <Container as="div" className="py-8 md:py-12">
       <PageHeader
         title="Profile"
-        description="Manage your personal information."
+        description="Manage your personal information and delivery addresses."
       />
 
       <p className="mb-8 text-sm text-text-secondary">
@@ -133,6 +134,8 @@ export default function ProfilePage() {
           </Button>
         </form>
       </section>
+
+      <ProfileAddressesSection />
 
       {loyalty && (
         <section className="mt-8 max-w-xl rounded-[var(--radius-card)] bg-surface p-6 shadow-md">

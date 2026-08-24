@@ -15,6 +15,7 @@ import * as addressService from '@/services/addressService'
 import type { Address } from '@/types/Address'
 import { cn } from '@/utils/cn'
 import type { ResolvedPlace } from '@/utils/googleMaps'
+import type { LocationMode } from '@/components/checkout/LocationPicker'
 import {
   distanceToRestaurantKm,
   isWithinNearbyDelivery,
@@ -23,11 +24,13 @@ import {
 } from '@/utils/nearbyAddress'
 import { onamDeliveryOutOfRangeMessage } from '@/utils/onamDeliveryCopy'
 import { isSpiceMalabarStorefront } from '@/utils/storefrontCopy'
+import { addressTypeKind } from '@/utils/mapAddress'
 import { calculateRateCardAmount } from '@/utils/deliveryRateCard'
 import { formatPrice } from '@/utils/format'
 
 interface AddressFormValues {
-  addressType: string
+  addressType: 'home' | 'work' | 'other'
+  customLabel: string
   fullName: string
   phone: string
   addressLine1: string
@@ -54,6 +57,7 @@ interface AddressFormModalProps {
 
 const emptyValues: AddressFormValues = {
   addressType: 'home',
+  customLabel: '',
   fullName: '',
   phone: '',
   addressLine1: '',
@@ -62,12 +66,17 @@ const emptyValues: AddressFormValues = {
   city: '',
   state: '',
   pincode: '',
-  isDefault: true,
+  isDefault: false,
 }
 
 function toFormValues(address: Address): AddressFormValues {
+  const kind = addressTypeKind(address.address_type)
   return {
-    addressType: address.address_type || 'home',
+    addressType: kind,
+    customLabel:
+      kind === 'other' && address.address_type.trim().toLowerCase() !== 'other'
+        ? address.address_type
+        : '',
     fullName: address.full_name,
     phone: address.phone,
     addressLine1: address.address_line1,
@@ -120,6 +129,7 @@ export function AddressFormModal({
   } = useForm<AddressFormValues>({ defaultValues: emptyValues })
 
   const addressType = watch('addressType')
+  const customLabel = watch('customLabel')
   const addressLine1 = watch('addressLine1')
   const addressLine2 = watch('addressLine2')
   const landmark = watch('landmark')
@@ -221,8 +231,13 @@ export function AddressFormModal({
       )
     }
 
+    const savedType =
+      values.addressType === 'other'
+        ? values.customLabel.trim() || 'Other'
+        : values.addressType
+
     const payload: CreateAddressInput = {
-      addressType: values.addressType,
+      addressType: savedType,
       fullName: values.fullName,
       phone: values.phone,
       addressLine1: values.addressLine1,
@@ -301,6 +316,13 @@ export function AddressFormModal({
             longitude={pinnedCoords?.longitude ?? null}
             onChange={handleMapChange}
             autoLocateOnMount={isChopsticks && !isEditing}
+            initialMode={
+              (isEditing
+                ? 'search'
+                : isChopsticks
+                  ? 'auto'
+                  : 'search') as LocationMode
+            }
           />
 
           {/* Delivery distance status badge ΓÇö only shown when pinned */}
@@ -345,39 +367,77 @@ export function AddressFormModal({
           )}
         </div>
 
-        {/* ΓöÇΓöÇ Address type pills ΓöÇΓöÇ */}
-        <div className="flex items-center gap-2">
-          <span className="shrink-0 text-xs font-medium text-text-secondary">Type</span>
-          {ADDRESS_TYPE_OPTIONS.map(({ value, label, Icon }) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setValue('addressType', value, { shouldDirty: true })}
-              className={cn(
-                'flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
-                addressType === value
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-gray-200 text-text-secondary hover:border-primary/30 hover:text-text-primary',
-              )}
-            >
-              <Icon className="h-3 w-3" aria-hidden="true" />
-              {label}
-            </button>
-          ))}
+        {/* Save as — Home / Work / named place */}
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-text-secondary">
+            Save as
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            {ADDRESS_TYPE_OPTIONS.map(({ value, label, Icon }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() =>
+                  setValue('addressType', value, { shouldDirty: true })
+                }
+                className={cn(
+                  'flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
+                  addressType === value
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-gray-200 text-text-secondary hover:border-primary/30 hover:text-text-primary',
+                )}
+              >
+                <Icon className="h-3 w-3" aria-hidden="true" />
+                {label}
+              </button>
+            ))}
+          </div>
+          {addressType === 'other' ? (
+            <Input
+              label="Name this place"
+              placeholder="e.g. Mom's house, Client office, Gym"
+              error={errors.customLabel?.message}
+              value={customLabel}
+              {...register('customLabel', {
+                validate: (value) => {
+                  if (getValues('addressType') !== 'other') return true
+                  const name = value.trim()
+                  if (name.length < 2) {
+                    return 'Give this address a name so you can find it later'
+                  }
+                  if (name.length > 40) {
+                    return 'Keep the name under 40 characters'
+                  }
+                  return true
+                },
+              })}
+              onChange={(e) =>
+                setValue('customLabel', e.target.value, {
+                  shouldValidate: true,
+                  shouldDirty: true,
+                })
+              }
+            />
+          ) : null}
         </div>
 
-        {/* Contact row */}
+        {/* Recipient — can be the customer or someone else */}
         <div className="grid gap-3 sm:grid-cols-2">
           <Input
-            label={isChopsticks ? 'Full Name (optional)' : 'Full Name'}
+            label={
+              isChopsticks
+                ? 'Recipient name (optional)'
+                : 'Recipient name'
+            }
+            placeholder="Who should receive this order"
             error={errors.fullName?.message}
             {...register(
               'fullName',
-              isChopsticks ? undefined : { required: 'Full name is required' },
+              isChopsticks ? undefined : { required: 'Recipient name is required' },
             )}
           />
           <Input
-            label={isChopsticks ? 'Phone (optional)' : 'Phone'}
+            label={isChopsticks ? 'Recipient phone (optional)' : 'Recipient phone'}
             type="tel"
             inputMode="numeric"
             placeholder="10-digit mobile"
@@ -392,7 +452,7 @@ export function AddressFormModal({
                       'Enter a valid 10-digit number',
                   }
                 : {
-                    required: 'Phone is required',
+                    required: 'Recipient phone is required',
                     pattern: {
                       value: /^\d{10}$/,
                       message: 'Enter a valid 10-digit number',

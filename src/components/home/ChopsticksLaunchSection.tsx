@@ -49,6 +49,15 @@ export function ChopsticksLaunchSection() {
               <ArrowRight className="h-4 w-4" aria-hidden />
             </Button>
           </Link>
+          <Link to={ROUTES.MENU} className="inline-flex w-full sm:w-auto">
+            <Button
+              size="lg"
+              variant="secondary"
+              className="h-auto min-h-12 w-full py-2.5 sm:w-auto"
+            >
+              View Menu
+            </Button>
+          </Link>
           {whatsApp.orderUrl ? (
             <a
               href={whatsApp.orderUrl}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Crosshair, MapPin } from 'lucide-react'
+import { Crosshair, MapPin, PenLine, Search } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import {
   EMPTY_RESOLVED_PLACE,
@@ -13,20 +13,30 @@ import {
 } from '@/utils/googleMaps'
 import { cn } from '@/utils/cn'
 
+export type LocationMode = 'search' | 'auto' | 'manual'
+
 interface LocationPickerProps {
   latitude: number | null
   longitude: number | null
   onChange: (place: ResolvedPlace) => void
   required?: boolean
   error?: string
-  /** When true, request GPS once the map is ready and fill the pin + address. */
+  /** When true, kick off auto-detect once the map is ready (new address). */
   autoLocateOnMount?: boolean
+  /** Initial mode. Defaults to 'search'. */
+  initialMode?: LocationMode
 }
 
 // Centred on India so the first view is useful before a pin is dropped.
 const FALLBACK_CENTER = { lat: 20.5937, lng: 78.9629 }
 const FALLBACK_ZOOM = 5
 const PINNED_ZOOM = 17
+
+const MODE_TABS: { id: LocationMode; label: string; Icon: React.ElementType }[] = [
+  { id: 'search', label: 'Search location', Icon: Search },
+  { id: 'auto', label: 'Auto-detect', Icon: Crosshair },
+  { id: 'manual', label: 'Enter manually', Icon: PenLine },
+]
 
 export function LocationPicker({
   latitude,
@@ -35,6 +45,7 @@ export function LocationPicker({
   required = false,
   error,
   autoLocateOnMount = false,
+  initialMode = 'search',
 }: LocationPickerProps) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const searchInputRef = useRef<HTMLInputElement | null>(null)
@@ -43,6 +54,7 @@ export function LocationPicker({
   const mapsRef = useRef<typeof google.maps | null>(null)
   const didAutoLocateRef = useRef(false)
 
+  const [mode, setMode] = useState<LocationMode>(initialMode)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [isLocating, setIsLocating] = useState(false)
   const [isLookingUp, setIsLookingUp] = useState(false)
@@ -98,6 +110,7 @@ export function LocationPicker({
 
   useEffect(() => {
     if (!isGoogleMapsConfigured) return
+    if (mode === 'manual') return
 
     let cancelled = false
 
@@ -125,15 +138,12 @@ export function LocationPicker({
           clickableIcons: false,
         })
 
-        // maps.Marker is deprecated in the new Maps JS API; it may be undefined.
-        // Prefer AdvancedMarkerElement when available.
-        let marker: google.maps.Marker
         const MarkerClass = maps.Marker as typeof google.maps.Marker | undefined
         if (!MarkerClass) {
           setLoadError('Map marker library failed to load. Try refreshing.')
           return
         }
-        marker = new MarkerClass({
+        const marker = new MarkerClass({
           map,
           position: center,
           draggable: true,
@@ -157,8 +167,6 @@ export function LocationPicker({
         })
 
         if (searchInputRef.current) {
-          // maps.places may not be available if the Places library failed to
-          // load; fall back gracefully so the geocode path still works.
           const PlacesAutocomplete = maps.places?.Autocomplete as
             | (new (
                 input: HTMLInputElement,
@@ -215,7 +223,7 @@ export function LocationPicker({
         mapContainerRef.current.innerHTML = ''
       }
     }
-  }, [commitPosition])
+  }, [commitPosition, mode])
 
   // Reflect coordinates supplied by the parent, e.g. when editing an address.
   useEffect(() => {
@@ -267,8 +275,6 @@ export function LocationPicker({
   const handleSearchBlur = () => {
     const input = searchInputRef.current
     if (!input) return
-    // If the typed text doesn't map to a selected Places suggestion, run the
-    // geocode fallback so address fields still get populated.
     if (!input.value.trim()) return
     window.setTimeout(() => {
       triggerSearchFromInput()
@@ -300,119 +306,189 @@ export function LocationPicker({
         setIsLocating(false)
         if (geoError.code === geoError.PERMISSION_DENIED) {
           setLoadError(
-            'Location permission was blocked. Allow location for this site, or search / tap the map.',
+            'Location permission was blocked. Allow location for this site in your browser settings, then try again.',
           )
           return
         }
         setLoadError(
-          'Could not read your GPS. Search for your area or tap the map instead.',
+          'Could not read your GPS. Try searching for your area or tap the map instead.',
         )
       },
       { enableHighAccuracy: true, timeout: 10000 },
     )
   }
 
+  // Auto-detect on mount (when autoLocateOnMount is true and mode is 'auto').
   useEffect(() => {
     if (!autoLocateOnMount || !mapReady || didAutoLocateRef.current) return
-    // Editing an existing pin — do not overwrite with GPS.
     if (latitude !== null && longitude !== null) return
+    if (mode !== 'auto') return
     didAutoLocateRef.current = true
     handleUseMyLocation()
-    // Intentionally once when the map becomes ready for a new address.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- auto-locate once on open
-  }, [autoLocateOnMount, mapReady, latitude, longitude])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoLocateOnMount, mapReady, latitude, longitude, mode])
+
+  const handleModeChange = (newMode: LocationMode) => {
+    setMode(newMode)
+    setLoadError(null)
+    // When switching to auto mode, reset the auto-locate guard so it can fire.
+    if (newMode === 'auto') {
+      didAutoLocateRef.current = false
+    }
+  }
 
   if (!isGoogleMapsConfigured) {
     return (
       <div className="rounded-[var(--radius-card)] border border-dashed border-warning/40 bg-warning/5 p-4 text-sm text-text-secondary">
-        Map pin is unavailable on this site. You can still type your address.
-        Delivery distance and shipping may be less accurate until maps are
-        enabled.
+        Map pin is unavailable on this site. You can still type your address in the fields below.
+        Delivery distance and shipping may be less accurate until maps are enabled.
       </div>
     )
   }
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <div className="relative flex-1">
-          <MapPin
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary"
-            aria-hidden="true"
-          />
-          <input
-            ref={searchInputRef}
-            type="search"
-            placeholder="Search your building, street or area"
-            aria-label="Search for your delivery location"
-            aria-invalid={Boolean(error)}
-            aria-describedby={error ? 'location-pin-error' : undefined}
-            onKeyDown={handleSearchKeyDown}
-            onBlur={handleSearchBlur}
-            autoComplete="off"
+      {/* Mode tabs */}
+      <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
+        {MODE_TABS.map(({ id, label, Icon }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => handleModeChange(id)}
             className={cn(
-              'h-12 w-full rounded-[var(--radius-input)] border bg-surface pl-9 pr-4 text-sm text-text-primary transition-colors placeholder:text-text-secondary focus:outline-none focus:ring-2',
-              error
-                ? 'border-error focus:border-error focus:ring-error/20'
-                : 'border-gray-300 focus:border-primary focus:ring-primary/20',
+              'flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-all',
+              mode === id
+                ? 'bg-white text-text-primary shadow-sm'
+                : 'text-text-secondary hover:text-text-primary',
             )}
-          />
-        </div>
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={triggerSearchFromInput}
-          disabled={isLookingUp}
-          className="shrink-0"
-        >
-          {isLookingUp ? 'Searching...' : 'Search'}
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={handleUseMyLocation}
-          disabled={isLocating || isLookingUp}
-          className="shrink-0"
-        >
-          <Crosshair className="h-4 w-4" aria-hidden="true" />
-          {isLocating
-            ? 'Locating...'
-            : isLookingUp
-              ? 'Finding address...'
-              : 'Use my location'}
-        </Button>
+          >
+            <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span className="hidden sm:inline">{label}</span>
+            <span className="sm:hidden">
+              {id === 'search' ? 'Search' : id === 'auto' ? 'Auto' : 'Manual'}
+            </span>
+          </button>
+        ))}
       </div>
 
+      {/* Search mode */}
+      {mode === 'search' && (
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="relative flex-1">
+            <MapPin
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary"
+              aria-hidden="true"
+            />
+            <input
+              ref={searchInputRef}
+              type="search"
+              placeholder="Search your building, street or area"
+              aria-label="Search for your delivery location"
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? 'location-pin-error' : undefined}
+              onKeyDown={handleSearchKeyDown}
+              onBlur={handleSearchBlur}
+              autoComplete="off"
+              className={cn(
+                'h-12 w-full rounded-[var(--radius-input)] border bg-surface pl-9 pr-4 text-sm text-text-primary transition-colors placeholder:text-text-secondary focus:outline-none focus:ring-2',
+                error
+                  ? 'border-error focus:border-error focus:ring-error/20'
+                  : 'border-gray-300 focus:border-primary focus:ring-primary/20',
+              )}
+            />
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={triggerSearchFromInput}
+            disabled={isLookingUp}
+            className="shrink-0"
+          >
+            {isLookingUp ? 'Searching...' : 'Search'}
+          </Button>
+        </div>
+      )}
+
+      {/* Auto-detect mode */}
+      {mode === 'auto' && (
+        <div className="flex flex-col items-start gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
+          <p className="text-sm text-text-secondary">
+            We'll use your device's GPS to pin your location and fill in the address fields.
+            You can edit any field after detection.
+          </p>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => {
+              didAutoLocateRef.current = false
+              handleUseMyLocation()
+            }}
+            disabled={isLocating || isLookingUp}
+          >
+            <Crosshair className="h-4 w-4" aria-hidden="true" />
+            {isLocating
+              ? 'Detecting location…'
+              : isLookingUp
+                ? 'Finding address…'
+                : latitude !== null
+                  ? 'Re-detect my location'
+                  : 'Detect my location'}
+          </Button>
+          {latitude !== null && longitude !== null && !isLocating && !isLookingUp && (
+            <p className="text-xs text-green-700">
+              Location detected — edit the fields below if needed.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Manual mode */}
+      {mode === 'manual' && (
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+          <p className="text-sm text-text-secondary">
+            Fill in your address details manually in the fields below.
+          </p>
+        </div>
+      )}
+
+      {/* Error message */}
       {loadError ? (
         <p className="text-sm text-error" role="alert">
           {loadError}
         </p>
       ) : null}
 
-      <div
-        ref={mapContainerRef}
-        className={cn(
-          'h-56 w-full overflow-hidden rounded-[var(--radius-card)] border bg-background',
-          error ? 'border-error' : 'border-gray-200',
-        )}
-        role="application"
-        aria-label="Delivery location map"
-        aria-invalid={Boolean(error)}
-      />
-      {error ? (
-        <p id="location-pin-error" className="text-xs text-error" role="alert">
-          {error}
-        </p>
-      ) : (
-        <p className="text-xs text-text-secondary">
-          {isLookingUp
-            ? 'Looking up the address for this pin…'
-            : latitude !== null && longitude !== null
-              ? 'Address fields below update from this pin. Edit house number or landmark if needed.'
-              : required
-                ? 'Pick a suggestion, press Enter, use your location, or tap the map.'
-                : 'Search above or tap the map to drop a pin. This sets your delivery charge.'}
-        </p>
+      {/* Map — shown for search and auto modes */}
+      {mode !== 'manual' && (
+        <>
+          <div
+            ref={mapContainerRef}
+            className={cn(
+              'h-56 w-full overflow-hidden rounded-[var(--radius-card)] border bg-background',
+              error ? 'border-error' : 'border-gray-200',
+            )}
+            role="application"
+            aria-label="Delivery location map"
+            aria-invalid={Boolean(error)}
+          />
+          {error ? (
+            <p id="location-pin-error" className="text-xs text-error" role="alert">
+              {error}
+            </p>
+          ) : (
+            <p className="text-xs text-text-secondary">
+              {isLookingUp
+                ? 'Looking up the address for this pin…'
+                : latitude !== null && longitude !== null
+                  ? 'Address fields below update from this pin. Edit house number or landmark if needed.'
+                  : mode === 'search'
+                    ? required
+                      ? 'Pick a suggestion, press Enter, or tap the map to drop a pin.'
+                      : 'Search above or tap the map to drop a pin. This sets your delivery charge.'
+                    : 'Tap "Detect my location" above, or tap the map to place a pin manually.'}
+            </p>
+          )}
+        </>
       )}
     </div>
   )

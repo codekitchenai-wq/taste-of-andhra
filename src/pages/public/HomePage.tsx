@@ -36,13 +36,23 @@ export default function HomePage() {
     }
   }, [org.organizationId, org.settings])
 
-  // Chopsticks: website launch + Onam landing + reel + optional Google reviews.
+  // Chopsticks: Onam landing first, then the regular menu when it is enabled.
   if (isChopsticks) {
     return (
       <>
         <HeroSection />
         <ChopsticksLaunchSection />
         <OnamReelSection />
+        {showMenuSections ? (
+          isLoading ? (
+            <LoadingState variant="inline" className="py-16" />
+          ) : (
+            <>
+              <FeaturedCategories categories={categories} />
+              <FeaturedDishes dishes={dishes} />
+            </>
+          )
+        ) : null}
         {showGoogleReviews ? <GoogleReviews /> : null}
       </>
     )

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  extractPincodeFromResults,
   parsePlaceComponents,
   pickBestGeocodeResult,
   mergeResolvedPlaces,
@@ -31,7 +32,7 @@ describe('parsePlaceComponents', () => {
       'Harsha Pride, 12 29th C Cross Rd, Kaggadasapura, Bengaluru, Karnataka 560093',
     )
 
-    expect(parsed.addressLine1).toBe('Harsha Pride 12 29th C Cross Rd')
+    expect(parsed.addressLine1).toBe('Harsha Pride, 12, 29th C Cross Rd')
     expect(parsed.addressLine2).toBe('Kaggadasapura')
     expect(parsed.landmark).toBe('Kaggadasapura')
     expect(parsed.city).toBe('Bengaluru')
@@ -48,6 +49,26 @@ describe('parsePlaceComponents', () => {
     expect(parsed.addressLine1).toBe('Some Building')
     expect(parsed.city).toBe('Hyderabad')
   })
+
+  it('maps Indian locality components onto floor/area and landmark', () => {
+    const parsed = parsePlaceComponents(
+      [
+        component(['route'], 'Baner Road'),
+        component(['sublocality_level_2'], 'Balewadi'),
+        component(['sublocality_level_1'], 'Baner'),
+        component(['locality'], 'Pune'),
+        component(['administrative_area_level_1'], 'Maharashtra'),
+        component(['postal_code'], '411045'),
+      ],
+      'Baner Road, Balewadi, Baner, Pune, Maharashtra 411045',
+    )
+
+    expect(parsed.addressLine1).toBe('Baner Road')
+    expect(parsed.addressLine2).toBe('Balewadi')
+    expect(parsed.landmark).toBe('Balewadi')
+    expect(parsed.city).toBe('Pune')
+    expect(parsed.pincode).toBe('411045')
+  })
 })
 
 describe('pickBestGeocodeResult', () => {
@@ -61,6 +82,33 @@ describe('pickBestGeocodeResult', () => {
     ])
 
     expect(best?.types).toEqual(['street_address'])
+  })
+
+  it('keeps a street result even when the pincode is on another entry', () => {
+    const best = pickBestGeocodeResult([
+      { types: ['route'], address_components: [{ types: ['route'] }] },
+      {
+        types: ['postal_code'],
+        address_components: [{ types: ['postal_code'], long_name: '411014' }],
+      },
+    ])
+
+    expect(best?.types).toEqual(['route'])
+  })
+})
+
+describe('extractPincodeFromResults', () => {
+  it('reads the pincode from a later geocode result', () => {
+    expect(
+      extractPincodeFromResults([
+        { address_components: [{ types: ['route'], long_name: 'Baner Road' }] },
+        {
+          address_components: [
+            { types: ['postal_code'], long_name: '411014' },
+          ],
+        },
+      ]),
+    ).toBe('411014')
   })
 })
 

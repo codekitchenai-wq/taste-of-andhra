@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { hasLocationPin } from './mapAddress'
+import {
+  addressTypeKind,
+  formatAddressLabel,
+  hasLocationPin,
+} from './mapAddress'
 import type { Address } from '@/types/Address'
 
 function address(
@@ -31,5 +35,30 @@ describe('hasLocationPin', () => {
     expect(hasLocationPin(address({ longitude: Number.POSITIVE_INFINITY }))).toBe(
       false,
     )
+  })
+})
+
+describe('formatAddressLabel', () => {
+  it('names preset types Home and Work', () => {
+    expect(formatAddressLabel('home')).toBe('Home')
+    expect(formatAddressLabel('work')).toBe('Work')
+  })
+
+  it('keeps a custom place name', () => {
+    expect(formatAddressLabel("Mom's house")).toBe("Mom's house")
+    expect(formatAddressLabel('Office 2')).toBe('Office 2')
+  })
+
+  it('falls back to Other', () => {
+    expect(formatAddressLabel('other')).toBe('Other')
+    expect(formatAddressLabel('')).toBe('Other')
+  })
+})
+
+describe('addressTypeKind', () => {
+  it('treats custom names as other', () => {
+    expect(addressTypeKind('home')).toBe('home')
+    expect(addressTypeKind('work')).toBe('work')
+    expect(addressTypeKind("Mom's house")).toBe('other')
   })
 })

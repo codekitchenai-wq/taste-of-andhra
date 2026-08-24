@@ -7,7 +7,7 @@ import { ONAM_SADHYA } from '@/constants/ONAM_SADHYA'
 import { useDeliverySettings } from '@/hooks/useDeliverySettings'
 import { useSelectedBranch } from '@/hooks/useSelectedBranch'
 import type { Address } from '@/types/Address'
-import { formatAddressLine } from '@/utils/mapAddress'
+import { formatAddressLabel, formatAddressLine } from '@/utils/mapAddress'
 import {
   distanceToRestaurantKm,
   isWithinNearbyDelivery,
@@ -159,7 +159,10 @@ export function OnamDeliveryAddress({
             />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-text-primary">
-                {selected.full_name}
+                {formatAddressLabel(selected.address_type)}
+              </p>
+              <p className="mt-1 text-sm text-text-secondary">
+                Deliver to {selected.full_name}
               </p>
               <p className="mt-1 text-sm text-text-secondary">
                 {formatAddressLine(selected)}

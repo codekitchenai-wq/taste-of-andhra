@@ -136,22 +136,39 @@ export function parsePlaceComponents(
   const streetNumber = componentOf(components, 'street_number')
   const route = componentOf(components, 'route')
   const premise = componentOf(components, 'premise')
+  const subpremise = componentOf(components, 'subpremise')
+
+  // Google India rarely returns street_number for residential pins.
+  // sublocality_level_2 is often the colony/layout name; sublocality_level_1
+  // is the broader neighbourhood (e.g. "Baner").
+  const sublocality2 = componentOf(components, 'sublocality_level_2')
+  const sublocality1 = componentOf(components, 'sublocality_level_1')
   const neighborhood = componentOf(components, 'neighborhood')
-  const sublocality =
-    componentOf(components, 'sublocality_level_1') ||
-    componentOf(components, 'sublocality') ||
-    neighborhood
+  const sublocality = sublocality1 || sublocality2 || neighborhood
 
-  const street =
-    [premise, streetNumber, route].filter(Boolean).join(' ').trim()
-  const addressLine1 =
-    street ||
-    sublocality ||
-    formattedAddress.split(',')[0]?.trim() ||
-    formattedAddress
+  // addressLine1: most specific street-level info available.
+  // Prefer premise (named building) + route. If neither, use the first
+  // comma-segment of the formatted address which is typically the building
+  // name or street returned by Google.
+  const streetParts = [subpremise, premise, streetNumber, route]
+    .filter(Boolean)
+    .join(', ')
+    .trim()
 
-  const addressLine2 = street && sublocality ? sublocality : ''
-  const landmark = neighborhood || sublocality || premise
+  const firstFormattedSegment = formattedAddress.split(',')[0]?.trim() ?? ''
+
+  const addressLine1 = streetParts || firstFormattedSegment || sublocality
+
+  // addressLine2: area/colony, only when we already have a street in line 1.
+  // Use sublocality_level_2 (colony) or sublocality_level_1 (area) as the
+  // neighbourhood detail.
+  const addressLine2 = streetParts
+    ? (sublocality2 || sublocality1 || neighborhood)
+    : ''
+
+  // Landmark: prefer the more specific sublocality_level_2 (colony/layout)
+  // so it's different from the city-level sublocality in line 1.
+  const landmark = sublocality2 || neighborhood || sublocality1 || premise
 
   return {
     addressLine1,
@@ -159,7 +176,6 @@ export function parsePlaceComponents(
     landmark,
     city:
       componentOf(components, 'locality') ||
-      componentOf(components, 'postal_town') ||
       componentOf(components, 'administrative_area_level_3') ||
       componentOf(components, 'administrative_area_level_2'),
     state: componentOf(components, 'administrative_area_level_1'),
@@ -178,16 +194,54 @@ export function pickBestGeocodeResult<
       component.types.includes('postal_code'),
     )
 
-  const street = results.find(
+  // Tier 1: street-level result that also has a pincode — most complete.
+  const streetWithPostal = results.find(
     (result) =>
       result.types?.some((type) =>
         ['street_address', 'premise', 'subpremise', 'route'].includes(type),
       ) && hasPostal(result),
   )
+  if (streetWithPostal) return streetWithPostal
+
+  // Tier 2: any street-level result (no pincode — we may get it from another result).
+  const street = results.find((result) =>
+    result.types?.some((type) =>
+      ['street_address', 'premise', 'subpremise', 'route'].includes(type),
+    ),
+  )
+
+  // Tier 3: sublocality or neighbourhood result with a pincode (common in India).
+  const sublocalityWithPostal = results.find(
+    (result) =>
+      result.types?.some((type) =>
+        ['sublocality', 'neighborhood', 'political'].includes(type),
+      ) && hasPostal(result),
+  )
+
+  // Prefer street over sublocality, but if neither has pincode, merge by
+  // returning the street result — the caller can separately extract pincode
+  // from the first result with a postal_code.
   if (street) return street
+  if (sublocalityWithPostal) return sublocalityWithPostal
 
   const withPostal = results.find(hasPostal)
   return withPostal ?? results[0]
+}
+
+/**
+ * Extracts the pincode from the first geocode result that has one.
+ * Used to patch a street-level result that lacks a postal_code component.
+ */
+export function extractPincodeFromResults<
+  T extends { address_components?: { types: string[]; long_name: string }[] },
+>(results: T[]): string {
+  for (const result of results) {
+    const postal = result.address_components?.find((c) =>
+      c.types.includes('postal_code'),
+    )
+    if (postal?.long_name) return postal.long_name
+  }
+  return ''
 }
 
 function placeFromGeocodeResult(
@@ -195,14 +249,11 @@ function placeFromGeocodeResult(
   latitude: number,
   longitude: number,
 ): ResolvedPlace {
-  return {
-    latitude,
-    longitude,
-    ...parsePlaceComponents(
-      result.address_components ?? [],
-      result.formatted_address ?? '',
-    ),
-  }
+  const parsed = parsePlaceComponents(
+    result.address_components ?? [],
+    result.formatted_address ?? '',
+  )
+  return { latitude, longitude, ...parsed }
 }
 
 export type GeocodeLookupResult =
@@ -250,10 +301,15 @@ export async function reverseGeocode(
       }
     }
 
-    return {
-      ok: true,
-      place: placeFromGeocodeResult(best, latitude, longitude),
+    const place = placeFromGeocodeResult(best, latitude, longitude)
+
+    // If the best result has no pincode, try to pull it from any other result
+    // that does — Google frequently puts the postal_code on a separate entry.
+    if (!place.pincode) {
+      place.pincode = extractPincodeFromResults(results)
     }
+
+    return { ok: true, place }
   } catch (error: unknown) {
     return { ok: false, message: geocodeFailureMessage(error) }
   }

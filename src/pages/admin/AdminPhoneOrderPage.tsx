@@ -35,7 +35,7 @@ import type { FulfillmentType } from '@/types/enums'
 import type { Offer } from '@/types/Offer'
 import type { Profile } from '@/types/Profile'
 import type { DishWithCategory } from '@/utils/mapDish'
-import { formatAddressLine } from '@/utils/mapAddress'
+import { formatAddressLabel, formatAddressLine } from '@/utils/mapAddress'
 import { calculateOrderTotals } from '@/utils/orderTotals'
 import { formatPrice } from '@/utils/format'
 import { useOrganization } from '@/contexts/OrganizationContext'
@@ -1026,7 +1026,7 @@ export default function AdminPhoneOrderPage() {
                   options={[
                     { label: 'Enter a new address', value: '' },
                     ...addresses.map((address) => ({
-                      label: `${address.full_name} — ${formatAddressLine(address)}`,
+                      label: `${formatAddressLabel(address.address_type)} — ${formatAddressLine(address)}`,
                       value: address.id,
                     })),
                   ]}

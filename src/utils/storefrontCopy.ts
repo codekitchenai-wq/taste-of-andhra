@@ -56,14 +56,14 @@ export function isSpiceMalabarStorefront(org: OrganizationContextValue) {
   return isSpiceMalabar(org)
 }
 
-/** Public /menu (and light menu) — off for Chopsticks (Onam + contact only). */
-export function storefrontPublicMenuEnabled(org: OrganizationContextValue) {
-  return !isSpiceMalabar(org)
+/** Public /menu and /light-menu for the current restaurant. */
+export function storefrontPublicMenuEnabled(_org: OrganizationContextValue) {
+  return true
 }
 
-/** Public /party-order — off for Chopsticks. */
-export function storefrontPartyOrdersEnabled(org: OrganizationContextValue) {
-  return !isSpiceMalabar(org)
+/** Public /party-order for the current restaurant. */
+export function storefrontPartyOrdersEnabled(_org: OrganizationContextValue) {
+  return true
 }
 
 /** QA footer/login helpers — current restaurant only, never other tenants’ logins. */
@@ -71,8 +71,6 @@ export function showStorefrontQaHelpers(org: OrganizationContextValue) {
   if (!SHOW_TEST_HELPERS) return false
   if (org.isLoading) return false
   if (isPlatformMarketingHost()) return false
-  // Chopsticks production storefront — no demo credential panel.
-  if (isSpiceMalabarSlug(org.slug)) return false
   return true
 }
 
