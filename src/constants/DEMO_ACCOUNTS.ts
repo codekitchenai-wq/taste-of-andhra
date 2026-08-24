@@ -34,6 +34,30 @@ export const SHOW_TEST_HELPERS = true
 /** Shared password for all seeded test personas (including DirectApp Master). */
 export const DEMO_PASSWORD = 'Test@123'
 
+/**
+ * Extra Chopsticks delivery logins created for roster partners (phone@domain).
+ * Password matches DEMO_PASSWORD. Keep in sync with Admin → Delivery Partners.
+ */
+export function chopsticksDeliveryTestAccounts(): DemoAccount[] {
+  return [
+    {
+      email: '7760071234@chopsticksspicemalabar.test',
+      password: DEMO_PASSWORD,
+      fullName: 'Ravi',
+      phone: '7760071234',
+      role: 'delivery',
+      group: 'Ravi (roster)',
+      tenant: 'Chopstick Spice Malabar',
+      tenantSlug: SPICE_MALABAR_SLUG,
+    },
+  ]
+}
+
+function isChopsticksSlug(slug: string | null | undefined): boolean {
+  const value = slug?.trim().toLowerCase() ?? ''
+  return value === SPICE_MALABAR_SLUG || value === 'spice-malabar'
+}
+
 const PERSONA_META: Record<
   AppPersonaRole,
   { fullNamePrefix: string; phoneOffset: number }
@@ -202,9 +226,15 @@ export function accountsForRole(
   tenantSlug?: string | null,
 ): DemoAccount[] {
   if (role === 'platform_master') return [MASTER_ACCOUNT]
-  return tenantPersonaAccounts({
+  const accounts = tenantPersonaAccounts({
     slug: tenantSlug || TASTE_OF_ANDHRA_SLUG,
   }).filter((account) => account.role === role)
+
+  if (role === 'delivery' && isChopsticksSlug(tenantSlug)) {
+    return [...accounts, ...chopsticksDeliveryTestAccounts()]
+  }
+
+  return accounts
 }
 
 export function primaryAccountForRole(

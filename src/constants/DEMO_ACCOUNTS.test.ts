@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   DEMO_PASSWORD,
   MASTER_ACCOUNT,
+  accountsForRole,
   demoEmailSlug,
   demoPersonaEmail,
   primaryAccountForRole,
@@ -42,6 +43,17 @@ describe('demo persona emails', () => {
     )
     expect(MASTER_ACCOUNT.password).toBe(DEMO_PASSWORD)
     expect(tenantPersonaAccounts({ slug: 'devihomefoods' })).toHaveLength(3)
+  })
+
+  it('lists Chopsticks roster delivery logins for QA', () => {
+    const delivery = accountsForRole('delivery', 'chopsticksspicemalabar')
+    expect(delivery.map((account) => account.email)).toEqual([
+      'demodelivery@chopsticksspicemalabar.test',
+      '7760071234@chopsticksspicemalabar.test',
+    ])
+    expect(delivery.every((account) => account.password === DEMO_PASSWORD)).toBe(
+      true,
+    )
   })
 })
 

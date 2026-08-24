@@ -73,26 +73,26 @@ export function TestCredentialsHint({
           <p className="text-xs font-medium text-text-primary">
             Additional {ROLE_LABELS[role]} accounts
           </p>
-          <ul className="mt-2 space-y-2">
+          <ul className="mt-2 space-y-3">
             {others.map((account) => (
               <li key={account.email} className="text-xs text-text-secondary">
-                <span className="font-medium text-text-primary">
-                  {account.group ?? account.fullName}:
-                </span>{' '}
-                <span className="break-all font-mono">{account.email}</span>
+                <p className="font-medium text-text-primary">
+                  {account.group ?? account.fullName}
+                </p>
+                <p className="mt-0.5 break-all font-mono">{account.email}</p>
+                <p className="mt-0.5 font-mono">
+                  Password: {account.password}
+                </p>
                 {onUseCredentials ? (
-                  <>
-                    {' · '}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onUseCredentials(account.email, account.password)
-                      }
-                      className="font-medium text-primary hover:underline"
-                    >
-                      Fill
-                    </button>
-                  </>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onUseCredentials(account.email, account.password)
+                    }
+                    className="mt-1 font-medium text-primary hover:underline"
+                  >
+                    Fill form
+                  </button>
                 ) : null}
               </li>
             ))}

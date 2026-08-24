@@ -9,14 +9,21 @@ import { Input } from '@/components/ui/Input'
 import { LoadingState } from '@/components/ui/LoadingState'
 import { Modal } from '@/components/ui/Modal'
 import { MIN_PASSWORD_LENGTH } from '@/constants/AUTH'
+import {
+  DEMO_PASSWORD,
+  accountsForRole,
+} from '@/constants/DEMO_ACCOUNTS'
+import { useOrganization } from '@/contexts/OrganizationContext'
 import toast from 'react-hot-toast'
 import * as branchService from '@/services/branchService'
 import * as deliveryPartnerService from '@/services/deliveryPartnerService'
 import type { Branch } from '@/types/Branch'
 import type { DeliveryPartner } from '@/types/DeliveryPartner'
 import { formatIndianPhone } from '@/utils/phone'
+import { showStorefrontQaHelpers } from '@/utils/storefrontCopy'
 
 export default function AdminDeliveryPartnersPage() {
+  const org = useOrganization()
   const [partners, setPartners] = useState<DeliveryPartner[]>([])
   const [branches, setBranches] = useState<Branch[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -30,6 +37,11 @@ export default function AdminDeliveryPartnersPage() {
     useState<DeliveryPartner | null>(null)
   const [newPassword, setNewPassword] = useState('')
   const [isSavingPassword, setIsSavingPassword] = useState(false)
+
+  const testDeliveryLogins = useMemo(() => {
+    if (!showStorefrontQaHelpers(org)) return []
+    return accountsForRole('delivery', org.slug)
+  }, [org])
 
   const branchNameById = useMemo(() => {
     const map = new Map<string, string>()
@@ -169,6 +181,30 @@ export default function AdminDeliveryPartnersPage() {
           Add Partner
         </Button>
       </div>
+
+      {testDeliveryLogins.length > 0 ? (
+        <div className="rounded-[var(--radius-card)] border border-dashed border-black/15 bg-background px-4 py-3 text-sm">
+          <p className="font-medium text-text-primary">
+            Test delivery logins · password {DEMO_PASSWORD}
+          </p>
+          <p className="mt-1 text-xs text-text-secondary">
+            Temporary QA helpers. Share with testers only.
+          </p>
+          <ul className="mt-3 space-y-2">
+            {testDeliveryLogins.map((account) => (
+              <li key={account.email} className="text-xs text-text-secondary">
+                <span className="font-medium text-text-primary">
+                  {account.group ?? account.fullName}
+                </span>
+                {' · '}
+                <span className="break-all font-mono">{account.email}</span>
+                {' · '}
+                <span className="font-mono">{account.password}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {isLoading && <LoadingState variant="inline" />}
 
